@@ -1,0 +1,1 @@
+{"nodes": [{"id": "src_spectre_config_py_settings", "label": "App Configuration Settings", "file_type": "code", "source_file": "src/spectre/config.py", "source_location": {"line": 16}, "captured_at": "2024-05-15T10:00:00Z", "rationale": "Single source of truth for app settings, utilizing Pydantic for validation and env-file support."}], "edges": [], "hyperedges": []}

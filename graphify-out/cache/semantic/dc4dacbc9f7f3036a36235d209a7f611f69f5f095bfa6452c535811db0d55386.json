@@ -1,0 +1,1 @@
+{"nodes": [{"id": "image_preprocessor_imagepreprocessor", "label": "ImagePreprocessor", "file_type": "code", "source_file": "src/spectre/infrastructure/ml/image_preprocessor.py", "source_location": 31}], "edges": [], "hyperedges": []}

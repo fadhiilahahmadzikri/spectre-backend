@@ -1,0 +1,122 @@
+# ==============================================================================
+# Spectre — Hugging Face Spaces Upload Ignore
+# Files listed here will NOT be uploaded to the Space.
+# ==============================================================================
+
+# --- Virtual Environment ---
+.venv/
+venv/
+env/
+
+# --- Git ---
+.git/
+.gitignore
+
+# --- Python caches ---
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Environment (secrets!) ---
+.env
+.env.local
+.env.*.local
+
+# --- Agents / Conductor (dev tooling) ---
+.agents/
+.conductor/
+
+# --- Testing ---
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Local database ---
+spectre.db
+
+# --- Local Docker files (not needed on HF) ---
+docker-compose*.yml
+Dockerfile.local
+Makefile
+
+# --- Dev config ---
+ruff.toml
+.python-version
+
+# --- Documentation (optional) ---
+Docs/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- POC Frontend (served separately or not needed for API) ---
+poc/
+
+# --- Node ---
+node_modules/
+
+# --- uv lock (regenerated during build) ---
+uv.lock
+
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+.env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Build output
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Model cache
+.cache/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# Logs & temp
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+
+poc/

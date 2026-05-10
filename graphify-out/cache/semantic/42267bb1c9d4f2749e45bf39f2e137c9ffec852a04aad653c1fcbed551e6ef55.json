@@ -1,0 +1,1 @@
+{"nodes": [{"id": "liveness_result_livenessresult", "label": "LivenessResult", "file_type": "code", "source_file": "src/spectre/domain/value_objects/liveness_result.py", "source_location": 20}], "edges": [], "hyperedges": []}

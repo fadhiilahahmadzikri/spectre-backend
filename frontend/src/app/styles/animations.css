@@ -1,0 +1,131 @@
+@keyframes drawRing {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawTick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.78);
+  }
+}
+
+@keyframes dotPulseRing {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes iqaPulseWarn {
+  0% {
+    border-color: rgba(255, 170, 0, 0.4);
+    box-shadow: 0 0 0 transparent;
+  }
+  50% {
+    border-color: rgba(255, 170, 0, 1);
+    box-shadow: 0 0 16px rgba(255, 170, 0, 0.6), inset 0 0 16px rgba(255, 170, 0, 0.4);
+  }
+  100% {
+    border-color: rgba(255, 170, 0, 0.4);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+@keyframes iqaPulseReady {
+  0% {
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 transparent;
+  }
+  30% {
+    border-color: rgba(52, 199, 89, 1);
+    box-shadow: 0 0 24px rgba(52, 199, 89, 0.8), inset 0 0 24px rgba(52, 199, 89, 0.5);
+  }
+  100% {
+    border-color: rgba(52, 199, 89, 0.8);
+    box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
+  }
+}
+
+@keyframes eye-blink {
+  0%,
+  4%,
+  100% {
+    transform: scaleY(1);
+  }
+  2% {
+    transform: scaleY(0.1);
+  }
+}
+
+
+
+@keyframes pulseDot {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}

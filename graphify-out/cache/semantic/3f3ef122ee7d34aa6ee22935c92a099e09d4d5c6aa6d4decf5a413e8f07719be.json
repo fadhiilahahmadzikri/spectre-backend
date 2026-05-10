@@ -1,0 +1,1 @@
+{"nodes": [{"id": "migrations_versions_6c915d21ab82_py_upgrade", "label": "Initial Schema Migration", "file_type": "code", "source_file": "migrations/versions/6c915d21ab82_initial_schema.py", "source_location": {"line": 20}, "captured_at": "2024-05-15T10:00:00Z"}], "edges": [], "hyperedges": []}

@@ -1,0 +1,115 @@
+# ==============================================================================
+# Spectre — .gitignore
+# ==============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# --- Virtual Environment ---
+.venv/
+venv/
+env/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# --- Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- ML Models (large binaries) ---
+models/
+artifact/*.keras
+artifact/*.h5
+artifact/*.pb
+*.tflite
+!artifact/.gitkeep
+
+# --- Testing ---
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Alembic ---
+migrations/versions/__pycache__/
+
+# --- uv ---
+uv.lock
+
+# --- Node (if dashboard exists) ---
+node_modules/
+
+frontend/node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+# --- Agent ---
+.agent/
+
+# --- Artifacts ---
+artifact/
+
+# --- Conductor ---
+.conductor/
+
+
+.agents/
+.cache/
+.conductor/
+.kiro/
+.pytest_cache/
+.venv/
+
+graphify-out/

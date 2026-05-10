@@ -1,0 +1,680 @@
+#!/usr/bin/env python3
+import argparse
+import sys
+import threading
+import time
+from pathlib import Path
+
+try:
+    from rich.align import Align
+    from rich.console import Console
+    from rich.live import Live
+    from rich.panel import Panel
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
+    from rich.prompt import Confirm, Prompt
+    from rich.rule import Rule
+    from rich.table import Table
+    from rich.text import Text
+    from rich import box
+except ImportError:
+    print("ERROR: pip install rich")
+    sys.exit(1)
+
+try:
+    from huggingface_hub import HfApi, SpaceInfo
+except ImportError:
+    print("ERROR: pip install huggingface_hub")
+    sys.exit(1)
+
+IS_WINDOWS = sys.platform == "win32"
+if IS_WINDOWS:
+    import msvcrt
+else:
+    import tty
+    import termios
+
+console = Console()
+
+BANNER = """[bold cyan]
+ ███████╗██████╗ ███████╗ ██████╗████████╗██████╗ ███████╗
+ ██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝██╔══██╗██╔════╝
+ ███████╗██████╔╝█████╗  ██║        ██║   ██████╔╝█████╗  
+ ╚════██║██╔═══╝ ██╔══╝  ██║        ██║   ██╔══██╗██╔══╝  
+ ███████║██║     ███████╗╚██████╗   ██║   ██║  ██║███████╗
+ ╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
+[/bold cyan][dim cyan]         HF Space Deployer — Repeatable. Robust. Clean.[/dim cyan]
+"""
+
+MAIN_MENU_OPTIONS = [
+    "Upload / Redeploy Space",
+    "Watch Space Status",
+    "Manage Secrets",
+    "Inspect Spaces",
+    "Preview Ignore Patterns",
+    "Keluar",
+]
+
+STAGE_STYLE = {
+    "RUNNING":       "bold green",
+    "BUILDING":      "bold yellow",
+    "STARTING":      "bold yellow",
+    "RESTARTING":    "bold yellow",
+    "STOPPED":       "dim",
+    "PAUSED":        "dim",
+    "BUILD_ERROR":   "bold red",
+    "RUNTIME_ERROR": "bold red",
+    "CONFIG_ERROR":  "bold red",
+    "DELETING":      "bold red",
+    "SLEEPING":      "dim cyan",
+}
+
+
+def parse_ignore_file(filepath: Path) -> list[str]:
+    patterns = []
+    if not filepath.exists():
+        return patterns
+    with open(filepath, encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            patterns.append(stripped)
+    return patterns
+
+
+def load_ignore_patterns(folder: Path) -> tuple[list[str], dict[str, int]]:
+    hf_patterns  = parse_ignore_file(folder / ".huggingfaceignore")
+    git_patterns = parse_ignore_file(folder / ".gitignore")
+    seen, combined = set(), []
+    for p in hf_patterns + git_patterns:
+        if p not in seen:
+            seen.add(p)
+            combined.append(p)
+    return combined, {
+        ".huggingfaceignore": len(hf_patterns),
+        ".gitignore":         len(git_patterns),
+        "total_unique":       len(combined),
+    }
+
+
+def _getch_windows():
+    ch = msvcrt.getwch()
+    if ch in ("\x00", "\xe0"):
+        ch2 = msvcrt.getwch()
+        return {"H": "UP", "P": "DOWN", "M": "RIGHT", "K": "LEFT"}.get(ch2, ch2)
+    if ch == "\r":
+        return "ENTER"
+    if ch == "\x03":
+        raise KeyboardInterrupt
+    return ch
+
+
+def _getch_unix():
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+        if ch == "\x1b":
+            ch2 = sys.stdin.read(2)
+            return {"[A": "UP", "[B": "DOWN", "[C": "RIGHT", "[D": "LEFT"}.get(ch2, ch2)
+        if ch in ("\r", "\n"):
+            return "ENTER"
+        if ch == "\x03":
+            raise KeyboardInterrupt
+        return ch
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def getch():
+    return _getch_windows() if IS_WINDOWS else _getch_unix()
+
+
+def print_banner(username: str):
+    console.clear()
+    console.print(Align.center(BANNER))
+    console.print(Align.center(f"[dim]Logged in as [bold cyan]{username}[/][/]"))
+    console.print()
+
+
+def arrow_menu(title: str, options: list[str], subtitle: str = "") -> int:
+    selected = 0
+
+    def render(sel: int) -> Panel:
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(width=3)
+        grid.add_column()
+        for i, opt in enumerate(options):
+            if i == sel:
+                grid.add_row(Text("▶", style="bold cyan"), Text(opt, style="bold white on dark_blue"))
+            else:
+                grid.add_row(Text(" "), Text(opt, style="dim white"))
+        inner = Table.grid()
+        inner.add_row(Align.left(grid))
+        inner.add_row(Text("\n  ↑↓ Navigate   Enter Select   Q Quit", style="dim italic"))
+        header = f"[bold cyan]{title}[/]"
+        if subtitle:
+            header += f"\n[dim]{subtitle}[/]"
+        return Panel(inner, title=header, border_style="cyan", padding=(1, 3))
+
+    with Live(render(selected), console=console, refresh_per_second=30) as live:
+        while True:
+            key = getch()
+            if key == "UP":
+                selected = (selected - 1) % len(options)
+            elif key == "DOWN":
+                selected = (selected + 1) % len(options)
+            elif key == "ENTER":
+                live.stop()
+                return selected
+            elif key.lower() == "q":
+                live.stop()
+                return -1
+            live.update(render(selected))
+
+
+def get_authenticated_api() -> tuple[HfApi, str]:
+    api = HfApi()
+    try:
+        user = api.whoami()
+        return api, user["name"]
+    except Exception:
+        console.print(Panel(
+            "[red]Tidak terautentikasi.[/]\n\nJalankan: [bold]hf auth login[/]",
+            border_style="red",
+            title="Auth Error",
+        ))
+        sys.exit(1)
+
+
+def fetch_spaces(api: HfApi, username: str) -> list[SpaceInfo]:
+    with console.status("[cyan]Mengambil daftar Spaces...[/]"):
+        return list(api.list_spaces(author=username))
+
+
+def print_spaces_table(spaces: list[SpaceInfo], username: str):
+    table = Table(
+        title=f"HF Spaces — {username}",
+        box=box.ROUNDED,
+        border_style="cyan",
+        show_lines=True,
+        header_style="bold magenta",
+    )
+    table.add_column("#",        justify="right", style="dim",       width=4)
+    table.add_column("Space ID", style="bold cyan", no_wrap=True)
+    table.add_column("SDK",      style="yellow",   width=10)
+    table.add_column("Visibility", justify="center", width=10)
+    table.add_column("URL",      style="blue dim")
+    for i, space in enumerate(spaces, 1):
+        sdk        = getattr(space, "sdk", "-") or "-"
+        visibility = "private" if getattr(space, "private", False) else "public"
+        url        = f"https://huggingface.co/spaces/{space.id}"
+        table.add_row(str(i), space.id, sdk, visibility, url)
+    console.print()
+    console.print(table)
+    console.print()
+
+
+def _patch_create_repo(api: HfApi, sdk: str):
+    original = api.create_repo
+    def patched(*args, **kwargs):
+        if kwargs.get("repo_type") == "space" and "space_sdk" not in kwargs:
+            kwargs["space_sdk"] = sdk
+        return original(*args, **kwargs)
+    api.create_repo = patched
+    return original
+
+
+def run_upload(api: HfApi, repo_id: str, folder: Path, patterns: list[str], workers: int, sdk: str = "docker"):
+    console.print(Rule("[bold cyan]PRE-FLIGHT CHECK[/]"))
+
+    with console.status(f"[cyan]Verifikasi Space {repo_id}...[/]"):
+        try:
+            api.space_info(repo_id)
+            console.print(f"  [green]OK[/] Space [bold]{repo_id}[/] ditemukan (sdk={sdk})")
+        except Exception:
+            try:
+                api.create_repo(repo_id=repo_id, repo_type="space", space_sdk=sdk, exist_ok=True)
+                console.print(f"  [green]OK[/] Space [bold]{repo_id}[/] dibuat (sdk={sdk})")
+            except Exception as e:
+                console.print(f"  [red]FAIL:[/] {e}")
+                sys.exit(1)
+
+    original_create_repo = _patch_create_repo(api, sdk)
+    console.print(f"  [green]OK[/] Workaround space_sdk aktif (sdk={sdk})")
+    console.print(f"  [green]OK[/] Ignore patterns: [bold]{len(patterns)}[/] rules")
+    console.print(f"  [green]OK[/] Workers: [bold]{workers}[/]")
+    console.print(f"  [green]OK[/] Folder: [bold]{folder.resolve()}[/]")
+    console.print()
+
+    console.print(Rule("[bold cyan]UPLOADING[/]"))
+    console.print(f"[dim]Target: https://huggingface.co/spaces/{repo_id}[/]\n")
+
+    start         = time.time()
+    result_holder = {}
+    error_holder  = {}
+
+    def do_upload():
+        try:
+            result_holder["url"] = api.upload_large_folder(
+                repo_id=repo_id,
+                repo_type="space",
+                folder_path=str(folder),
+                ignore_patterns=patterns if patterns else None,
+                num_workers=workers,
+            )
+        except Exception as exc:
+            error_holder["err"] = exc
+        finally:
+            api.create_repo = original_create_repo
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Uploading...", total=None)
+            t = threading.Thread(target=do_upload, daemon=True)
+            t.start()
+            while t.is_alive():
+                t.join(timeout=0.5)
+                progress.advance(task, 0)
+            progress.update(task, completed=1, total=1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Upload diinterrupt.[/]")
+        sys.exit(0)
+
+    elapsed = time.time() - start
+
+    if "err" in error_holder:
+        console.print(Panel(
+            f"[red]Upload gagal:[/]\n{error_holder['err']}",
+            border_style="red",
+            title="Error",
+        ))
+        sys.exit(1)
+
+    console.print()
+    console.print(Panel(
+        f"[bold green]Upload selesai![/]\n\n"
+        f"  Durasi : [bold]{elapsed:.1f}s[/]\n"
+        f"  URL    : https://huggingface.co/spaces/{repo_id}",
+        border_style="green",
+        title="SUCCESS",
+        padding=(1, 3),
+    ))
+
+
+def flow_watch(api: HfApi, username: str):
+    spaces = fetch_spaces(api, username)
+    if not spaces:
+        console.print("[red]Tidak ada Space.[/]")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+
+    print_banner(username)
+    idx = arrow_menu(
+        title="Pilih Space untuk di-watch",
+        options=[s.id for s in spaces],
+        subtitle="Status diperbarui setiap 3 detik   Q untuk keluar",
+    )
+    if idx == -1:
+        return
+
+    repo_id  = spaces[idx].id
+    interval = 3
+
+    def fetch_stage() -> tuple[str, str]:
+        try:
+            import requests
+            headers = {"Cache-Control": "no-cache"}
+            if getattr(api, "token", None):
+                headers["Authorization"] = f"Bearer {api.token}"
+            url = f"https://huggingface.co/api/spaces/{repo_id}?t={int(time.time())}"
+            resp = requests.get(url, headers=headers, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            rt = data.get("runtime", {})
+            stage = rt.get("stage", "UNKNOWN") or "UNKNOWN"
+            err = rt.get("error_message", None) or ""
+            return stage, err
+        except Exception as e:
+            return "UNKNOWN", str(e)
+
+    def make_panel(stage: str, err: str, elapsed: int) -> Panel:
+        style   = STAGE_STYLE.get(stage, "white")
+        content = Table.grid(padding=(0, 2))
+        content.add_column(style="dim cyan", width=14)
+        content.add_column()
+        content.add_row("Space",   f"[bold]{repo_id}[/]")
+        content.add_row("Status",  f"[{style}]{stage}[/]")
+        content.add_row("Elapsed", f"{elapsed}s")
+        if err:
+            content.add_row("Error", f"[red]{err}[/]")
+        content.add_row("", "")
+        content.add_row("", f"[dim]Q untuk keluar   refresh setiap {interval}s[/]")
+        return Panel(content, title=f"[bold cyan]SPACE WATCH — {repo_id}[/]", border_style="cyan", padding=(1, 3))
+
+    stop_event = threading.Event()
+    start_time = time.time()
+
+    print_banner(username)
+    with Live(make_panel("...", "", 0), console=console, refresh_per_second=2) as live:
+        def poll():
+            while not stop_event.is_set():
+                stage, err = fetch_stage()
+                elapsed    = int(time.time() - start_time)
+                live.update(make_panel(stage, err, elapsed))
+                stop_event.wait(interval)
+
+        t = threading.Thread(target=poll, daemon=True)
+        t.start()
+        try:
+            while True:
+                key = getch()
+                if key.lower() == "q":
+                    break
+        except KeyboardInterrupt:
+            pass
+        finally:
+            stop_event.set()
+            t.join(timeout=2)
+
+
+def flow_inspect(api: HfApi, username: str):
+    print_banner(username)
+    spaces = fetch_spaces(api, username)
+    if not spaces:
+        console.print("[yellow]Tidak ada Space ditemukan.[/]")
+    else:
+        print_spaces_table(spaces, username)
+    Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+
+
+def flow_preview_ignore(username: str):
+    print_banner(username)
+    console.print(Rule("[bold cyan]PREVIEW IGNORE PATTERNS[/]"))
+    folder_input = Prompt.ask("Path folder project", default=str(Path.cwd()))
+    folder = Path(folder_input).expanduser().resolve()
+    if not folder.exists():
+        console.print(f"[red]Folder tidak ditemukan:[/] {folder}")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+    patterns, counts = load_ignore_patterns(folder)
+    table = Table(box=box.SIMPLE_HEAVY, header_style="bold magenta", show_lines=False)
+    table.add_column("#",       justify="right", style="dim", width=4)
+    table.add_column("Pattern", style="green")
+    for i, p in enumerate(patterns, 1):
+        table.add_row(str(i), p)
+    console.print(table)
+    console.print()
+    console.print(f"  [cyan].huggingfaceignore[/]  {counts['.huggingfaceignore']} patterns")
+    console.print(f"  [cyan].gitignore[/]          {counts['.gitignore']} patterns")
+    console.print(f"  [bold]Total unique[/]         {counts['total_unique']} patterns")
+    Prompt.ask("\n[dim]Enter untuk kembali[/]", default="")
+
+
+def flow_upload(api: HfApi, username: str):
+    print_banner(username)
+    console.print(Rule("[bold cyan]UPLOAD / REDEPLOY SPACE[/]"))
+
+    folder_input = Prompt.ask("\nPath folder project", default=str(Path.cwd()))
+    folder = Path(folder_input).expanduser().resolve()
+    if not folder.exists():
+        console.print(f"[red]Folder tidak ditemukan:[/] {folder}")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+
+    spaces = fetch_spaces(api, username)
+    if not spaces:
+        console.print("[red]Tidak ada Space ditemukan.[/]")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+
+    print_banner(username)
+    idx = arrow_menu(
+        title="Pilih Target Space",
+        options=[s.id for s in spaces] + ["Ketik manual"],
+        subtitle=f"Logged in as {username}",
+    )
+    if idx == -1:
+        return
+
+    repo_id = Prompt.ask("Repo ID") if idx == len(spaces) else spaces[idx].id
+
+    sdk = "docker"
+    try:
+        info = api.space_info(repo_id)
+        sdk  = getattr(info, "sdk", None) or "docker"
+    except Exception:
+        pass
+
+    print_banner(username)
+    console.print(Rule("[bold cyan]KONFIGURASI UPLOAD[/]"))
+
+    workers_str = Prompt.ask("\nJumlah upload workers", default="4")
+    try:
+        workers = max(1, int(workers_str))
+    except ValueError:
+        workers = 4
+
+    patterns, counts = load_ignore_patterns(folder)
+
+    console.print()
+    summary = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+    summary.add_column(style="dim cyan", width=24)
+    summary.add_column(style="bold white")
+    summary.add_row("Target Space",        repo_id)
+    summary.add_row("SDK",                 sdk)
+    summary.add_row("Folder",              str(folder))
+    summary.add_row("Workers",             str(workers))
+    summary.add_row("Ignore patterns",     f"{counts['total_unique']} rules")
+    summary.add_row("  .huggingfaceignore", str(counts[".huggingfaceignore"]))
+    summary.add_row("  .gitignore",         str(counts[".gitignore"]))
+    console.print(Panel(summary, title="[bold]Upload Summary[/]", border_style="cyan"))
+    console.print()
+
+    if not Confirm.ask("Lanjutkan upload?", default=True):
+        console.print("[yellow]Dibatalkan.[/]")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+
+    console.print()
+    run_upload(api, repo_id, folder, patterns, workers, sdk)
+    Prompt.ask("\n[dim]Enter untuk kembali ke menu[/]", default="")
+
+
+def flow_secrets(api: HfApi, username: str):
+    print_banner(username)
+    console.print(Rule("[bold cyan]MANAGE SPACE SECRETS[/]"))
+
+    spaces = fetch_spaces(api, username)
+    if not spaces:
+        console.print("[red]Tidak ada Space.[/]")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+
+    print_banner(username)
+    idx = arrow_menu(
+        title="Pilih Space",
+        options=[s.id for s in spaces],
+        subtitle="Manage environment secrets",
+    )
+    if idx == -1:
+        return
+
+    repo_id = spaces[idx].id
+    print_banner(username)
+    console.print(Rule(f"[bold cyan]SECRETS — {repo_id}[/]"))
+
+    SECRET_ACTIONS = [
+        "Push secrets from .env file",
+        "Set single secret",
+        "Delete a secret",
+        "Kembali",
+    ]
+
+    while True:
+        print_banner(username)
+        console.print(f"[dim]Space: {repo_id}[/]\n")
+        action = arrow_menu(title="Secret Actions", options=SECRET_ACTIONS)
+
+        if action == -1 or action == 3:
+            return
+
+        elif action == 0:  # Push from .env file
+            print_banner(username)
+            env_path = Prompt.ask("Path to .env file", default=".env.spaces")
+            p = Path(env_path).expanduser().resolve()
+            if not p.exists():
+                console.print(f"[red]File tidak ditemukan:[/] {p}")
+                Prompt.ask("[dim]Enter[/]", default="")
+                continue
+
+            secrets = {}
+            with open(p, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key, _, val = line.partition("=")
+                        key = key.strip()
+                        val = val.strip().strip('"').strip("'")
+                        # Skip placeholder values
+                        if val and val not in ("set-via-hf-secrets", "<CHANGE_THIS>", ""):
+                            secrets[key] = val
+
+            if not secrets:
+                console.print("[yellow]No valid secrets found in file.[/]")
+                Prompt.ask("[dim]Enter[/]", default="")
+                continue
+
+            # Show what will be pushed
+            table = Table(box=box.SIMPLE, header_style="bold magenta")
+            table.add_column("Key", style="cyan")
+            table.add_column("Value (preview)", style="dim")
+            for k, v in secrets.items():
+                preview = v[:20] + "..." if len(v) > 20 else v
+                table.add_row(k, preview)
+            console.print(table)
+            console.print(f"\n[bold]{len(secrets)}[/] secrets will be pushed to [cyan]{repo_id}[/]")
+
+            if not Confirm.ask("Lanjutkan?", default=True):
+                continue
+
+            with console.status("[cyan]Pushing secrets...[/]"):
+                for key, value in secrets.items():
+                    api.add_space_secret(repo_id=repo_id, key=key, value=value)
+            console.print(f"[green]✓ {len(secrets)} secrets pushed.[/] Space will rebuild.")
+            Prompt.ask("[dim]Enter[/]", default="")
+
+        elif action == 1:  # Set single secret
+            print_banner(username)
+            key = Prompt.ask("Secret key (e.g. GOOGLE_CLIENT_ID)")
+            if not key:
+                continue
+            value = Prompt.ask(f"Value for {key}", password=True)
+            if not value:
+                continue
+            with console.status(f"[cyan]Setting {key}...[/]"):
+                api.add_space_secret(repo_id=repo_id, key=key, value=value)
+            console.print(f"[green]✓ {key} set.[/] Space will rebuild.")
+            Prompt.ask("[dim]Enter[/]", default="")
+
+        elif action == 2:  # Delete secret
+            print_banner(username)
+            key = Prompt.ask("Secret key to delete")
+            if not key:
+                continue
+            if Confirm.ask(f"Delete [red]{key}[/] from {repo_id}?", default=False):
+                with console.status(f"[cyan]Deleting {key}...[/]"):
+                    api.delete_space_secret(repo_id=repo_id, key=key)
+                console.print(f"[green]✓ {key} deleted.[/]")
+            Prompt.ask("[dim]Enter[/]", default="")
+
+
+def interactive_mode(api: HfApi, username: str):
+    while True:
+        print_banner(username)
+        choice = arrow_menu(
+            title="MAIN MENU",
+            options=MAIN_MENU_OPTIONS,
+            subtitle="↑↓ navigasi   Enter pilih   Q keluar",
+        )
+        if choice == -1 or choice == 5:
+            console.clear()
+            sys.exit(0)
+        elif choice == 0:
+            flow_upload(api, username)
+        elif choice == 1:
+            flow_watch(api, username)
+        elif choice == 2:
+            flow_secrets(api, username)
+        elif choice == 3:
+            flow_inspect(api, username)
+        elif choice == 4:
+            flow_preview_ignore(username)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="HF Space Deployer")
+    p.add_argument("--repo",    "-r", metavar="USERNAME/SPACE")
+    p.add_argument("--folder",  "-f", metavar="PATH", default=None)
+    p.add_argument("--workers", "-w", type=int, default=4, metavar="N")
+    p.add_argument("--inspect",       action="store_true")
+    return p
+
+
+def main():
+    args          = build_parser().parse_args()
+    api, username = get_authenticated_api()
+
+    if args.inspect:
+        spaces = fetch_spaces(api, username)
+        print_spaces_table(spaces, username)
+        sys.exit(0)
+
+    if args.repo:
+        folder = Path(args.folder or ".").expanduser().resolve()
+        if not folder.exists():
+            console.print(f"[red]Folder tidak ditemukan:[/] {folder}")
+            sys.exit(1)
+        patterns, counts = load_ignore_patterns(folder)
+        sdk = "docker"
+        try:
+            info = api.space_info(args.repo)
+            sdk  = getattr(info, "sdk", None) or "docker"
+        except Exception:
+            pass
+        console.clear()
+        console.print(Align.center(BANNER))
+        summary = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+        summary.add_column(style="dim cyan", width=24)
+        summary.add_column(style="bold white")
+        summary.add_row("Target Space",        args.repo)
+        summary.add_row("SDK",                 sdk)
+        summary.add_row("Folder",              str(folder))
+        summary.add_row("Workers",             str(args.workers))
+        summary.add_row("Ignore patterns",     f"{counts['total_unique']} rules")
+        summary.add_row("  .huggingfaceignore", str(counts[".huggingfaceignore"]))
+        summary.add_row("  .gitignore",         str(counts[".gitignore"]))
+        console.print(Panel(summary, title="[bold]Non-Interactive Upload[/]", border_style="cyan"))
+        console.print()
+        run_upload(api, args.repo, folder, patterns, args.workers, sdk)
+        sys.exit(0)
+
+    try:
+        interactive_mode(api, username)
+    except KeyboardInterrupt:
+        console.clear()
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

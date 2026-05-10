@@ -1,0 +1,1 @@
+{"nodes": [{"id": "email_verification_emailverification", "label": "EmailVerification Entity", "file_type": "code", "source_file": "src/spectre/domain/entities/email_verification.py"}], "edges": [], "hyperedges": []}

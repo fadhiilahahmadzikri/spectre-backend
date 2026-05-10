@@ -1,0 +1,132 @@
+name: Keep HF Space Alive
+
+# ----------------------------------------------------------------------------
+# Keeps https://thewhitenigs-spectre-backend.hf.space warm by pinging /health
+# every 20 hours. The /health endpoint internally runs SELECT 1 and redis.ping(),
+# so a single external ping exercises the FastAPI + PostgreSQL + Redis sidecars
+# that share the HF Space container lifecycle.
+#
+# See .conductor/wakeup-mitigation/ for the full engineering record:
+#   - design/orchestration-strategy.md   (why 20h, why one ping is enough)
+#   - design/decision-log.md             (ADR-001, ADR-003)
+#   - runbook.md                         (activation + diagnosis commands)
+#
+# Secrets:
+#   HF_TOKEN (OPTIONAL) — only needed if the HF Space is ever made private.
+#     Set via:   gh secret set HF_TOKEN
+# ----------------------------------------------------------------------------
+
+on:
+  schedule:
+    # Every 20 hours, aligned to the top of the hour (UTC).
+    # GHA cron has 10-30 min drift; 20h << 48h gives a ~58% safety margin.
+    - cron: "0 */20 * * *"
+  workflow_dispatch:
+    # Manual trigger + keeps the repo "active" for the 60-day auto-disable rule.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping-hf-space:
+    name: Ping HF Space /health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HF_SPACE_URL: https://thewhitenigs-spectre-backend.hf.space
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - name: Curl /health (HTTP 200 required)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          AUTH_ARGS=()
+          if [ -n "${HF_TOKEN:-}" ]; then
+            echo "Authenticated ping (HF_TOKEN present)."
+            AUTH_ARGS=(-H "Authorization: Bearer ${HF_TOKEN}")
+          else
+            echo "Unauthenticated ping (public Space, no HF_TOKEN set)."
+          fi
+
+          HTTP_STATUS=$(curl \
+            --silent \
+            --show-error \
+            --output /tmp/health.json \
+            --write-out '%{http_code}' \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 5 \
+            "${AUTH_ARGS[@]}" \
+            "${HF_SPACE_URL}/health")
+
+          echo "HTTP status: ${HTTP_STATUS}"
+          echo "----- response body -----"
+          cat /tmp/health.json || true
+          echo ""
+          echo "-------------------------"
+
+          if [ "${HTTP_STATUS}" != "200" ]; then
+            echo "::error::HF Space /health returned ${HTTP_STATUS} (expected 200)."
+            exit 1
+          fi
+
+  ping-supabase:
+    name: Ping Supabase Heartbeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Ping keepalive_ping table (HTTP 201 required)
+        if: env.SUPABASE_URL != '' && env.SUPABASE_ANON_KEY != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Supabase REST API (PostgREST) inserts via POST
+          # Requires RLS policy: allow insert for anon role
+          HTTP_STATUS=$(curl \
+            --silent \
+            --show-error \
+            --write-out '%{http_code}' \
+            --output /dev/null \
+            -X POST \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"source": "github-actions"}' \
+            --max-time 30 \
+            "${SUPABASE_URL}/rest/v1/keepalive_ping")
+
+          echo "HTTP status: ${HTTP_STATUS}"
+
+          if [[ "${HTTP_STATUS}" =~ ^20[0-9]$ ]]; then
+            echo "Supabase heartbeat successful."
+          else
+            echo "::error::Supabase heartbeat failed with status ${HTTP_STATUS}."
+            exit 1
+          fi
+
+  keep-actions-alive:
+    name: Prevent 60-day auto-disable
+    runs-on: ubuntu-latest
+    # Only run on the scheduled trigger — manual dispatch does not need the
+    # anti-disable safeguard (the dispatch itself already resets activity).
+    if: github.event_name == 'schedule'
+    needs: [ping-hf-space, ping-supabase]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+
+      - name: Auto-commit at day 50 if repo has been idle
+        uses: entepotenz/keep-github-actions-alive-min-dependencies@v1
+        with:
+          days-before-stale: 50

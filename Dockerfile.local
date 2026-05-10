@@ -1,0 +1,72 @@
+# ==============================================================================
+# Spectre — Dockerfile (Multi-stage)
+# ==============================================================================
+
+# --- Stage 1: Builder ---
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# Install system deps for building wheels
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency manifests
+COPY pyproject.toml uv.lock* ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev --no-editable 2>/dev/null || uv sync --no-dev --no-editable
+
+# Copy source code
+COPY src/ src/
+COPY alembic.ini .
+COPY migrations/ migrations/
+
+# --- Stage 2: Runtime ---
+FROM python:3.11-slim AS runtime
+
+WORKDIR /app
+
+# Install runtime system deps only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r spectre && useradd -r -g spectre spectre
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application code
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/alembic.ini /app/alembic.ini
+COPY --from=builder /app/migrations /app/migrations
+COPY seeds/ /app/seeds/
+
+# Copy model weights (mounted as volume in production)
+COPY artifact/ /app/artifact/
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Create log directories (owned by spectre user for runtime writes)
+RUN mkdir -p /app/logs/app /app/logs/error /app/logs/access \
+    && chown -R spectre:spectre /app/logs
+
+USER spectre
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "spectre.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

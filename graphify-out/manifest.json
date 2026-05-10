@@ -1,0 +1,558 @@
+{
+  "D:\\spectre\\deploy.py": {
+    "mtime": 1777977759.610055,
+    "hash": "6a004915e93b1f395a5f35fb9a4d37b0"
+  },
+  "D:\\spectre\\hf_sec.py": {
+    "mtime": 1777894713.0595539,
+    "hash": "d075db4bf62ce5e08083251dd1f659f0"
+  },
+  "D:\\spectre\\migrations\\env.py": {
+    "mtime": 1777755263.9910607,
+    "hash": "0db87ceeb396a034d24da0476de4c111"
+  },
+  "D:\\spectre\\migrations\\versions\\6c915d21ab82_initial_schema.py": {
+    "mtime": 1777762083.099559,
+    "hash": "f344975685e0e31dbb47a5ac2cc5a06d"
+  },
+  "D:\\spectre\\poc\\app.js": {
+    "mtime": 1777993210.8249123,
+    "hash": "b35019c24a2a6f47f04a1e531097f7cb"
+  },
+  "D:\\spectre\\poc\\poc.gradio.old.py": {
+    "mtime": 1777778706.2232594,
+    "hash": "218d08ee134f1a0e645932fa7ebd8cfc"
+  },
+  "D:\\spectre\\poc\\component\\aura-ring.jsx": {
+    "mtime": 1777987615.5133262,
+    "hash": "8697486f04c013f457b9de4de4452e4f"
+  },
+  "D:\\spectre\\scripts\\audit-test-deps.ps1": {
+    "mtime": 1778303812.802271,
+    "hash": "53549fa9fceeae52856c70b2b45565b6"
+  },
+  "D:\\spectre\\scripts\\run-tests.ps1": {
+    "mtime": 1778303446.665995,
+    "hash": "d5f92317e100548b4824061abdfd92cd"
+  },
+  "D:\\spectre\\scripts\\save_google_auth.py": {
+    "mtime": 1778309489.7913532,
+    "hash": "685da45bf3284ad2837460ee994b4541"
+  },
+  "D:\\spectre\\scripts\\verify-email-config.py": {
+    "mtime": 1778305955.7924223,
+    "hash": "c0e7290c92f1bac9612e67abb66c2ca5"
+  },
+  "D:\\spectre\\seeds\\base.py": {
+    "mtime": 1777762783.3981915,
+    "hash": "99c3cae4bce99bf5dbe01b446c35ea6e"
+  },
+  "D:\\spectre\\seeds\\registry.py": {
+    "mtime": 1777762775.7924044,
+    "hash": "48f5631ca699cb32851cbf0c674fa4ef"
+  },
+  "D:\\spectre\\seeds\\runner.py": {
+    "mtime": 1777763055.6499367,
+    "hash": "da26f5f459825d84c494133e952ec351"
+  },
+  "D:\\spectre\\seeds\\__init__.py": {
+    "mtime": 1777762769.4667168,
+    "hash": "c7b2a08f96ceea7a6659ae120b05278b"
+  },
+  "D:\\spectre\\seeds\\__main__.py": {
+    "mtime": 1777891212.6456494,
+    "hash": "4d4ef252b60634a241284062d7a8d790"
+  },
+  "D:\\spectre\\seeds\\factories\\app_factory.py": {
+    "mtime": 1777983708.8709254,
+    "hash": "5d46848aa0833a6b7e94145c4bb7365b"
+  },
+  "D:\\spectre\\seeds\\factories\\user_factory.py": {
+    "mtime": 1777762912.4275758,
+    "hash": "b0c2e33404d77efdbe81d5efd0977504"
+  },
+  "D:\\spectre\\seeds\\factories\\__init__.py": {
+    "mtime": 1777762800.5343244,
+    "hash": "c33b334bf5a119b5690c1374c738aea2"
+  },
+  "D:\\spectre\\seeds\\static\\admin_user.py": {
+    "mtime": 1777762899.819961,
+    "hash": "a4cce3812d6eadb3de178e80315f4c00"
+  },
+  "D:\\spectre\\seeds\\static\\default_app.py": {
+    "mtime": 1777983707.9932575,
+    "hash": "952e23e566152b3442f5aa92f19ec832"
+  },
+  "D:\\spectre\\seeds\\static\\__init__.py": {
+    "mtime": 1777762792.7598672,
+    "hash": "72a73af82b4d7f6aa50db0d9e34f5122"
+  },
+  "D:\\spectre\\src\\spectre\\config.py": {
+    "mtime": 1777982769.135852,
+    "hash": "d125f67f66e4258bc2cb25bd4cf38e6b"
+  },
+  "D:\\spectre\\src\\spectre\\main.py": {
+    "mtime": 1778310369.9861968,
+    "hash": "e9dbcc2d85f4122549f6afd0bba2414c"
+  },
+  "D:\\spectre\\src\\spectre\\__init__.py": {
+    "mtime": 1777754511.865466,
+    "hash": "90e3af712f2c5d2c7160bdfaac9d803c"
+  },
+  "D:\\spectre\\src\\spectre\\application\\api_key_use_cases.py": {
+    "mtime": 1777760620.3557308,
+    "hash": "3c68c3f62398457e965551e77dfe1cdd"
+  },
+  "D:\\spectre\\src\\spectre\\application\\auth_use_cases.py": {
+    "mtime": 1777760630.537053,
+    "hash": "52f005a8e8106927a5c9fec0cc5377c0"
+  },
+  "D:\\spectre\\src\\spectre\\application\\face_use_cases.py": {
+    "mtime": 1777976920.7131863,
+    "hash": "9255cc0d5507f5c0dfe748338ec8ceeb"
+  },
+  "D:\\spectre\\src\\spectre\\application\\oauth_use_cases.py": {
+    "mtime": 1778308046.6717598,
+    "hash": "678024b27f62dec8f8a328a361fb1755"
+  },
+  "D:\\spectre\\src\\spectre\\application\\tenant_use_cases.py": {
+    "mtime": 1777760623.0290358,
+    "hash": "23e3a7e1ecfcd4ecb82e207fcfdbce0b"
+  },
+  "D:\\spectre\\src\\spectre\\application\\__init__.py": {
+    "mtime": 1777755022.252648,
+    "hash": "2b052da99ad4cead90652f53e631e158"
+  },
+  "D:\\spectre\\src\\spectre\\core\\logger.py": {
+    "mtime": 1777765791.86062,
+    "hash": "6b42d39938a58904bcf020c589be96c1"
+  },
+  "D:\\spectre\\src\\spectre\\core\\__init__.py": {
+    "mtime": 1777760452.0272565,
+    "hash": "a8fd4e3a77d149825bccda3110ff8d73"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\__init__.py": {
+    "mtime": 1777754535.7650118,
+    "hash": "6e72079f886c93d03edc84413f90c1ed"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\api_key.py": {
+    "mtime": 1777754557.9913585,
+    "hash": "d532ecc2bba1779df41003d2c414dbab"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\auth_session.py": {
+    "mtime": 1777754572.535389,
+    "hash": "487335f6bd83d5b0d0e7738c18d3c952"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\email_verification.py": {
+    "mtime": 1777756214.5811296,
+    "hash": "088b9968f51bd1f475b710d26d2653ff"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\face_profile.py": {
+    "mtime": 1777754567.0968657,
+    "hash": "c27c126d16bae642050fb1975b6061a0"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\refresh_token.py": {
+    "mtime": 1777756216.6375952,
+    "hash": "964c9a08858bd5be04c8e823a783467e"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\tenant_application.py": {
+    "mtime": 1777754552.5411339,
+    "hash": "394d00660753908dc8ee6e83773c4cb4"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\user.py": {
+    "mtime": 1777754546.6510675,
+    "hash": "b8d61049b5abe1be66f17af6e11ed579"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\webhook_delivery.py": {
+    "mtime": 1777754574.5473664,
+    "hash": "65c4c12abaec9dfe9b962cd48c76620a"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\entities\\__init__.py": {
+    "mtime": 1777754540.8756151,
+    "hash": "24be7801779ac38c08299a6259b43107"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\exceptions\\auth_exceptions.py": {
+    "mtime": 1777754656.529879,
+    "hash": "fb85552dc16b1e96d5628649da713bc3"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\exceptions\\base.py": {
+    "mtime": 1777754648.1005409,
+    "hash": "57b9b9eca55e3c067004e3617d9de62f"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\exceptions\\face_exceptions.py": {
+    "mtime": 1777907380.931837,
+    "hash": "eead580de212012e46ce96fc29bc1198"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\exceptions\\tenant_exceptions.py": {
+    "mtime": 1777756584.5183294,
+    "hash": "e02dac6c6f21a6f93af25cab4aa45ec6"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\exceptions\\__init__.py": {
+    "mtime": 1777754640.4901257,
+    "hash": "69f0f495c229ab46fe7c0f74943aeeb4"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\ports\\ml_ports.py": {
+    "mtime": 1777976857.3696551,
+    "hash": "1366773e87d63fed58ec351d4ba84000"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\ports\\repositories.py": {
+    "mtime": 1777768920.2268786,
+    "hash": "b56f1df0790e5e288b5f916021d56b3b"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\ports\\__init__.py": {
+    "mtime": 1777754624.9242508,
+    "hash": "370c554c0dbe6f27c46dab4387deda03"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\value_objects\\api_key_pair.py": {
+    "mtime": 1777754609.7838304,
+    "hash": "211a80666ffb0bd58f5ad693b159a5cd"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\value_objects\\face_embedding.py": {
+    "mtime": 1777754604.4019685,
+    "hash": "328f25d24cac8c52de32a659acea5465"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\value_objects\\liveness_result.py": {
+    "mtime": 1777786333.7640927,
+    "hash": "716bcef3c97fdcb065fcae5cb50006c0"
+  },
+  "D:\\spectre\\src\\spectre\\domain\\value_objects\\__init__.py": {
+    "mtime": 1777754592.437864,
+    "hash": "3958d36cf6cd9544238e3745a89042ba"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\__init__.py": {
+    "mtime": 1777754675.8870695,
+    "hash": "b295947d2bad9b3cc374ecd2cf4a647d"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\cache\\redis_client.py": {
+    "mtime": 1777760605.562417,
+    "hash": "bda97b7f94fc5dfba169870693c60923"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\cache\\__init__.py": {
+    "mtime": 1777754890.1824899,
+    "hash": "c7b22dba0563bc76569caecd2a638ad3"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\database\\base.py": {
+    "mtime": 1777756337.8841953,
+    "hash": "473b4b8a001115250b382bb74eee3515"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\database\\query_logger.py": {
+    "mtime": 1777760528.9248085,
+    "hash": "263e9fd8da3c379f0f43901260d9da70"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\database\\__init__.py": {
+    "mtime": 1777754685.7797737,
+    "hash": "da7c5c67bb842696b8fd5aeb499e48ef"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\database\\models\\tables.py": {
+    "mtime": 1777754730.0356798,
+    "hash": "e02ca85ad812409c0a72a1508c0e7215"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\database\\models\\__init__.py": {
+    "mtime": 1777754728.0110836,
+    "hash": "12735a677652503f256b3676096b8ed6"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\email\\smtp_mailer.py": {
+    "mtime": 1777760603.5396953,
+    "hash": "dfaef5808ce5a18b782e9c09a2992ab5"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\email\\__init__.py": {
+    "mtime": 1777754918.6159215,
+    "hash": "853f73ada409cf165c4ebc3190dfd73c"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\custom_layers.py": {
+    "mtime": 1777754835.4315486,
+    "hash": "6f88f0485313523c6165834b9bc27dd0"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\embedding_adapter.py": {
+    "mtime": 1777754873.0148296,
+    "hash": "d7a5eb868b3c8c8edbf06a9165c0bd26"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\fas_adapter.py": {
+    "mtime": 1777767643.351578,
+    "hash": "115886641208befb920b89846308dd05"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\image_preprocessor.py": {
+    "mtime": 1777892379.2027137,
+    "hash": "2d7acbfbd6ae7ec8be373c488bdead73"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\insightface_embedding_adapter.py": {
+    "mtime": 1777976843.646082,
+    "hash": "8274894828b0ad7184f1a633effb10ca"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\insightface_registry.py": {
+    "mtime": 1777976832.9539285,
+    "hash": "5dbf213897649a90adec00aaab8db613"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\model_registry.py": {
+    "mtime": 1777760601.2696943,
+    "hash": "ec119f42d442b36d06df455a21d8ef62"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\ml\\__init__.py": {
+    "mtime": 1777754820.3717775,
+    "hash": "0ac556094475ee3c6f612ed8c223c111"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\repositories\\sql_repositories.py": {
+    "mtime": 1777768931.3966315,
+    "hash": "e0d06bcd3ebbfd3452028c920e041bf2"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\repositories\\__init__.py": {
+    "mtime": 1777754933.6960864,
+    "hash": "9b322be2e4bceac400ae61dde5fac2f7"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\aes_encryption.py": {
+    "mtime": 1777754769.173779,
+    "hash": "90309e20c4910fc904050a6065992ec6"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\api_key_generator.py": {
+    "mtime": 1777754775.139498,
+    "hash": "60e2c0298031e40189f4642b20b48c11"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\jwt_handler.py": {
+    "mtime": 1777754750.7294006,
+    "hash": "c0c3ec6d72bc6ac7c24bec56c367c0ec"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\oauth_client.py": {
+    "mtime": 1778308054.7519367,
+    "hash": "8943f0b0da9bc20b46af94c8d1cfa486"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\password_handler.py": {
+    "mtime": 1777754761.9895647,
+    "hash": "94c5c767eee5f0824dbbda0d3f144caa"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\totp_handler.py": {
+    "mtime": 1777754775.9620378,
+    "hash": "501046e1c2b27b81dded56a521d4f5f8"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\security\\__init__.py": {
+    "mtime": 1777754747.171229,
+    "hash": "a3a668a474bb43ef1ee438bb5a040c3a"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\webhook\\hmac_signer.py": {
+    "mtime": 1777754907.7926636,
+    "hash": "e1e780994710ce19f20060c927b39efc"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\webhook\\http_dispatcher.py": {
+    "mtime": 1777760598.595927,
+    "hash": "49c18ce01ad401e0d8fef765c6abfd55"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\webhook\\__init__.py": {
+    "mtime": 1777754897.346444,
+    "hash": "eb4b8eb87b1714dbf6b9edb60d4c6af0"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\dependencies.py": {
+    "mtime": 1777756302.370021,
+    "hash": "dde8c83233c32510ceb45f3bce5bdd01"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\__init__.py": {
+    "mtime": 1777755136.4799044,
+    "hash": "8a281ea1d20deb29069d95b1531fb0f9"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\middleware\\exception_handler.py": {
+    "mtime": 1777755178.7472246,
+    "hash": "154be0adcadf0eee20b257041ab1ab60"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\middleware\\logging_middleware.py": {
+    "mtime": 1777760495.6805692,
+    "hash": "23ec347a74ac3145e4a0f3724ce1d752"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\middleware\\request_id.py": {
+    "mtime": 1777760497.7074025,
+    "hash": "0eead29a0051cb2fa35334486fa947d3"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\middleware\\__init__.py": {
+    "mtime": 1777755171.502014,
+    "hash": "d24712afaa7119554940a275f89fe433"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\application_router.py": {
+    "mtime": 1778310396.178298,
+    "hash": "82c229f9f28ceb29eb3d7406efbd252d"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\auth_router.py": {
+    "mtime": 1778308088.8729386,
+    "hash": "4081a7b88a18666e9bd925aecd993212"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\client_log_router.py": {
+    "mtime": 1778310525.8457897,
+    "hash": "0999a499e23acb7dfbdc41b23488d211"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\face_router.py": {
+    "mtime": 1778310499.9356215,
+    "hash": "3989567ab797e3438dc2e97435538bbe"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\health_router.py": {
+    "mtime": 1778308382.687884,
+    "hash": "2c6944f86112df862a1eacaa3665ca78"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\session_router.py": {
+    "mtime": 1778310513.0093646,
+    "hash": "26b56b006a04683be5a8f568c75157b8"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\webhook_router.py": {
+    "mtime": 1777756675.050247,
+    "hash": "b10612ea19840cc7439738bb46035a17"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\routers\\__init__.py": {
+    "mtime": 1777755180.4957058,
+    "hash": "176b953577fa2921f9f25e5fd7700101"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\schemas\\application_schema.py": {
+    "mtime": 1777755157.6640453,
+    "hash": "39ad87b395d6b479e821970ac319fd27"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\schemas\\auth_schema.py": {
+    "mtime": 1777755153.3342986,
+    "hash": "14d4551f6e89ade95cb4c1edd851a6ff"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\schemas\\client_log_schema.py": {
+    "mtime": 1777765800.5687146,
+    "hash": "aa287f963bcecd65aa49a67cb9d878f5"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\schemas\\common.py": {
+    "mtime": 1777755147.3371305,
+    "hash": "9ca758250f0efee905fa1825f48dedb0"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\schemas\\face_schema.py": {
+    "mtime": 1777755159.6902673,
+    "hash": "f0df053dcdbf26683cefe56016c7ef7e"
+  },
+  "D:\\spectre\\src\\spectre\\interface\\schemas\\__init__.py": {
+    "mtime": 1777755141.9560268,
+    "hash": "4daac98218fea1ced3e1c889fab73ed8"
+  },
+  "D:\\spectre\\src\\spectre\\workers\\celery_app.py": {
+    "mtime": 1777760540.0655642,
+    "hash": "0af2a89d007066eecafde61ab6cb44f5"
+  },
+  "D:\\spectre\\src\\spectre\\workers\\signals.py": {
+    "mtime": 1777760530.9393246,
+    "hash": "ec5ddc96ae40a4db59e7411465ba7b9d"
+  },
+  "D:\\spectre\\src\\spectre\\workers\\__init__.py": {
+    "mtime": 1777755235.635571,
+    "hash": "d49e2631a1576586fdbf54d88f439d45"
+  },
+  "D:\\spectre\\src\\spectre\\workers\\tasks\\webhook_task.py": {
+    "mtime": 1777760640.5766375,
+    "hash": "ada9313a86945183d1df0fd4b7a8f742"
+  },
+  "D:\\spectre\\src\\spectre\\workers\\tasks\\__init__.py": {
+    "mtime": 1777755246.202677,
+    "hash": "871cdad5633354865eaa12374042fb05"
+  },
+  "D:\\spectre\\tests\\conftest.py": {
+    "mtime": 1778304878.518553,
+    "hash": "a51b70c98cba4bad0366c7b0a5b32394"
+  },
+  "D:\\spectre\\tests\\__init__.py": {
+    "mtime": 1777755301.3381667,
+    "hash": "fb7c4d86ab6736f5b575833dde0fe969"
+  },
+  "D:\\spectre\\tests\\integration\\test_api.py": {
+    "mtime": 1777756917.6519141,
+    "hash": "2fc4bd711a592e57e302479a6d105791"
+  },
+  "D:\\spectre\\tests\\integration\\__init__.py": {
+    "mtime": 1777755319.698989,
+    "hash": "8f585f29a04560d059d65bc3ef4aecfb"
+  },
+  "D:\\spectre\\tests\\unit\\test_application_router.py": {
+    "mtime": 1778303373.506333,
+    "hash": "c2c38eae5684eeb9677f69eabd36bbcd"
+  },
+  "D:\\spectre\\tests\\unit\\test_auth_router.py": {
+    "mtime": 1778303362.7292247,
+    "hash": "df7519a02bd5406649279c57de5b8bb1"
+  },
+  "D:\\spectre\\tests\\unit\\test_face_router.py": {
+    "mtime": 1778304910.7494307,
+    "hash": "5dae508d6c5c0ef36d27efb6b93dda93"
+  },
+  "D:\\spectre\\tests\\unit\\test_health.py": {
+    "mtime": 1778303351.4539847,
+    "hash": "17312e04b7c6936ffa2cabc54531d274"
+  },
+  "D:\\spectre\\tests\\unit\\test_middleware.py": {
+    "mtime": 1778303403.0032523,
+    "hash": "ae0099c4804e8c9bf023ce2d92d4627e"
+  },
+  "D:\\spectre\\tests\\unit\\test_security.py": {
+    "mtime": 1777755316.4446688,
+    "hash": "d293a1dbf209aee75ec3e4895f5d509e"
+  },
+  "D:\\spectre\\tests\\unit\\test_value_objects.py": {
+    "mtime": 1777755303.3475919,
+    "hash": "97970cbed8697b47001a458a9b87c7c4"
+  },
+  "D:\\spectre\\tests\\unit\\test_webhook_session_router.py": {
+    "mtime": 1778303395.755354,
+    "hash": "f1c0f2686e5b3175c3a35b18e8806e5e"
+  },
+  "D:\\spectre\\tests\\unit\\__init__.py": {
+    "mtime": 1777755309.3332944,
+    "hash": "a727744b57944032e42dda5b29a11df9"
+  },
+  "D:\\spectre\\docker-compose.test.yml": {
+    "mtime": 1777754482.6195898,
+    "hash": "e6463abe546a7c1d2ba86ef7115a44e8"
+  },
+  "D:\\spectre\\docker-compose.yml": {
+    "mtime": 1777888447.9500506,
+    "hash": "347859d81a8b2e48435ae765a049d6ad"
+  },
+  "D:\\spectre\\README.md": {
+    "mtime": 1777888367.9223568,
+    "hash": "fce645074eb28591aba877600bd9cae1"
+  },
+  "D:\\spectre\\Docs\\PRD\\API_SPECIFICATION.md": {
+    "mtime": 1777752161.786667,
+    "hash": "ca295e800b0722191d6c2ca488449e07"
+  },
+  "D:\\spectre\\Docs\\PRD\\ARCHITECTURE.md": {
+    "mtime": 1777752206.674868,
+    "hash": "27040bcc231d3e1aa506a14bc8911cd9"
+  },
+  "D:\\spectre\\Docs\\PRD\\DATABASE_SCHEMA.md": {
+    "mtime": 1777752051.128544,
+    "hash": "e62a9d0c28d494663933d472f95ee662"
+  },
+  "D:\\spectre\\Docs\\PRD\\ENGINEERING_STANDARDS.md": {
+    "mtime": 1777752206.674868,
+    "hash": "0407da656828acb0e2c765be59161812"
+  },
+  "D:\\spectre\\Docs\\PRD\\openapi.yaml": {
+    "mtime": 1777752175.7766566,
+    "hash": "18248bcc2893eab21405e87faea38033"
+  },
+  "D:\\spectre\\Docs\\PRD\\PRD.md": {
+    "mtime": 1777750280.4722204,
+    "hash": "f4e38adef63bc25c1fc91081b04bf1a9"
+  },
+  "D:\\spectre\\Docs\\PRD\\PROJECT_TREE.md": {
+    "mtime": 1777752206.674868,
+    "hash": "e2f0cd3c0957c9a3549645d202a48554"
+  },
+  "D:\\spectre\\Docs\\PRD\\TECH_STACK.md": {
+    "mtime": 1777752206.6738677,
+    "hash": "6c730f191c8e39caf7ccaf7971629ab7"
+  },
+  "D:\\spectre\\poc\\app.gradio.old.py.txt": {
+    "mtime": 1777768585.062026,
+    "hash": "d2b3eb912e8e54f6f6224c1970b7653d"
+  },
+  "D:\\spectre\\poc\\index.html": {
+    "mtime": 1777966014.5159082,
+    "hash": "d523234624c251448760d76c1f37bfb4"
+  },
+  "D:\\spectre\\poc\\pocmatch.txt": {
+    "mtime": 1777981871.8809576,
+    "hash": "66d241cf7502dfaacdd5d7f5db60dd99"
+  },
+  "D:\\spectre\\src\\spectre\\infrastructure\\email\\templates\\email_verification.html": {
+    "mtime": 1777754931.6868227,
+    "hash": "984006c4e66f26e85f44627062f14e3b"
+  },
+  "D:\\spectre\\poc\\assets\\logo\\LOGO.svg": {
+    "mtime": 1777960798.4647398,
+    "hash": "9ce32dd4bec145d9b9467e9bc7a685f2"
+  }
+}

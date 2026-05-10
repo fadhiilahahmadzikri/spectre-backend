@@ -1,0 +1,1 @@
+{"nodes": [{"id": "auth_schema_loginrequest", "label": "LoginRequest", "file_type": "code", "source_file": "src/spectre/interface/schemas/auth_schema.py", "source_location": 25}], "edges": [], "hyperedges": []}

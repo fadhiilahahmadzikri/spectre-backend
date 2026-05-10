@@ -1,0 +1,80 @@
+:root {
+  --bg: #000000;
+  --bg-elev: #1c1c1e;
+  --bg-tertiary: #2c2c2e;
+
+  --label-primary: rgba(255, 255, 255, 1);
+  --label-secondary: rgba(235, 235, 245, 0.6);
+  --label-tertiary: rgba(235, 235, 245, 0.3);
+  --label-quaternary: rgba(235, 235, 245, 0.18);
+
+  --fill-primary: rgba(120, 120, 128, 0.36);
+  --fill-secondary: rgba(120, 120, 128, 0.32);
+  --fill-tertiary: rgba(118, 118, 128, 0.24);
+  --fill-quaternary: rgba(116, 116, 128, 0.18);
+
+  --separator: rgba(84, 84, 88, 0.65);
+  --separator-opaque: #38383a;
+
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --poc-border: rgba(255, 255, 255, 0.08);
+  --poc-border-strong: rgba(255, 255, 255, 0.16);
+
+  --fg: #fafafa;
+  --fg-muted: rgba(235, 235, 245, 0.6);
+  --fg-dim: rgba(235, 235, 245, 0.3);
+
+  --poc-accent: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+
+  --blue-glass: rgba(120, 160, 255, 0.1);
+  --blue-glow: rgba(140, 180, 255, 0.16);
+
+  --sys-red: #ff453a;
+  --sys-orange: #ff9f0a;
+  --sys-green: #32d74b;
+
+  --danger: #ff453a;
+  --warn: #ff9f0a;
+  --ok: #ffffff;
+
+  --font-sans: BlinkMacSystemFont, -apple-system, system-ui, sans-serif;
+  --font-mono: BlinkMacSystemFont, -apple-system, system-ui, sans-serif;
+
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+}
+
+@theme inline {
+  --color-poc-bg: var(--bg);
+  --color-poc-bg-elev: var(--bg-elev);
+  --color-poc-bg-tertiary: var(--bg-tertiary);
+  --color-poc-fg: var(--fg);
+  --color-poc-fg-muted: var(--fg-muted);
+  --color-poc-fg-dim: var(--fg-dim);
+  --color-poc-label-primary: var(--label-primary);
+  --color-poc-label-secondary: var(--label-secondary);
+  --color-poc-label-tertiary: var(--label-tertiary);
+  --color-poc-label-quaternary: var(--label-quaternary);
+  --color-poc-fill-primary: var(--fill-primary);
+  --color-poc-fill-secondary: var(--fill-secondary);
+  --color-poc-fill-tertiary: var(--fill-tertiary);
+  --color-poc-fill-quaternary: var(--fill-quaternary);
+  --color-poc-surface: var(--surface);
+  --color-poc-surface-2: var(--surface-2);
+  --color-poc-separator: var(--separator);
+  --color-poc-blue-glass: var(--blue-glass);
+  --color-poc-blue-glow: var(--blue-glow);
+  --color-poc-sys-red: var(--sys-red);
+  --color-poc-sys-orange: var(--sys-orange);
+  --color-poc-sys-green: var(--sys-green);
+  --color-poc-danger: var(--danger);
+  --color-poc-warn: var(--warn);
+  --color-poc-ok: var(--ok);
+}

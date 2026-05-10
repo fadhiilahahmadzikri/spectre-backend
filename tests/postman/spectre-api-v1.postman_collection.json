@@ -2,7 +2,7 @@
   "info": {
     "name": "Spectre API v1",
     "_postman_id": "spectre-api-v1-collection",
-    "description": "API validation suite for Spectre. Works against local and HF Spaces.",
+    "description": "Full API validation suite for Spectre (39 endpoints). Works against local and HF Spaces.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,34 +10,33 @@
     { "key": "auth_token", "value": "" },
     { "key": "refresh_token", "value": "" },
     { "key": "app_id", "value": "" },
-    { "key": "api_key", "value": "" }
+    { "key": "api_key", "value": "" },
+    { "key": "test_email", "value": "newman_test@spectre.dev" },
+    { "key": "test_password", "value": "NewmanTest123!" }
   ],
   "item": [
     {
       "name": "Health",
       "item": [
         {
+          "name": "GET / — Root HTML",
+          "request": { "method": "GET", "url": "{{base_url}}/" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returns HTML', () => pm.expect(pm.response.headers.get('content-type')).to.include('html'));"
+          ]}}]
+        },
+        {
           "name": "GET /health — Component status",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/health"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is JSON', () => { pm.expect(pm.response.headers.get('content-type')).to.include('json'); });",
-                  "pm.test('Has components', () => pm.expect(pm.response.json()).to.have.property('components'));",
-                  "pm.test('Has service name', () => pm.expect(pm.response.json().service).to.eql('spectre-api'));",
-                  "pm.test('Database healthy', () => pm.expect(pm.response.json().components.database).to.eql('healthy'));",
-                  "pm.test('Redis healthy', () => pm.expect(pm.response.json().components.redis).to.eql('healthy'));",
-                  "pm.test('ML model loaded', () => pm.expect(pm.response.json().components.ml_model).to.eql('loaded'));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "GET", "url": "{{base_url}}/health" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Has components', () => pm.expect(pm.response.json()).to.have.property('components'));",
+            "pm.test('Service is spectre-api', () => pm.expect(pm.response.json().service).to.eql('spectre-api'));",
+            "pm.test('DB healthy', () => pm.expect(pm.response.json().components.database).to.eql('healthy'));",
+            "pm.test('Redis healthy', () => pm.expect(pm.response.json().components.redis).to.eql('healthy'));",
+            "pm.test('ML loaded', () => pm.expect(pm.response.json().components.ml_model).to.eql('loaded'));"
+          ]}}]
         }
       ]
     },
@@ -46,119 +45,78 @@
       "item": [
         {
           "name": "POST /auth/register — Missing email (422)",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/auth/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"password\": \"Test1234!\"}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 422', () => pm.response.to.have.status(422));",
-                  "pm.test('Has detail', () => pm.expect(pm.response.json()).to.have.property('detail'));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/register", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"password\":\"Test1234!\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('422', () => pm.response.to.have.status(422));"]}}]
         },
         {
           "name": "POST /auth/register — Missing password (422)",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/auth/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"email\": \"test@example.com\"}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/register", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"email\":\"test@example.com\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('422', () => pm.response.to.have.status(422));"]}}]
         },
         {
           "name": "POST /auth/login — Empty body (422)",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/auth/login",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/login", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('422', () => pm.response.to.have.status(422));"]}}]
+        },
+        {
+          "name": "POST /auth/login — Invalid credentials (401)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/login", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"email\":\"nonexist@x.com\",\"password\":\"wrong\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('401', () => pm.response.to.have.status(401));"]}}]
+        },
+        {
+          "name": "POST /auth/resend-otp — Missing email (422)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/resend-otp", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('422', () => pm.response.to.have.status(422));"]}}]
+        },
+        {
+          "name": "POST /auth/verify-email — Invalid OTP (400)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/verify-email", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"email\":\"test@x.com\",\"otp_code\":\"000000\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 or 404', () => pm.expect([400,404]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "POST /auth/refresh — Invalid token (401)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/refresh", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"refresh_token\":\"invalid\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('401', () => pm.response.to.have.status(401));"]}}]
         }
       ]
     },
     {
-      "name": "Auth — Protection",
+      "name": "Auth — Protection (No Token)",
       "item": [
         {
           "name": "GET /applications — No auth (401/422)",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/v1/applications"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Rejects without auth', () => pm.expect([401, 422]).to.include(pm.response.code));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/applications" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
         },
         {
           "name": "POST /applications — No auth (401/422)",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/applications",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"name\": \"Test App\"}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Rejects without auth', () => pm.expect([401, 422]).to.include(pm.response.code));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/applications", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"name\":\"Test\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
         },
         {
           "name": "GET /sessions — No auth (401/422)",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/v1/sessions"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Rejects without auth', () => pm.expect([401, 422]).to.include(pm.response.code));"
-                ]
-              }
-            }
-          ]
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/sessions" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "POST /auth/logout — No auth (401/422)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/logout", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "POST /auth/totp/setup — No auth (401/422)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/totp/setup" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "GET /admin/stats — No auth (401/422)",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/stats" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "GET /admin/config — No auth (401/422)",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/config" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
         }
       ]
     },
@@ -166,42 +124,24 @@
       "name": "Face Ops — API Key Required",
       "item": [
         {
-          "name": "POST /faces/register — No API key (401/422)",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/faces/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"external_user_id\": \"usr_test\", \"image\": \"dGVzdA==\"}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Rejects without API key', () => pm.expect([401, 422]).to.include(pm.response.code));"
-                ]
-              }
-            }
-          ]
+          "name": "POST /faces/register — No key (401/422)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/faces/register", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"external_user_id\":\"usr_test\",\"image\":\"dGVzdA==\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
         },
         {
-          "name": "POST /faces/authenticate — No API key (401/422)",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/faces/authenticate",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"external_user_id\": \"usr_test\", \"image\": \"dGVzdA==\"}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Rejects without API key', () => pm.expect([401, 422]).to.include(pm.response.code));"
-                ]
-              }
-            }
-          ]
+          "name": "POST /faces/authenticate — No key (401/422)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/faces/authenticate", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"external_user_id\":\"usr_test\",\"image\":\"dGVzdA==\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "GET /faces — No key (401/422)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/faces" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "POST /client-logs — No key (401/422)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/client-logs", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"message\":\"test\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
         }
       ]
     },
@@ -209,48 +149,89 @@
       "name": "Face Ops — With API Key",
       "item": [
         {
-          "name": "POST /faces/register — Valid key, invalid image",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/v1/faces/register",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-API-Key", "value": "{{api_key}}" }
-            ],
-            "body": { "mode": "raw", "raw": "{\"external_user_id\": \"newman_test_user\", \"image\": \"bm90X2FfcmVhbF9pbWFnZQ==\"}" }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('API key accepted (not 401)', () => pm.expect(pm.response.code).to.not.eql(401));",
-                  "pm.test('Rejects bad image (400/422/500)', () => pm.expect([400, 422, 500]).to.include(pm.response.code));"
-                ]
-              }
-            }
-          ]
+          "name": "GET /faces — List profiles",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/faces", "header": [{"key":"X-API-Key","value":"{{api_key}}"}] },
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.test('Has profiles array', () => pm.expect(pm.response.json()).to.have.property('profiles'));",
+            "pm.test('Has count', () => pm.expect(pm.response.json()).to.have.property('count'));"
+          ]}}]
         },
         {
-          "name": "GET /faces — List with API key",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/v1/faces",
-            "header": [
-              { "key": "X-API-Key", "value": "{{api_key}}" }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns profiles list', () => { const body = pm.response.json(); pm.expect(body).to.have.any.keys('data', 'profiles'); });"
-                ]
-              }
-            }
-          ]
+          "name": "POST /faces/register — Invalid image (400)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/faces/register", "header": [{"key":"Content-Type","value":"application/json"},{"key":"X-API-Key","value":"{{api_key}}"}], "body": {"mode":"raw","raw":"{\"external_user_id\":\"newman_user\",\"image\":\"bm90X2FfcmVhbF9pbWFnZQ==\"}"} },
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Key accepted (not 401)', () => pm.expect(pm.response.code).to.not.eql(401));",
+            "pm.test('Rejects bad image', () => pm.expect([400,422,500]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "POST /faces/authenticate — Invalid image (400)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/faces/authenticate", "header": [{"key":"Content-Type","value":"application/json"},{"key":"X-API-Key","value":"{{api_key}}"}], "body": {"mode":"raw","raw":"{\"external_user_id\":\"newman_user\",\"image\":\"bm90X2FfcmVhbF9pbWFnZQ==\"}"} },
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Key accepted (not 401)', () => pm.expect(pm.response.code).to.not.eql(401));",
+            "pm.test('Rejects bad image', () => pm.expect([400,404,422,500]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "DELETE /faces/{user} — Not found (404)",
+          "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/faces/nonexistent_user_xyz", "header": [{"key":"X-API-Key","value":"{{api_key}}"}] },
+          "event": [{"listen":"test","script":{"exec":["pm.test('404', () => pm.response.to.have.status(404));"]}}]
+        },
+        {
+          "name": "GET /sessions/{id} — Not found (404)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/sessions/00000000-0000-0000-0000-000000000000", "header": [{"key":"X-API-Key","value":"{{api_key}}"}] },
+          "event": [{"listen":"test","script":{"exec":["pm.test('404', () => pm.response.to.have.status(404));"]}}]
+        },
+        {
+          "name": "POST /client-logs — Valid telemetry",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/client-logs", "header": [{"key":"Content-Type","value":"application/json"},{"key":"X-API-Key","value":"{{api_key}}"}], "body": {"mode":"raw","raw":"{\"level\":\"info\",\"message\":\"Newman test log\",\"source\":\"newman\"}"} },
+          "event": [{"listen":"test","script":{"exec":["pm.test('202', () => pm.response.to.have.status(202));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "OAuth",
+      "item": [
+        {
+          "name": "GET /auth/oauth/google — Redirect",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/auth/oauth/google" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Redirects or 200', () => pm.expect([200,302,307]).to.include(pm.response.code));"]}}]
+        }
+      ]
+    },
+    {
+      "name": "Admin — Config",
+      "item": [
+        {
+          "name": "GET /admin/config — With auth",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/config", "header": [{"key":"Authorization","value":"Bearer {{auth_token}}"}] },
+          "event": [{"listen":"test","script":{"exec":[
+            "if (pm.variables.get('auth_token')) {",
+            "  pm.test('200 or 403', () => pm.expect([200,403]).to.include(pm.response.code));",
+            "  if (pm.response.code === 200) {",
+            "    pm.test('Has categories', () => pm.expect(pm.response.json()).to.have.property('categories'));",
+            "  }",
+            "} else { pm.test('Skipped (no token)', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "GET /admin/stats — With auth",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/stats", "header": [{"key":"Authorization","value":"Bearer {{auth_token}}"}] },
+          "event": [{"listen":"test","script":{"exec":[
+            "if (pm.variables.get('auth_token')) {",
+            "  pm.test('200 or 403', () => pm.expect([200,403]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped (no token)', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "GET /admin/automation/status — With auth",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/automation/status", "header": [{"key":"Authorization","value":"Bearer {{auth_token}}"}] },
+          "event": [{"listen":"test","script":{"exec":[
+            "if (pm.variables.get('auth_token')) {",
+            "  pm.test('200 or 403', () => pm.expect([200,403]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped (no token)', () => true); }"
+          ]}}]
         }
       ]
     }

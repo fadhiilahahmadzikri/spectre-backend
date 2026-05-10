@@ -42,7 +42,7 @@ export function Dashboard() {
           <h2 className="face-title text-[15px]">Documentation</h2>
           <p className="face-helper text-[12px]">REST API reference for face registration and authentication.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <DocCard
             href={`${base}/docs`}
             icon="https://cdn.jsdelivr.net/gh/swagger-api/swagger-ui@master/dist/favicon-32x32.png"
@@ -54,6 +54,18 @@ export function Dashboard() {
             icon="https://cdn.redoc.ly/redoc/logo-mini.svg"
             title="ReDoc"
             description="Clean API documentation"
+          />
+          <DocCard
+            href="https://docsify-this.net/?basePath=https://raw.githubusercontent.com/fadhiilahahmadzikri/spectre-backend/main/Docs&homepage=API_INTEGRATION_REFERENCE.md"
+            icon="https://cdn.jsdelivr.net/gh/docsifyjs/docsify/docs/_media/icon.svg"
+            title="API Spec (Hosted)"
+            description="Full integration reference"
+          />
+          <DocCard
+            href="https://www.postman.com/orbital-module-pilot-79200790/spectre-api/collection/37470849-b2b09384-4f3d-42b6-a051-2a9bc77980e4"
+            icon="https://www.vectorlogo.zone/logos/getpostman/getpostman-icon.svg"
+            title="Postman Collection"
+            description="30 requests · Public workspace"
           />
         </div>
       </section>

@@ -1,10 +1,8 @@
 import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerDescription,
-} from "@/components/ui/drawer";
-import { FaceIDGlyph, CloseIcon } from "@/shared/icons";
+  GlassDrawer,
+  GlassDrawerHeader,
+} from "@/shared/ui/GlassDrawer";
+import { FaceIDGlyph } from "@/shared/icons";
 import { RadialChart } from "../result/RadialChart";
 import type { FAS_CLASSES } from "../../model/constants";
 import type { ScanResult } from "../../model/types";
@@ -48,26 +46,18 @@ export function AnalysisDrawer({ open, onClose, result }: AnalysisDrawerProps) {
   const hasResult = !!result?.detail && !!result?.summary;
 
   return (
-    <Drawer open={open} onOpenChange={(v) => !v && onClose()}>
-      <DrawerContent className="glass-strong config-drawer border-none !rounded-t-[24px] max-h-[88vh]">
-        <DrawerTitle className="sr-only">Liveness analysis breakdown</DrawerTitle>
-        <DrawerDescription className="sr-only">
-          Six-class spoofing probability breakdown
-        </DrawerDescription>
-        <div className="px-6 pt-1 pb-4 flex items-center justify-between border-b border-[rgba(84,84,88,0.45)]">
-          <div className="flex items-center gap-2.5">
-            <div style={{ color: "rgba(235,235,245,0.75)" }}>
-              <FaceIDGlyph size={20} />
-            </div>
-            <div>
-              <div className="face-title text-[15px]">Liveness Analysis</div>
-              <div className="kbd-mono text-[10px] mt-[1px]">Rincian Kategori Spoofing</div>
-            </div>
-          </div>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-            <CloseIcon />
-          </button>
-        </div>
+    <GlassDrawer
+      open={open}
+      onClose={onClose}
+      title="Liveness analysis breakdown"
+      description="Six-class spoofing probability breakdown"
+    >
+      <GlassDrawerHeader
+        icon={<FaceIDGlyph size={20} />}
+        title="Liveness Analysis"
+        subtitle="Rincian Kategori Spoofing"
+        onClose={onClose}
+      />
 
         <div className="overflow-y-auto px-6 py-6 flex flex-col gap-8">
           {hasResult && result && (
@@ -105,7 +95,6 @@ export function AnalysisDrawer({ open, onClose, result }: AnalysisDrawerProps) {
             </p>
           )}
         </div>
-      </DrawerContent>
-    </Drawer>
+    </GlassDrawer>
   );
 }

@@ -50,7 +50,17 @@ export type ScanMode = "register" | "authenticate";
 
 export type ResultVerdict = "ok" | "spoof" | "warn";
 
-export type AuraExpression = "normal" | "senang" | "sedih" | "lengkungan";
+export type AuraExpression =
+  | "normal"
+  | "senang"
+  | "sedih"
+  | "lengkungan"
+  | "berhasil"
+  | "gagal"
+  | "berhasil_anticipate"
+  | "berhasil_static"
+  | "gagal_anticipate"
+  | "gagal_static";
 
 export interface AuraLayerConfig {
   id: number;

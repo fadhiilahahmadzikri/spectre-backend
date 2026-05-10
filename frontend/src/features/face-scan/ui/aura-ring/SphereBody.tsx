@@ -24,6 +24,7 @@ export function SphereBody({
     height: diameter,
     borderRadius: "50%",
     backgroundColor: "rgba(12, 10, 20, 0.7)",
+    filter: "blur(var(--mb, 0px))",
     boxShadow: `
       inset ${-15 + eyeState.x * 1.8}px ${-15 + eyeState.y * 1.8}px 40px rgba(0, 0, 0, 0.95),
       inset ${-25 + eyeState.x * 2.2}px ${-25 + eyeState.y * 2.2}px 25px rgba(0, 0, 0, 0.8),

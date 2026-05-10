@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/store";
+import { SCAN_CONFIG } from "@/shared/config/scan.config";
 import { IdentityGate } from "./IdentityGate";
 import { ScannerView } from "./ScannerView";
 import { useScanSession } from "../model/scan-store";
@@ -68,7 +69,7 @@ export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: Scanner
               apiKey={apiKey}
               externalUserId={externalUserId}
               onClose={() => handleOpenChange(false)}
-              redirectUrl={redirectUrl}
+              redirectUrl={redirectUrl ?? SCAN_CONFIG.redirectUrl}
             />
           ) : (
             <div className="flex-1 overflow-y-auto flex items-center justify-center p-4">

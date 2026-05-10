@@ -1,19 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { GlassDrawer, GlassDrawerHeader } from "@/shared/ui/GlassDrawer";
 import { Switch } from "@/components/ui/switch";
-import { FaceIDGlyph, CloseIcon, ArrowRightIcon } from "@/shared/icons";
-import { useMediaQuery, MEDIA_MOBILE } from "@/shared/hooks/use-media-query";
+import { FaceIDGlyph, ArrowRightIcon } from "@/shared/icons";
 import { MODE_REGISTER } from "../../model/constants";
 import type { ScanMode, ScanResult } from "../../model/types";
 import { type ConfigDraft } from "../../model/config-draft";
@@ -35,43 +23,25 @@ interface ConfigPanelProps {
 }
 
 function hasChanged(a: ConfigDraft, b: ConfigDraft): boolean {
-  return a.fas !== b.fas || a.requirePose !== b.requirePose || a.showPreview !== b.showPreview;
+  return a.fas !== b.fas || a.requirePose !== b.requirePose || a.showPreview !== b.showPreview || a.redirectUrl !== b.redirectUrl;
 }
 
 export function ConfigPanel(props: ConfigPanelProps) {
-  const isMobile = useMediaQuery(MEDIA_MOBILE);
-  if (isMobile) return <ConfigDrawerSurface {...props} />;
-  return <ConfigSheetSurface {...props} />;
-}
-
-function ConfigSheetSurface(props: ConfigPanelProps) {
   return (
-    <Sheet open={props.open} onOpenChange={(v) => !v && props.onClose()}>
-      <SheetContent
-        side="right"
-        className="glass-strong border-none p-0 w-[400px] sm:max-w-[420px] [&>button]:top-4 [&>button]:right-4"
-      >
-        <SheetTitle className="sr-only">Scanner settings</SheetTitle>
-        <SheetDescription className="sr-only">
-          Configure identity session and scan behavior
-        </SheetDescription>
-        <ConfigPanelBody {...props} />
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function ConfigDrawerSurface(props: ConfigPanelProps) {
-  return (
-    <Drawer open={props.open} onOpenChange={(v) => !v && props.onClose()}>
-      <DrawerContent className="glass-strong config-drawer border-none !rounded-t-[24px] max-h-[88vh]">
-        <DrawerTitle className="sr-only">Scanner settings</DrawerTitle>
-        <DrawerDescription className="sr-only">
-          Configure identity session and scan behavior
-        </DrawerDescription>
-        <ConfigPanelBody {...props} />
-      </DrawerContent>
-    </Drawer>
+    <GlassDrawer
+      open={props.open}
+      onClose={props.onClose}
+      title="Scanner settings"
+      description="Configure identity session and scan behavior"
+    >
+      <GlassDrawerHeader
+        icon={<FaceIDGlyph size={20} />}
+        title="Settings"
+        subtitle="Spectre Face ID"
+        onClose={props.onClose}
+      />
+      <ConfigPanelBody {...props} />
+    </GlassDrawer>
   );
 }
 
@@ -100,23 +70,7 @@ function ConfigPanelBody({
   const changed = hasChanged(draft, currentConfig);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 pt-5 pb-4 flex items-center justify-between border-b border-[color:var(--separator)]">
-        <div className="flex items-center gap-2.5">
-          <div style={{ color: "rgba(235,235,245,0.75)" }}>
-            <FaceIDGlyph size={20} />
-          </div>
-          <div>
-            <div className="face-title text-[15px]">Settings</div>
-            <div className="kbd-mono text-[10px] mt-[1px]">Spectre Face ID</div>
-          </div>
-        </div>
-        <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-          <CloseIcon />
-        </button>
-      </div>
-
-      <div className="overflow-y-auto px-6 py-5 flex flex-col gap-6 pb-10">
+    <div className="overflow-y-auto px-6 py-5 flex flex-col gap-6 pb-10">
         {result?.detail && (
           <Section label="Last analysis">
             <button
@@ -173,6 +127,17 @@ function ConfigPanelBody({
           </div>
         </Section>
 
+        <Section label="Redirect URL">
+          <input
+            type="url"
+            value={draft.redirectUrl}
+            onChange={(e) => setDraft((d) => ({ ...d, redirectUrl: e.target.value }))}
+            placeholder="https://example.com/callback"
+            className="input-mono w-full"
+          />
+          <span className="kbd-mono text-[10px] mt-1">URL tujuan setelah verifikasi berhasil</span>
+        </Section>
+
         <Section label="Actions">
           <div className="flex flex-col gap-2">
             <button
@@ -191,7 +156,6 @@ function ConfigPanelBody({
           </div>
         </Section>
       </div>
-    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import type {
   Phase,
   ScanMode,
 } from "./types";
+import { SCAN_CONFIG } from "@/shared/config/scan.config";
 
 export const PHASES = {
   USER_ID: "USER_ID",
@@ -63,7 +64,7 @@ export const IQA_THRESHOLDS = {
   MSG_COOLDOWN_MS: 400,
 } as const;
 
-export const BRIGHTNESS_THRESHOLD = 55;
+export const BRIGHTNESS_THRESHOLD = SCAN_CONFIG.brightnessThreshold;
 export const BRIGHTNESS_INTERVAL_MS = 120;
 
 export const SCAN_GEOMETRY = {
@@ -75,7 +76,7 @@ export const SCAN_GEOMETRY = {
   VIDEO_DISPLAY_SIZE: 400,
 } as const;
 
-export const REDIRECT_DELAY_SECONDS = 5;
+export const REDIRECT_DELAY_SECONDS = SCAN_CONFIG.redirectDelay;
 
 export const ACTIVE_PHASES: ReadonlySet<Phase> = new Set<Phase>([
   PHASES.CAPTURING,

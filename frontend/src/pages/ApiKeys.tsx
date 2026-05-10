@@ -17,6 +17,7 @@ import { useApiKeysUi } from "@/features/api-keys/model/api-keys-ui-store";
 import { GenerateKeyDialog } from "@/features/api-keys/ui/GenerateKeyDialog";
 import { EmptyResourceState } from "@/shared/ui/EmptyResourceState";
 import { AddResourceTile } from "@/shared/ui/AddResourceTile";
+import { Spinner } from "@/components/ui/spinner";
 
 export function ApiKeys() {
   const { appId } = useParams<{ appId: string }>();
@@ -83,7 +84,7 @@ export function ApiKeys() {
         </div>
 
         {isLoading ? (
-          <p className="kbd-mono text-center py-16">Loading…</p>
+          <div className="flex justify-center py-16"><Spinner label="Loading API keys..." /></div>
         ) : isEmpty ? (
           <EmptyResourceState
             icon={<Sparkles size={26} />}

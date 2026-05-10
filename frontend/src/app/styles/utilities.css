@@ -8,6 +8,7 @@ html,
 body {
   height: 100%;
   color: var(--fg);
+  background: #000000;
   overscroll-behavior: none;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -32,6 +33,7 @@ body {
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+  background: #000000;
 }
 
 .app-shell {
@@ -57,13 +59,6 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(to top,
-      rgba(0, 0, 0, 0.92) 0%,
-      rgba(0, 0, 0, 0.7) 20%,
-      rgba(0, 0, 0, 0.35) 45%,
-      rgba(0, 0, 0, 0.05) 70%,
-      transparent 100%);
   z-index: 1;
 }
 
@@ -72,8 +67,7 @@ body {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 65% 45% at 50% 22%, rgba(130, 170, 255, 0.22) 0%, rgba(100, 150, 240, 0.08) 40%, transparent 72%),
-    radial-gradient(ellipse 85% 55% at 50% 100%, rgba(255, 255, 255, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 65% 45% at 50% 18%, rgba(130, 170, 255, 0.18) 0%, rgba(100, 150, 240, 0.06) 40%, transparent 72%);
   z-index: 0;
 }
 

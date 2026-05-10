@@ -1,3 +1,5 @@
+import { SCAN_CONFIG } from "@/shared/config/scan.config";
+
 export interface ConfigDraft {
   fas: boolean;
   requirePose: boolean;
@@ -9,5 +11,5 @@ export const CONFIG_DRAFT_DEFAULT: ConfigDraft = {
   fas: true,
   requirePose: true,
   showPreview: false,
-  redirectUrl: "",
+  redirectUrl: SCAN_CONFIG.redirectUrl,
 };

@@ -10,6 +10,8 @@ import {
 import { isTerminalPhase } from "../lib/phase-guards";
 import { useProgressiveLog } from "../hooks/use-progressive-log";
 import { useScanOrchestrator } from "../hooks/use-scan-orchestrator";
+import { setPersistedRedirectUrl } from "@/shared/config/scan.config";
+import { CONFIG_DRAFT_DEFAULT } from "../model/config-draft";
 import { AuraRing } from "./aura-ring/AuraRing";
 import { IrisShell } from "./iris-shell/IrisShell";
 import { CornerFrame } from "./iris-shell/CornerFrame";
@@ -32,7 +34,7 @@ interface ScannerViewProps {
 }
 
 const { VIDEO_DISPLAY_SIZE } = SCAN_GEOMETRY;
-const INITIAL_CONFIG: ConfigDraft = { fas: true, requirePose: true, showPreview: false, redirectUrl: "" };
+const INITIAL_CONFIG: ConfigDraft = CONFIG_DRAFT_DEFAULT;
 
 function maskApiKey(apiKey: string): string {
   if (apiKey.length <= 12) return apiKey;
@@ -177,12 +179,15 @@ export function ScannerView({
           </IrisShell>
 
           <div
-            className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none transition-opacity duration-700"
-            style={{ opacity: showAuraMascot ? 1 : 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none"
+            style={{
+              opacity: showAuraMascot ? 1 : 0,
+              transition: showAuraMascot ? "opacity 600ms ease 350ms" : "opacity 300ms ease",
+            }}
           >
             {showAuraMascot && (
               <>
-                <AuraRing size={480} config={auraConfig} />
+                <AuraRing size={380} config={auraConfig} />
                 {statusText && (
                   <div className="my-5 text-white/80 font-medium tracking-tight text-sm mt-4 tracking-[-0.02em]">
                     {statusText}
@@ -193,8 +198,11 @@ export function ScannerView({
           </div>
 
           <div
-            className="absolute inset-0 w-full h-full z-30 pointer-events-none transition-opacity duration-700"
-            style={{ opacity: showSegments ? 1 : 0 }}
+            className="absolute inset-0 w-full h-full z-30 pointer-events-none"
+            style={{
+              opacity: showSegments ? 1 : 0,
+              transition: showSegments ? "opacity 700ms ease" : "opacity 300ms ease",
+            }}
           >
             <SegmentRing
               phase={phase}
@@ -235,7 +243,7 @@ export function ScannerView({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         currentConfig={config}
-        onApply={(next) => { setConfig(next); setDrawerOpen(false); handleReset(); }}
+        onApply={(next) => { setConfig(next); setDrawerOpen(false); setPersistedRedirectUrl(next.redirectUrl); handleReset(); }}
         mode={mode}
         apiKeyMasked={maskApiKey(apiKey)}
         externalUserId={externalUserId}

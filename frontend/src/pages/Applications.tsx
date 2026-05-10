@@ -17,6 +17,7 @@ import { useAppsUi } from "@/features/applications/model/apps-ui-store";
 import { CreateApplicationDialog } from "@/features/applications/ui/CreateApplicationDialog";
 import { EmptyResourceState } from "@/shared/ui/EmptyResourceState";
 import { AddResourceTile } from "@/shared/ui/AddResourceTile";
+import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
 
 export function Applications() {
@@ -81,7 +82,7 @@ export function Applications() {
         </div>
 
         {isLoading ? (
-          <p className="kbd-mono text-center py-16">Loading…</p>
+          <div className="flex justify-center py-16"><Spinner label="Loading applications..." /></div>
         ) : isEmpty ? (
           <EmptyResourceState
             icon={<Sparkles size={26} />}

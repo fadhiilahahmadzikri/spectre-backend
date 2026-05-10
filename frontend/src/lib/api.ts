@@ -116,4 +116,16 @@ export const api = {
 
   getAdminEnv: () =>
     request<Record<string, string>>("/admin/env"),
+
+  getAutomationStatus: () =>
+    request<{
+      workflow: string;
+      last_run_at: string;
+      status: string;
+      conclusion: string;
+      html_url: string;
+      repo: string;
+      cron_interval: string;
+      error?: string;
+    }>("/admin/automation/status"),
 };

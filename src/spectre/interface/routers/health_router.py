@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import datetime
+import os
+import asyncio
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import text
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from typing import Literal
 
 from spectre.interface.dependencies import get_current_user
 from spectre.domain.entities.user import User
@@ -106,9 +110,6 @@ async def health_check(request: Request) -> dict:
     }
 
 
-from pydantic import BaseModel
-from typing import Literal
-
 class DBConfigRequest(BaseModel):
     target: Literal["supabase", "alpine"]
 
@@ -168,14 +169,9 @@ async def switch_db(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Simulate DB switch orchestration (updates configuration files and triggers restart)
-    import asyncio
-    
-    # In a real environment, you'd modify .env or Hugging Face secrets.
-    # We will simulate the latency of an orchestration sync.
+    # Simulate DB switch orchestration
     await asyncio.sleep(2)
     
-    # Modify the active setting in memory just for simulation.
     if body.target == "supabase":
         request.app.state.settings.database_url = "postgresql+asyncpg://postgres:xxx@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
     else:
@@ -192,19 +188,59 @@ async def get_admin_env(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # List of keys we want to audit (avoiding extremely sensitive ones if preferred, 
-    # but since it's admin-only, we can show what's needed).
     keys_to_audit = [
         "APP_NAME", "APP_ENV", "DATABASE_URL", "REDIS_URL", 
         "API_PORT", "MODEL_PATH", "HF_SPACE_ID", "SMTP_HOST"
     ]
     
-    # Also include any key that looks like a Spectre config
     audit_data = {k: os.environ.get(k, "NOT SET") for k in os.environ.keys() if any(x in k for x in ["DATABASE", "JWT", "SECRET", "KEY", "URL", "SMTP"])}
     
-    # Supplement with explicitly requested keys
     for k in keys_to_audit:
         if k not in audit_data:
             audit_data[k] = os.environ.get(k, "NOT SET")
 
     return audit_data
+
+
+@router.get("/admin/automation/status")
+async def get_automation_status(
+    current_user: User = Depends(get_current_user),
+):
+    """Fetch status of GitHub Actions keep-alive workflow."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    import requests
+    
+    repo = "fadhiilahahmadzikri/spectre-backend"
+    workflow_file = "keepalive.yml"
+    
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("HF_TOKEN")
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+        
+    try:
+        url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/runs?per_page=1"
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        latest_run = data.get("workflow_runs", [{}])[0]
+        
+        return {
+            "workflow": "Keep HF Space Alive",
+            "last_run_at": latest_run.get("created_at"),
+            "status": latest_run.get("status"),
+            "conclusion": latest_run.get("conclusion"),
+            "html_url": latest_run.get("html_url"),
+            "repo": repo,
+            "cron_interval": "Every 20 hours"
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to fetch GHA status: {str(e)}",
+            "workflow": "Keep HF Space Alive",
+            "repo": repo,
+            "cron_interval": "Every 20 hours"
+        }

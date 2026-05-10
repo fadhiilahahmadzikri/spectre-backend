@@ -202,6 +202,29 @@ reset: docker-down clean seed-reset ## Full teardown (stop services, clear cache
 ci: check test-cov ## CI pipeline (lint + typecheck + tests + coverage)
 
 # ==============================================================================
+# Maintenance & Continuity
+# ==============================================================================
+
+infra-status: ## Show status of HF Spaces and Supabase projects
+	python deploy.py --inspect
+	npx supabase projects list
+
+wakeup-logs: ## View logs of the latest keep-alive GitHub Action run
+	$$run_id = gh run list --workflow="keepalive.yml" --limit 1 --json databaseId --jq '.[0].databaseId'; if ($$run_id) { gh run view $$run_id --log } else { Write-Host "No runs found." }
+
+wakeup-trigger: ## Manually trigger the keep-alive workflow and watch progress
+	gh workflow run "Keep HF Space Alive"; Start-Sleep -Seconds 2; gh run watch
+
+heartbeat-list: ## Show the latest 10 heartbeat records from Supabase
+	$$URL = "postgresql://postgres.rgnyrswxydfuqldeeqsg:ZikriSpectre2026%21%23@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"; psql $$URL -c "SELECT * FROM keepalive_ping ORDER BY pinged_at DESC LIMIT 10;"
+
+db-query: ## Execute arbitrary SQL (usage: make db-query SQL="SELECT * FROM users")
+	@$$URL = "postgresql://postgres.rgnyrswxydfuqldeeqsg:ZikriSpectre2026%21%23@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"; psql $$URL -c "$(SQL)"
+
+db-tables: ## List all tables in the remote database
+	@$$URL = "postgresql://postgres.rgnyrswxydfuqldeeqsg:ZikriSpectre2026%21%23@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"; psql $$URL -c "\dt"
+
+# ==============================================================================
 # Cleanup
 # ==============================================================================
 

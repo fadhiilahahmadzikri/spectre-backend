@@ -91,4 +91,29 @@ export const api = {
 
   revokeKey: (appId: string, keyId: string) =>
     request<void>(`/api/v1/applications/${appId}/api-keys/${keyId}`, { method: "DELETE" }),
+
+  getHealth: () =>
+    request<{
+      status: string;
+      service: string;
+      version: string;
+      timestamp: string;
+      components: { database: string; redis: string; ml_model: string };
+    }>("/health"),
+
+  getAdminStats: () =>
+    request<{
+      heartbeats: Array<{ id: string; pinged_at: string; source: string }>;
+      server_time: string;
+      active_db: string;
+    }>("/admin/stats"),
+
+  switchDatabase: (target: string) =>
+    request<{ status: string; message: string }>("/admin/config/db", {
+      method: "POST",
+      body: JSON.stringify({ target }),
+    }),
+
+  getAdminEnv: () =>
+    request<Record<string, string>>("/admin/env"),
 };

@@ -2,7 +2,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/lib/store";
 import { FaceIDGlyph } from "@/shared/icons";
 import { ScanLine, LogOut } from "lucide-react";
-import { EnvToggle } from "./EnvToggle";
 import { MobileMenu } from "./MobileMenu";
 
 export function AppHeader() {
@@ -30,14 +29,18 @@ export function AppHeader() {
             >
               Applications
             </Link>
+            {user?.role === "admin" && (
+              <Link
+                to="/admin/health"
+                className="text-[13px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors"
+              >
+                Health
+              </Link>
+            )}
           </nav>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <div className="hidden md:inline-flex">
-            <EnvToggle />
-          </div>
-
           {user?.email && (
             <div className="user-chip hidden lg:inline-flex">
               <span className="ring-dot" />

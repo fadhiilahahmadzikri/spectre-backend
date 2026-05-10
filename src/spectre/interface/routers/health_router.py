@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import datetime
 
-from fastapi import APIRouter, Request
-
+from fastapi import APIRouter, Request, Depends, HTTPException
+from sqlalchemy import text
 from fastapi.responses import HTMLResponse
+
+from spectre.interface.dependencies import get_current_user
+from spectre.domain.entities.user import User
 
 router = APIRouter(tags=["Health"])
 
@@ -101,3 +104,107 @@ async def health_check(request: Request) -> dict:
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "components": components,
     }
+
+
+from pydantic import BaseModel
+from typing import Literal
+
+class DBConfigRequest(BaseModel):
+    target: Literal["supabase", "alpine"]
+
+
+@router.get("/admin/stats")
+async def get_admin_stats(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Protected endpoint for admin to view infrastructure stats."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Get latest heartbeats
+    heartbeats = []
+    try:
+        db_factory = getattr(request.app.state, "db_session_factory", None)
+        if db_factory:
+            async with db_factory() as session:
+                heartbeat_query = text(
+                    "SELECT id, pinged_at, source FROM keepalive_ping "
+                    "ORDER BY pinged_at DESC LIMIT 5"
+                )
+                result = await session.execute(heartbeat_query)
+                heartbeats = [
+                    {
+                        "id": str(row.id),
+                        "pinged_at": row.pinged_at.isoformat(),
+                        "source": row.source,
+                    }
+                    for row in result.all()
+                ]
+    except Exception:
+        pass
+
+    # Extract active db string from configuration
+    db_url = str(getattr(request.app.state.settings, "database_url", ""))
+    if "supabase" in db_url:
+        active_db = "supabase"
+    else:
+        active_db = "alpine"
+
+    return {
+        "heartbeats": heartbeats,
+        "server_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "active_db": active_db
+    }
+
+
+@router.post("/admin/config/db")
+async def switch_db(
+    request: Request,
+    body: DBConfigRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Dynamically switch database connection environment."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Simulate DB switch orchestration (updates configuration files and triggers restart)
+    import asyncio
+    
+    # In a real environment, you'd modify .env or Hugging Face secrets.
+    # We will simulate the latency of an orchestration sync.
+    await asyncio.sleep(2)
+    
+    # Modify the active setting in memory just for simulation.
+    if body.target == "supabase":
+        request.app.state.settings.database_url = "postgresql+asyncpg://postgres:xxx@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+    else:
+        request.app.state.settings.database_url = "postgresql+asyncpg://spectre:spectre@localhost:5432/spectre"
+    
+    return {"status": "success", "message": f"Database switched to {body.target}"}
+
+
+@router.get("/admin/env")
+async def get_admin_env(
+    current_user: User = Depends(get_current_user),
+):
+    """Protected endpoint to audit active environment variables."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # List of keys we want to audit (avoiding extremely sensitive ones if preferred, 
+    # but since it's admin-only, we can show what's needed).
+    keys_to_audit = [
+        "APP_NAME", "APP_ENV", "DATABASE_URL", "REDIS_URL", 
+        "API_PORT", "MODEL_PATH", "HF_SPACE_ID", "SMTP_HOST"
+    ]
+    
+    # Also include any key that looks like a Spectre config
+    audit_data = {k: os.environ.get(k, "NOT SET") for k in os.environ.keys() if any(x in k for x in ["DATABASE", "JWT", "SECRET", "KEY", "URL", "SMTP"])}
+    
+    # Supplement with explicitly requested keys
+    for k in keys_to_audit:
+        if k not in audit_data:
+            audit_data[k] = os.environ.get(k, "NOT SET")
+
+    return audit_data

@@ -58,13 +58,20 @@ class RegisterUser:
         user = User(
             id=uuid.uuid4(),
             email=email.lower(),
-            password_hash=self._pw.hash(password),
             display_name=display_name,
-            auth_provider="local",
             is_verified=False,
             is_active=True,
         )
         user = await self._user_repo.create(user)
+
+        identity = UserIdentity(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            provider="local",
+            provider_user_id=email.lower(),
+            password_hash=self._pw.hash(password),
+        )
+        await self._user_repo.create_identity(identity)
 
         otp_code = "".join(
             secrets.choice("0123456789")
@@ -118,10 +125,14 @@ class LoginUser:
             TOTPRequiredError (if TOTP is enabled — token is partial).
         """
         user = await self._user_repo.get_by_email(email.lower())
-        if not user or not user.password_hash:
+        if not user:
             raise InvalidCredentialsError()
 
-        if not self._pw.verify(password, user.password_hash):
+        identity = await self._user_repo.get_identity("local", email.lower())
+        if not identity or not identity.password_hash:
+            raise InvalidCredentialsError()
+
+        if not self._pw.verify(password, identity.password_hash):
             raise InvalidCredentialsError()
 
         if not user.is_active:
@@ -137,7 +148,9 @@ class LoginUser:
             )
             raise TOTPRequiredError()
 
-        access_token = self._jwt.create_access_token(user.id)
+        access_token = self._jwt.create_access_token(
+            user.id, extra_claims={"role": user.role}
+        )
         refresh_token = secrets.token_urlsafe(48)
 
         logger.info("user_login", user_id=str(user.id))
@@ -147,6 +160,7 @@ class LoginUser:
             "token_type": "bearer",
             "user_id": str(user.id),
             "display_name": user.display_name,
+            "role": user.role,
         }
 
 
@@ -244,4 +258,6 @@ class VerifyTOTP:
             "access_token": access_token,
             "token_type": "bearer",
             "user_id": str(user.id),
+        }
+      "user_id": str(user.id),
         }

@@ -17,7 +17,7 @@ from spectre.domain.entities.email_verification import EmailVerification
 from spectre.domain.entities.face_profile import FaceProfile
 from spectre.domain.entities.refresh_token import RefreshToken
 from spectre.domain.entities.tenant_application import TenantApplication
-from spectre.domain.entities.user import User
+from spectre.domain.entities.user import User, UserIdentity
 from spectre.domain.entities.webhook_delivery import WebhookDelivery
 
 
@@ -34,10 +34,19 @@ class AbstractUserRepository(ABC):
     async def get_by_email(self, email: str) -> User | None: ...
 
     @abstractmethod
-    async def get_by_google_id(self, google_id: str) -> User | None: ...
+    async def update(self, user: User) -> User: ...
 
     @abstractmethod
-    async def update(self, user: User) -> User: ...
+    async def get_identity(self, provider: str, provider_user_id: str) -> UserIdentity | None: ...
+
+    @abstractmethod
+    async def get_identities_by_user(self, user_id: UUID) -> list[UserIdentity]: ...
+
+    @abstractmethod
+    async def create_identity(self, identity: UserIdentity) -> UserIdentity: ...
+
+    @abstractmethod
+    async def update_identity(self, identity: UserIdentity) -> UserIdentity: ...
 
 
 class AbstractTenantApplicationRepository(ABC):

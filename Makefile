@@ -1,4 +1,4 @@
-SHELL := powershell.exe
+﻿SHELL := powershell.exe
 .SHELLFLAGS := -NoProfile -Command
 
 .PHONY: help install dev dev-win test-poc worker lint format typecheck check test test-unit test-integration test-cov test-newman test-newman-report test-all migrate migrate-new migrate-down seed seed-force seed-reset seed-list docker-up docker-down docker-build docker-logs docs docs-redoc openapi-export health env-check bootstrap reset ci clean clean-pyc
@@ -160,7 +160,7 @@ docs-hf-redoc: ## Open ReDoc on Hugging Face Spaces
 	Start-Process "https://thewhitenigs-spectre-backend.hf.space/redoc"
 
 openapi-export: ## Export live OpenAPI schema to Docs/openapi.json
-	$$env:PYTHONPATH='src'; uv run python -c "import json; from spectre.config import Settings; from spectre.main import create_app; app = create_app(settings=Settings(app_env='development', debug=True, database_url='sqlite+aiosqlite:///', redis_url='redis://localhost:6379/15', jwt_secret_key='x'*64, encryption_key='dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleTE=', model_path='artifact/best_model.keras', smtp_host='localhost')); open('Docs/openapi.json','w').write(json.dumps(app.openapi(), indent=2, default=str))"
+	$(PYPATH) uv run python -c "import json; from spectre.config import Settings; from spectre.main import create_app; app = create_app(settings=Settings(app_env='development', debug=True, database_url='sqlite+aiosqlite:///', redis_url='redis://localhost:6379/15', jwt_secret_key='x'*64, encryption_key='dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleTE=', model_path='artifact/best_model.keras', smtp_host='localhost')); open('Docs/openapi.json','w').write(json.dumps(app.openapi(), indent=2, default=str))"
 	@echo "Exported: Docs/openapi.json"
 
 # ==============================================================================
@@ -237,3 +237,6 @@ clean: ## Remove all build artifacts and caches
 	Get-ChildItem -Path . -Recurse -Directory -Filter '.mypy_cache' -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 	Get-ChildItem -Path . -Recurse -Directory -Filter 'htmlcov' -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 	Remove-Item -Force .coverage -ErrorAction SilentlyContinue
+	Remove-Item -Force .coverage -ErrorAction SilentlyContinue
+
+

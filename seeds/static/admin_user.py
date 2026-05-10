@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from seeds.base import BaseSeeder
 from spectre.config import get_settings
-from spectre.infrastructure.database.models.tables import UserModel
+from spectre.infrastructure.database.models.tables import UserModel, UserIdentityModel
 from spectre.infrastructure.security.password_handler import PasswordHandler
 
 
@@ -26,22 +26,47 @@ class AdminUserSeeder(BaseSeeder):
     ADMIN_EMAIL = "admin@spectre.dev"
     ADMIN_PASSWORD = "Spectre@Admin123"
     ADMIN_DISPLAY_NAME = "Spectre Admin"
+    
+    # Primary Admin (User)
+    PRIMARY_ADMIN = "zikri@students.amikom.ac.id"
 
     async def run(self) -> None:
-        existing = await self._session.execute(
+        # Ensure default system admin
+        existing_sys = await self._session.execute(
             select(UserModel).where(UserModel.email == self.ADMIN_EMAIL)
         )
-        if existing.scalar_one_or_none() is not None:
-            return
+        sys_user = existing_sys.scalar_one_or_none()
+        if sys_user is None:
+            sys_user = UserModel(
+                id=uuid.uuid4(),
+                email=self.ADMIN_EMAIL,
+                display_name=self.ADMIN_DISPLAY_NAME,
+                role="admin",
+                is_verified=True,
+                is_active=True,
+            )
+            self._session.add(sys_user)
+            
+            pw = PasswordHandler(get_settings())
+            sys_identity = UserIdentityModel(
+                id=uuid.uuid4(),
+                user_id=sys_user.id,
+                provider="local",
+                provider_user_id=self.ADMIN_EMAIL,
+                password_hash=pw.hash(self.ADMIN_PASSWORD)
+            )
+            self._session.add(sys_identity)
+        else:
+            sys_user.role = "admin" # Recovery
 
-        pw = PasswordHandler(get_settings())
-        user = UserModel(
-            id=uuid.uuid4(),
-            email=self.ADMIN_EMAIL,
-            password_hash=pw.hash(self.ADMIN_PASSWORD),
-            display_name=self.ADMIN_DISPLAY_NAME,
-            auth_provider="local",
-            is_verified=True,
-            is_active=True,
+        # Ensure Primary Admin exists with admin role
+        existing_primary = await self._session.execute(
+            select(UserModel).where(UserModel.email == self.PRIMARY_ADMIN)
         )
-        self._session.add(user)
+        primary = existing_primary.scalar_one_or_none()
+        if primary:
+            primary.role = "admin"
+        else:
+            # If not found, it will be created via OAuth with role 'user' 
+            # and next boot will upgrade it to 'admin'.
+            pass

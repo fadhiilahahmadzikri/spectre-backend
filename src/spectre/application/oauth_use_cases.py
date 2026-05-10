@@ -7,14 +7,14 @@ import uuid
 from typing import Any
 
 from spectre.core.logger import get_logger
-from spectre.domain.entities.user import User
+from spectre.domain.entities.user import User, UserIdentity
 from spectre.domain.ports.repositories import AbstractUserRepository
 
 logger = get_logger(__name__)
 
 
 class GoogleOAuthUseCase:
-    """Handle Google OAuth profile to local user conversion."""
+    """Handle Google OAuth profile to local user conversion using Identity Separation."""
 
     def __init__(self, user_repo: AbstractUserRepository) -> None:
         self._user_repo = user_repo
@@ -32,36 +32,48 @@ class GoogleOAuthUseCase:
                 detail={"error_code": "INVALID_OAUTH_PROFILE", "message": "Google profile missing required fields."}
             )
 
-        # 1. Try finding by Google ID
-        user = await self._user_repo.get_by_google_id(google_id)
-        if user:
+        provider = "google"
+        
+        # 1. Check if this identity is already known
+        identity = await self._user_repo.get_identity(provider, google_id)
+        if identity:
+            # Known identity -> update last_used_at and return the associated user
+            identity.last_used_at = datetime.datetime.now(datetime.timezone.utc)
+            await self._user_repo.update_identity(identity)
+            
+            user = await self._user_repo.get_by_id(identity.user_id)
+            if not user:
+                 raise Exception("Integrity Error: User identity exists but user does not.")
             logger.info("google_oauth_login_existing_id", user_id=str(user.id), email=email)
             return user
 
-        # 2. Try finding by Email (link existing local account)
+        # 2. Identity is new. Check if the email is already registered in users
         user = await self._user_repo.get_by_email(email.lower())
+        
         if user:
-            # Update user to link Google ID
-            user.google_id = google_id
-            user.auth_provider = "google"
-            user.updated_at = datetime.datetime.now(datetime.timezone.utc)
-            # Auto-verify if they used Google
+            # Email exists -> Link the new Google identity to the existing user
             user.is_verified = True
             await self._user_repo.update(user)
             logger.info("google_oauth_linked_account", user_id=str(user.id), email=email)
-            return user
+        else:
+            # Completely new user -> Create user
+            user = User(
+                id=uuid.uuid4(),
+                email=email.lower(),
+                display_name=display_name,
+                is_verified=True, # Google accounts are trusted/verified
+                is_active=True,
+            )
+            user = await self._user_repo.create(user)
+            logger.info("google_oauth_new_user", user_id=str(user.id), email=email)
 
-        # 3. Create new user
-        user = User(
+        # Create the new identity record (Google)
+        new_identity = UserIdentity(
             id=uuid.uuid4(),
-            email=email.lower(),
-            password_hash=None, # No local password
-            display_name=display_name,
-            auth_provider="google",
-            google_id=google_id,
-            is_verified=True, # Google accounts are trusted/verified
-            is_active=True,
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=google_id,
         )
-        user = await self._user_repo.create(user)
-        logger.info("google_oauth_new_user", user_id=str(user.id), email=email)
+        await self._user_repo.create_identity(new_identity)
+        
         return user

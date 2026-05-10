@@ -249,7 +249,9 @@ async def login(
         }
 
     # Full auth
-    access_token = jwt_handler.create_access_token(user.id)
+    access_token = jwt_handler.create_access_token(
+        user.id, extra_claims={"role": user.role}
+    )
     refresh_raw = secrets.token_urlsafe(48)
     refresh_hash = hashlib.sha256(refresh_raw.encode()).hexdigest()
 
@@ -494,8 +496,10 @@ async def google_callback(
 
     # Issue tokens
     jwt_handler = JWTHandler(settings)
-    access_token = jwt_handler.create_access_token(user.id)
-    
+    access_token = jwt_handler.create_access_token(
+        user.id, extra_claims={"role": user.role}
+    )
+
     refresh_raw = secrets.token_urlsafe(48)
     refresh_hash = hashlib.sha256(refresh_raw.encode()).hexdigest()
 
@@ -522,6 +526,6 @@ async def google_callback(
         "user_id": str(user.id),
         "email": user.email,
         "display_name": user.display_name or "",
+        "role": user.role,
     })
-
     return RedirectResponse(url=f"{frontend_url}/oauth/callback?{params}")

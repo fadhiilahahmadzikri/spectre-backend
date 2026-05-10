@@ -19,7 +19,7 @@ from spectre.domain.entities.email_verification import EmailVerification
 from spectre.domain.entities.face_profile import FaceProfile
 from spectre.domain.entities.refresh_token import RefreshToken
 from spectre.domain.entities.tenant_application import TenantApplication
-from spectre.domain.entities.user import User
+from spectre.domain.entities.user import User, UserIdentity
 from spectre.domain.entities.webhook_delivery import WebhookDelivery
 from spectre.domain.ports.repositories import (
     AbstractApiKeyRepository,
@@ -41,6 +41,7 @@ from spectre.infrastructure.database.models.tables import (
     RefreshTokenModel,
     TenantApplicationModel,
     UserModel,
+    UserIdentityModel,
     WebhookDeliveryModel,
 )
 
@@ -54,16 +55,28 @@ def _user_to_entity(m: UserModel) -> User:
     return User(
         id=m.id,
         email=m.email,
-        password_hash=m.password_hash,
         display_name=m.display_name,
-        auth_provider=m.auth_provider,
-        google_id=m.google_id,
         totp_secret_encrypted=m.totp_secret_encrypted,
         totp_enabled=m.totp_enabled,
+        role=m.role,
         is_verified=m.is_verified,
         is_active=m.is_active,
         created_at=m.created_at,
         updated_at=m.updated_at,
+    )
+
+
+def _identity_to_entity(m: UserIdentityModel) -> UserIdentity:
+    return UserIdentity(
+        id=m.id,
+        user_id=m.user_id,
+        provider=m.provider,
+        provider_user_id=m.provider_user_id,
+        password_hash=m.password_hash,
+        access_token=m.access_token,
+        refresh_token=m.refresh_token,
+        created_at=m.created_at,
+        last_used_at=m.last_used_at,
     )
 
 
@@ -181,12 +194,10 @@ class SQLUserRepository(AbstractUserRepository):
         model = UserModel(
             id=user.id,
             email=user.email,
-            password_hash=user.password_hash,
             display_name=user.display_name,
-            auth_provider=user.auth_provider,
-            google_id=user.google_id,
             totp_secret_encrypted=user.totp_secret_encrypted,
             totp_enabled=user.totp_enabled,
+            role=user.role,
             is_verified=user.is_verified,
             is_active=user.is_active,
         )
@@ -204,28 +215,67 @@ class SQLUserRepository(AbstractUserRepository):
         model = result.scalar_one_or_none()
         return _user_to_entity(model) if model else None
 
-    async def get_by_google_id(self, google_id: str) -> User | None:
-        stmt = select(UserModel).where(UserModel.google_id == google_id)
-        result = await self._session.execute(stmt)
-        model = result.scalar_one_or_none()
-        return _user_to_entity(model) if model else None
-
     async def update(self, user: User) -> User:
         stmt = (
             update(UserModel)
             .where(UserModel.id == user.id)
             .values(
                 email=user.email,
-                password_hash=user.password_hash,
                 display_name=user.display_name,
                 totp_secret_encrypted=user.totp_secret_encrypted,
                 totp_enabled=user.totp_enabled,
+                role=user.role,
                 is_verified=user.is_verified,
                 is_active=user.is_active,
+                updated_at=datetime.datetime.now(datetime.timezone.utc),
             )
         )
         await self._session.execute(stmt)
         return user
+
+    async def get_identity(self, provider: str, provider_user_id: str) -> UserIdentity | None:
+        stmt = select(UserIdentityModel).where(
+            and_(
+                UserIdentityModel.provider == provider,
+                UserIdentityModel.provider_user_id == provider_user_id
+            )
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _identity_to_entity(model) if model else None
+
+    async def get_identities_by_user(self, user_id: UUID) -> list[UserIdentity]:
+        stmt = select(UserIdentityModel).where(UserIdentityModel.user_id == user_id)
+        result = await self._session.execute(stmt)
+        return [_identity_to_entity(m) for m in result.scalars().all()]
+
+    async def create_identity(self, identity: UserIdentity) -> UserIdentity:
+        model = UserIdentityModel(
+            id=identity.id,
+            user_id=identity.user_id,
+            provider=identity.provider,
+            provider_user_id=identity.provider_user_id,
+            password_hash=identity.password_hash,
+            access_token=identity.access_token,
+            refresh_token=identity.refresh_token,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _identity_to_entity(model)
+
+    async def update_identity(self, identity: UserIdentity) -> UserIdentity:
+        stmt = (
+            update(UserIdentityModel)
+            .where(UserIdentityModel.id == identity.id)
+            .values(
+                password_hash=identity.password_hash,
+                access_token=identity.access_token,
+                refresh_token=identity.refresh_token,
+                last_used_at=datetime.datetime.now(datetime.timezone.utc),
+            )
+        )
+        await self._session.execute(stmt)
+        return identity
 
 
 class SQLTenantApplicationRepository(AbstractTenantApplicationRepository):

@@ -59,7 +59,7 @@ COPY seeds/ seeds/
 COPY artifact/ artifact/
 
 # ---- Copy orchestration files ----
-COPY supervisord.conf /etc/supervisor/conf.d/spectre.conf
+COPY supervisord.conf.tmpl /etc/supervisor/conf.d/spectre.conf.tmpl
 COPY start.sh /app/start.sh
 COPY .env.spaces /app/.env
 

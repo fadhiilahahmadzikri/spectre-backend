@@ -14,6 +14,7 @@ export function OAuthCallback() {
     const email = params.get("email");
     const userId = params.get("user_id");
     const displayName = params.get("display_name");
+    const role = params.get("role") ?? "user";
 
     if (token && refresh) {
       setAuth({
@@ -23,6 +24,7 @@ export function OAuthCallback() {
           id: userId ?? "",
           email: email ?? "",
           display_name: displayName ?? "",
+          role: role,
         },
       });
       navigate("/", { replace: true });

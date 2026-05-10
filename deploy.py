@@ -49,6 +49,8 @@ MAIN_MENU_OPTIONS = [
     "Upload / Redeploy Space",
     "Watch Space Status",
     "Manage Secrets",
+    "Inspect Space Secrets (Keys Only)",
+    "Audit Remote Env Values (Full Access)",
     "Inspect Spaces",
     "Preview Ignore Patterns",
     "Keluar",
@@ -599,6 +601,134 @@ def flow_secrets(api: HfApi, username: str):
             Prompt.ask("[dim]Enter[/]", default="")
 
 
+def _list_space_secrets(api: HfApi, repo_id: str) -> list[str]:
+    """Robustly list secret keys using direct API if HfApi method is missing."""
+    try:
+        if hasattr(api, "list_space_secrets"):
+            return [s.key for s in api.list_space_secrets(repo_id=repo_id)]
+        
+        # Fallback to direct API request
+        import requests
+        token = getattr(api, "token", None)
+        if not token:
+            from huggingface_hub import HfFolder
+            token = HfFolder.get_token()
+            
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        resp = requests.get(f"https://huggingface.co/api/spaces/{repo_id}/secrets", headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            return list(data.keys())
+        return []
+    except Exception:
+        return []
+
+
+def flow_inspect_secrets(api: HfApi, username: str):
+    print_banner(username)
+    console.print(Rule("[bold cyan]INSPECT SPACE SECRETS[/]"))
+
+    spaces = fetch_spaces(api, username)
+    if not spaces:
+        console.print("[red]Tidak ada Space ditemukan.[/]")
+        Prompt.ask("[dim]Enter untuk kembali[/]", default="")
+        return
+
+    print_banner(username)
+    idx = arrow_menu(
+        title="Pilih Space untuk di-inspect",
+        options=[s.id for s in spaces],
+        subtitle="Melihat daftar secret key yang terpasang",
+    )
+    if idx == -1:
+        return
+
+    repo_id = spaces[idx].id
+    
+    with console.status(f"[cyan]Mengambil data secret dari {repo_id}...[/]"):
+        keys = _list_space_secrets(api, repo_id)
+
+    table = Table(
+        title=f"Secrets — {repo_id}",
+        box=box.ROUNDED,
+        border_style="cyan",
+        header_style="bold magenta",
+    )
+    table.add_column("#", justify="right", style="dim", width=4)
+    table.add_column("Secret Key", style="bold cyan")
+    table.add_column("Value", style="dim", justify="center")
+
+    if not keys:
+        table.add_row("-", "No secrets found or access denied", "-")
+    else:
+        for i, key in enumerate(keys, 1):
+            table.add_row(str(i), key, "[italic]********[/]")
+
+    console.print()
+    console.print(table)
+    console.print(f"\n[dim]Total: {len(secrets)} secrets terpasang.[/]")
+    Prompt.ask("\n[dim]Enter untuk kembali[/]", default="")
+
+
+def flow_audit_remote_env(api: HfApi, username: str):
+    print_banner(username)
+    console.print(Rule("[bold orange3]AUDIT REMOTE ENVIRONMENT[/]"))
+
+    spaces = fetch_spaces(api, username)
+    if not spaces:
+        return
+
+    idx = arrow_menu(
+        title="Pilih Space untuk di-Audit",
+        options=[s.id for s in spaces],
+        subtitle="Mengambil nilai env langsung dari runtime API",
+    )
+    if idx == -1: return
+    
+    repo_id = spaces[idx].id
+    # Construct base URL from space info
+    info = api.space_info(repo_id)
+    base_url = info.host
+    if not base_url:
+        console.print("[red]Space host tidak ditemukan. Pastikan Space dalam keadaan RUNNING.[/]")
+        Prompt.ask("[dim]Enter untuk kembali[/]")
+        return
+
+    token = Prompt.ask("[yellow]Admin JWT Token[/]", password=True)
+    if not token: return
+
+    with console.status(f"[cyan]Menghubungi {base_url}...[/]"):
+        try:
+            import requests
+            resp = requests.get(
+                f"{base_url}/api/v1/health/admin/env", 
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=15
+            )
+            if resp.status_code != 200:
+                console.print(f"[red]Gagal:[/] HTTP {resp.status_code} - {resp.text}")
+                Prompt.ask("[dim]Enter untuk kembali[/]")
+                return
+            
+            env_data = resp.json()
+        except Exception as e:
+            console.print(f"[red]Error koneksi:[/] {e}")
+            Prompt.ask("[dim]Enter untuk kembali[/]")
+            return
+
+    table = Table(title=f"Live Audit — {repo_id}", box=box.HORIZONTALS, border_style="orange3")
+    table.add_column("Environment Variable", style="bold cyan")
+    table.add_column("Active Value", style="green")
+
+    for k, v in sorted(env_data.items()):
+        table.add_row(k, str(v))
+
+    console.print()
+    console.print(table)
+    console.print(f"\n[dim]Source: {base_url}/api/v1/health/admin/env[/]")
+    Prompt.ask("\n[dim]Enter untuk kembali[/]")
+
+
 def interactive_mode(api: HfApi, username: str):
     while True:
         print_banner(username)
@@ -607,7 +737,7 @@ def interactive_mode(api: HfApi, username: str):
             options=MAIN_MENU_OPTIONS,
             subtitle="↑↓ navigasi   Enter pilih   Q keluar",
         )
-        if choice == -1 or choice == 5:
+        if choice == -1 or choice == 7:
             console.clear()
             sys.exit(0)
         elif choice == 0:
@@ -617,8 +747,12 @@ def interactive_mode(api: HfApi, username: str):
         elif choice == 2:
             flow_secrets(api, username)
         elif choice == 3:
-            flow_inspect(api, username)
+            flow_inspect_secrets(api, username)
         elif choice == 4:
+            flow_audit_remote_env(api, username)
+        elif choice == 5:
+            flow_inspect(api, username)
+        elif choice == 6:
             flow_preview_ignore(username)
 
 
@@ -628,6 +762,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--folder",  "-f", metavar="PATH", default=None)
     p.add_argument("--workers", "-w", type=int, default=4, metavar="N")
     p.add_argument("--inspect",       action="store_true")
+    p.add_argument("--secrets", "-s", metavar="ENV_FILE", help="Push secrets from .env file non-interactively")
+    p.add_argument("--list-secrets",  action="store_true", help="List secret keys non-interactively")
     return p
 
 
@@ -641,7 +777,58 @@ def main():
         sys.exit(0)
 
     if args.repo:
+        repo_id = args.repo
+        
+        if args.list_secrets:
+            with console.status(f"[cyan]Mengambil data secret dari {repo_id}...[/]"):
+                keys = _list_space_secrets(api, repo_id)
+                table = Table(title=f"Secrets — {repo_id}", box=box.ROUNDED, border_style="cyan")
+                table.add_column("#", justify="right", style="dim")
+                table.add_column("Secret Key", style="bold cyan")
+                for i, k in enumerate(keys, 1):
+                    table.add_row(str(i), k)
+                console.print(table)
+                sys.exit(0)
         folder = Path(args.folder or ".").expanduser().resolve()
+        
+        # Non-interactive secret pushing
+        if args.secrets:
+            import re
+            p = Path(args.secrets).expanduser().resolve()
+            if not p.exists():
+                console.print(f"[red]File tidak ditemukan:[/] {p}")
+                sys.exit(1)
+            
+            secrets = {}
+            # Use utf-8 to avoid charmap errors
+            with open(p, encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key, _, val = line.partition("=")
+                        key = key.strip()
+                        # HF requires /^[a-zA-Z][_a-zA-Z0-9]*$/
+                        if not re.match(r"^[a-zA-Z][_a-zA-Z0-9]*$", key):
+                            continue
+                        
+                        val = val.strip().strip('"').strip("'")
+                        if val and val not in ("set-via-hf-secrets", "<CHANGE_THIS>", ""):
+                            secrets[key] = val
+            
+            if secrets:
+                console.print(f"[cyan]Pushing {len(secrets)} valid secrets to {repo_id}...[/]")
+                with console.status("[cyan]Pushing secrets...[/]"):
+                    for key, value in secrets.items():
+                        try:
+                            api.add_space_secret(repo_id=repo_id, key=key, value=value)
+                        except Exception as e:
+                            console.print(f"  [yellow]Skipped {key}:[/] {str(e)[:50]}...")
+                console.print(f"[green]✓ Secrets sync completed.[/]")
+            else:
+                console.print("[yellow]No valid secrets found in file.[/]")
+
         if not folder.exists():
             console.print(f"[red]Folder tidak ditemukan:[/] {folder}")
             sys.exit(1)

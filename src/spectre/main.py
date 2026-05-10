@@ -131,6 +131,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "Authentication", "description": "User registration, login, and Google OAuth"},
             {"name": "Applications", "description": "Tenant application and API key management"},
             {"name": "Face Operations", "description": "Biometric registration and authentication"},
+            {"name": "Configuration", "description": "Admin system configuration management"},
             {"name": "Telemetry", "description": "Frontend logging and error ingestion"},
         ]
     )
@@ -207,6 +208,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from spectre.interface.routers.webhook_router import router as webhook_router
     from spectre.interface.routers.session_router import router as session_router
     from spectre.interface.routers.client_log_router import router as client_log_router
+    from spectre.interface.routers.config_router import router as config_router
 
     app.include_router(health_router)
     app.include_router(auth_router)
@@ -215,5 +217,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(webhook_router)
     app.include_router(session_router)
     app.include_router(client_log_router)
+    app.include_router(config_router)
 
     return app

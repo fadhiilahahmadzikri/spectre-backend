@@ -44,11 +44,14 @@ function resolveShellGeometry(phase: Phase): ShellGeometry {
 
 export function IrisShell({ phase, children }: IrisShellProps) {
   const { width, height, borderRadius, className } = resolveShellGeometry(phase);
+  const hideBorder =
+    phase === PHASES.ANALYZING || phase === PHASES.COMPLETE || phase === PHASES.FAILED;
 
   const style: CSSProperties = {
     width,
     height,
     borderRadius,
+    ...(hideBorder && { border: "none", boxShadow: "none" }),
   };
 
   return (

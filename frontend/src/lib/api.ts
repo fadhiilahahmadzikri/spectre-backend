@@ -128,4 +128,13 @@ export const api = {
       cron_interval: string;
       error?: string;
     }>("/admin/automation/status"),
+
+  getConfig: () =>
+    request<{ categories: Record<string, Array<{ key: string; value: string; category: string; data_type: string; description: string; updated_by: string | null; updated_at: string | null }>> }>("/admin/config"),
+
+  updateConfig: (updates: Record<string, string>) =>
+    request<{ categories: Record<string, Array<{ key: string; value: string; category: string; data_type: string; description: string; updated_by: string | null; updated_at: string | null }>> }>("/admin/config", {
+      method: "PATCH",
+      body: JSON.stringify({ updates }),
+    }),
 };

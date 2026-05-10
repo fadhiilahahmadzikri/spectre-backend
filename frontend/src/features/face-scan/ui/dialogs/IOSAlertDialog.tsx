@@ -21,11 +21,6 @@ interface IOSAlertDialogProps {
   onClose: () => void;
 }
 
-function actionColor(style: IosAlertAction["style"]): string {
-  if (style === "destructive") return "text-[#FF453A]";
-  return "text-[#0A84FF]";
-}
-
 export function IOSAlertDialog({ config, onClose }: IOSAlertDialogProps) {
   const open = !!config;
   if (!config) {
@@ -39,25 +34,30 @@ export function IOSAlertDialog({ config, onClose }: IOSAlertDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent
-        className="ios-alert-box p-0 border-none w-[270px] sm:max-w-[270px] overflow-hidden !rounded-[14px]"
+        className="glass-strong p-0 border-none w-[320px] sm:max-w-[320px] overflow-hidden !rounded-[24px]"
       >
-        <div className="pt-[18px] pb-4 px-4 flex flex-col items-center gap-1">
-          <AlertDialogTitle className="text-[17px] font-semibold text-white text-center leading-tight tracking-[-0.022em]">
+        <div className="pt-7 pb-5 px-6 flex flex-col items-center gap-2">
+          <AlertDialogTitle className="face-title text-[17px] text-center">
             {config.title}
           </AlertDialogTitle>
           {config.message && (
-            <div className="text-[13px] text-[rgba(235,235,245,0.6)] text-center leading-[1.3] tracking-[-0.008em]">
+            <div className="face-helper text-[13px] text-center max-w-[260px]">
               {config.message}
             </div>
           )}
         </div>
-        <div className="flex border-t border-[rgba(84,84,88,0.65)] h-[44px]">
+        <div className="flex flex-col gap-2 px-6 pb-6">
           {config.actions.map((action, i) => (
             <button
               key={`${action.label}-${i}`}
               type="button"
-              className={`flex-1 flex items-center justify-center text-[17px] active:bg-[rgba(255,255,255,0.1)] transition-colors ${i > 0 ? "border-l border-[rgba(84,84,88,0.65)]" : ""} ${actionColor(action.style)} ${action.style === "cancel" ? "font-semibold" : "font-normal"}`}
-              style={{ letterSpacing: "-0.022em" }}
+              className={
+                action.style === "destructive"
+                  ? "btn-primary !bg-[rgba(255,69,58,0.15)] !text-[#FF453A] hover:!bg-[rgba(255,69,58,0.25)]"
+                  : action.style === "cancel"
+                    ? "btn-ghost"
+                    : "btn-primary"
+              }
               onClick={() => {
                 action.onClick();
                 onClose();

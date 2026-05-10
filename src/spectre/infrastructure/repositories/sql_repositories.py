@@ -25,6 +25,7 @@ from spectre.domain.ports.repositories import (
     AbstractApiKeyRepository,
     AbstractAuditLogRepository,
     AbstractAuthSessionRepository,
+    AbstractConfigRepository,
     AbstractEmailVerificationRepository,
     AbstractFaceProfileRepository,
     AbstractRefreshTokenRepository,
@@ -43,6 +44,7 @@ from spectre.infrastructure.database.models.tables import (
     UserModel,
     UserIdentityModel,
     WebhookDeliveryModel,
+    SystemConfigModel,
 )
 
 
@@ -725,3 +727,50 @@ class SQLAuditLogRepository(AbstractAuditLogRepository):
         )
         self._session.add(model)
         await self._session.flush()
+
+
+class SQLConfigRepository(AbstractConfigRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_all(self) -> list[dict[str, Any]]:
+        result = await self._session.execute(
+            select(SystemConfigModel).order_by(SystemConfigModel.category, SystemConfigModel.key)
+        )
+        return [self._to_dict(m) for m in result.scalars().all()]
+
+    async def get_by_category(self, category: str) -> list[dict[str, Any]]:
+        result = await self._session.execute(
+            select(SystemConfigModel).where(SystemConfigModel.category == category)
+        )
+        return [self._to_dict(m) for m in result.scalars().all()]
+
+    async def get_by_key(self, key: str) -> dict[str, Any] | None:
+        result = await self._session.execute(
+            select(SystemConfigModel).where(SystemConfigModel.key == key)
+        )
+        model = result.scalar_one_or_none()
+        return self._to_dict(model) if model else None
+
+    async def update_value(self, key: str, value: str, updated_by: UUID | None = None) -> dict[str, Any] | None:
+        stmt = (
+            update(SystemConfigModel)
+            .where(SystemConfigModel.key == key)
+            .values(value=value, updated_by=updated_by)
+            .returning(SystemConfigModel)
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_dict(model) if model else None
+
+    @staticmethod
+    def _to_dict(m: SystemConfigModel) -> dict[str, Any]:
+        return {
+            "key": m.key,
+            "value": m.value,
+            "category": m.category,
+            "data_type": m.data_type,
+            "description": m.description,
+            "updated_by": str(m.updated_by) if m.updated_by else None,
+            "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+        }

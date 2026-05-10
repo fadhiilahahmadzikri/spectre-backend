@@ -39,6 +39,7 @@ import { captureBase64FromVideo } from "../lib/capture-frame";
 import { parseSummary, parseDetail } from "../lib/parse-probs";
 import { isIqaPhase } from "../lib/phase-guards";
 import { FaceApiClient, type FaceApiResponse } from "../api/face-client";
+import { useScanSession } from "../model/scan-store";
 
 const { NUM_SEGMENTS, ANGLE_STEP } = SCAN_GEOMETRY;
 
@@ -86,8 +87,11 @@ export function useScanOrchestrator({
   showLog,
   clearLog,
 }: UseScanOrchestratorParams): UseScanOrchestratorReturn {
+  const { getCachedMode, setCachedMode } = useScanSession();
+  const cachedMode = getCachedMode(apiKey);
+
   const [phase, setPhaseState] = useState<Phase>(PHASES.LOADING);
-  const [mode, setMode] = useState<ScanMode>(MODE_REGISTER);
+  const [mode, setMode] = useState<ScanMode>(cachedMode ?? MODE_REGISTER);
   const [activeSegments, setActiveSegments] = useState<Set<number>>(new Set());
   const [revealedSegments, setRevealedSegments] = useState(0);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -95,7 +99,7 @@ export function useScanOrchestrator({
   const [draftCapture, setDraftCapture] = useState<string | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [currentLandmarks, setCurrentLandmarks] = useState<Landmark[] | null>(null);
-  const [modeResolved, setModeResolved] = useState(false);
+  const [modeResolved, setModeResolved] = useState(cachedMode === MODE_AUTHENTICATE);
 
   const phaseRef = useRef<Phase>(PHASES.LOADING);
   const iqaStateRef = useRef<IqaState>(IQA_STATE.NO_FACE);
@@ -231,6 +235,7 @@ export function useScanOrchestrator({
           setTimeout(() => {
             if (requestEpochRef.current === epoch) {
               setMode(MODE_AUTHENTICATE);
+              setCachedMode(apiKey, MODE_AUTHENTICATE);
               showLog("Masuk ke mode Verifikasi", "ok");
             }
           }, 2800);
@@ -376,17 +381,27 @@ export function useScanOrchestrator({
 
   // --- Effects: phase transitions ---
   useEffect(() => {
+    // If mode already resolved from cache, skip lookup
+    if (cachedMode === MODE_AUTHENTICATE) return;
+
     let cancelled = false;
     (async () => {
       try {
         const exists = await clientRef.current.lookupUser(externalUserId);
-        if (!cancelled) { setMode(exists ? MODE_AUTHENTICATE : MODE_REGISTER); setModeResolved(true); }
+        if (cancelled) return;
+        if (exists) {
+          setMode(MODE_AUTHENTICATE);
+          setCachedMode(apiKey, MODE_AUTHENTICATE);
+        } else {
+          setMode(MODE_REGISTER);
+        }
+        setModeResolved(true);
       } catch {
         if (!cancelled) { setMode(MODE_REGISTER); setModeResolved(true); }
       }
     })();
     return () => { cancelled = true; };
-  }, [externalUserId]);
+  }, [externalUserId, apiKey, cachedMode, setCachedMode]);
 
   useEffect(() => {
     if (cameraReady && modeResolved && phaseRef.current === PHASES.LOADING) setPhase(PHASES.SEARCHING);

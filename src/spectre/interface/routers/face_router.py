@@ -118,7 +118,7 @@ async def register_face(
         app_id=app.id,
         external_user_id=body.external_user_id,
         image_bytes=image_bytes,
-        liveness_threshold=app.liveness_threshold,
+        liveness_threshold=request.app.state.settings.liveness_threshold,
         metadata=body.metadata,
     )
 
@@ -152,8 +152,8 @@ async def authenticate_face(
         app_id=app.id,
         external_user_id=body.external_user_id,
         image_bytes=image_bytes,
-        liveness_threshold=app.liveness_threshold,
-        similarity_threshold=app.similarity_threshold,
+        liveness_threshold=request.app.state.settings.liveness_threshold,
+        similarity_threshold=request.app.state.settings.similarity_threshold,
         metadata=body.metadata,
     )
 
@@ -186,7 +186,7 @@ async def replace_face(
         app_id=app.id,
         external_user_id=external_user_id,
         image_bytes=image_bytes,
-        liveness_threshold=app.liveness_threshold,
+        liveness_threshold=request.app.state.settings.liveness_threshold,
     )
 
     _dispatch_webhook(request, app, session)

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, ScanLine, AppWindow, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, ScanLine, AppWindow, LogOut, LayoutDashboard, Settings2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -11,11 +11,12 @@ import {
 import { useAuthStore } from "@/lib/store";
 import { useMediaQuery, MEDIA_MOBILE } from "@/shared/hooks/use-media-query";
 import { FaceIDGlyph } from "@/shared/icons";
-import { EnvToggle } from "./EnvToggle";
+import { ConfigDialog } from "@/features/configuration";
 
 export function MobileMenu() {
   const isMobile = useMediaQuery(MEDIA_MOBILE);
   const [open, setOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -33,56 +34,66 @@ export function MobileMenu() {
     setTimeout(() => navigate("/login"), 160);
   }
 
+  function handleOpenConfig() {
+    setOpen(false);
+    setTimeout(() => setConfigOpen(true), 200);
+  }
+
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <button type="button" className="icon-btn" aria-label="Open menu">
-          <Menu size={16} />
-        </button>
-      </SheetTrigger>
-      <SheetContent
-        side="right"
-        className="glass-strong border-none p-0 w-[280px] sm:max-w-[280px] [&>button]:top-4 [&>button]:right-4"
-      >
-        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
-        <SheetDescription className="sr-only">Main application navigation</SheetDescription>
+    <>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <button type="button" className="icon-btn" aria-label="Open menu">
+            <Menu size={16} />
+          </button>
+        </SheetTrigger>
+        <SheetContent
+          side="right"
+          className="glass-strong border-none p-0 w-[280px] sm:max-w-[280px] [&>button]:top-4 [&>button]:right-4"
+        >
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <SheetDescription className="sr-only">Main application navigation</SheetDescription>
 
-        <div className="flex flex-col h-full">
-          <div className="px-5 pt-5 pb-4 flex items-center gap-2 border-b border-[color:var(--separator)]">
-            <FaceIDGlyph size={20} />
-            <span className="face-title text-[14px]">Spectre</span>
-          </div>
+          <div className="flex flex-col h-full">
+            <div className="px-5 pt-5 pb-4 flex items-center gap-2 border-b border-[color:var(--separator)]">
+              <FaceIDGlyph size={20} />
+              <span className="face-title text-[14px]">Spectre</span>
+            </div>
 
-          {user?.email && (
-            <div className="px-5 py-4 border-b border-[color:var(--separator)]">
-              <div className="user-chip max-w-full">
-                <span className="ring-dot" />
-                <span>{user.email}</span>
+            {user?.email && (
+              <div className="px-5 py-4 border-b border-[color:var(--separator)]">
+                <div className="user-chip max-w-full">
+                  <span className="ring-dot" />
+                  <span>{user.email}</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <nav className="flex flex-col p-3 gap-1">
-            <MobileNavItem icon={<LayoutDashboard size={16} />} label="Dashboard" onClick={() => handleNav("/")} />
-            <MobileNavItem icon={<AppWindow size={16} />} label="Applications" onClick={() => handleNav("/applications")} />
-            <MobileNavItem icon={<ScanLine size={16} />} label="Face scan" onClick={() => handleNav("/scan")} />
-          </nav>
+            <nav className="flex flex-col p-3 gap-1">
+              <MobileNavItem icon={<LayoutDashboard size={16} />} label="Dashboard" onClick={() => handleNav("/")} />
+              <MobileNavItem icon={<AppWindow size={16} />} label="Applications" onClick={() => handleNav("/applications")} />
+              <MobileNavItem icon={<ScanLine size={16} />} label="Face scan" onClick={() => handleNav("/scan")} />
+              {user?.role === "admin" && (
+                <MobileNavItem icon={<Settings2 size={16} />} label="Configuration" onClick={handleOpenConfig} />
+              )}
+            </nav>
 
-          <div className="mt-auto p-5 flex flex-col gap-4 border-t border-[color:var(--separator)]">
-            <div className="flex items-center justify-between">
-              <span className="face-helper text-[12px]">Environment</span>
-              <EnvToggle />
+            <div className="mt-auto p-5 flex flex-col gap-4 border-t border-[color:var(--separator)]">
+              <button type="button" className="btn-ghost" onClick={handleLogout}>
+                <span className="inline-flex items-center gap-2 justify-center">
+                  <LogOut size={14} />
+                  Log out
+                </span>
+              </button>
             </div>
-            <button type="button" className="btn-ghost" onClick={handleLogout}>
-              <span className="inline-flex items-center gap-2 justify-center">
-                <LogOut size={14} />
-                Log out
-              </span>
-            </button>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+
+      {user?.role === "admin" && (
+        <ConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
+      )}
+    </>
   );
 }
 

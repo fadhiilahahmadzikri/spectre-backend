@@ -1,0 +1,47 @@
+"""Seed: system_config — default operational parameters."""
+
+from __future__ import annotations
+
+from seeds.base import BaseSeeder
+
+DEFAULTS = [
+    # Anti-Spoofing & Liveness
+    ("liveness_threshold", "0.5", "anti_spoofing", "float", "Minimum realperson probability for liveness pass"),
+    ("similarity_threshold", "0.40", "anti_spoofing", "float", "Minimum cosine similarity for face match"),
+    ("model_use_tta", "false", "anti_spoofing", "bool", "Enable Test-Time Augmentation for FAS inference"),
+    # Webhook & Delivery
+    ("webhook_timeout_seconds", "10", "webhook", "int", "HTTP timeout for webhook delivery requests"),
+    ("webhook_max_retries", "4", "webhook", "int", "Maximum retry attempts for failed webhooks"),
+    ("webhook_retry_backoff_base", "30", "webhook", "int", "Base backoff seconds between webhook retries"),
+    # Rate Limiting
+    ("rate_limit_default", "100/minute", "rate_limiting", "string", "Default API rate limit"),
+    ("rate_limit_face_operations", "30/minute", "rate_limiting", "string", "Rate limit for face operation endpoints"),
+    # Session & Auth
+    ("jwt_access_token_expire_minutes", "30", "session_auth", "int", "JWT access token lifetime in minutes"),
+    ("jwt_refresh_token_expire_days", "7", "session_auth", "int", "JWT refresh token lifetime in days"),
+    ("otp_expire_minutes", "15", "session_auth", "int", "OTP code expiration in minutes"),
+    ("otp_length", "6", "session_auth", "int", "Number of digits in OTP codes"),
+    # Scan UX
+    ("redirect_url", "https://www.youtube.com", "scan_ux", "string", "Default redirect URL after successful verification"),
+    ("redirect_delay", "5", "scan_ux", "int", "Seconds to wait before redirecting after scan"),
+    ("brightness_threshold", "55", "scan_ux", "int", "Minimum brightness level for camera feed validation"),
+]
+
+
+class SystemConfigSeeder(BaseSeeder):
+    name = "system_config"
+    order = 50
+
+    async def run(self, session) -> None:
+        from sqlalchemy import text
+
+        for key, value, category, data_type, description in DEFAULTS:
+            await session.execute(
+                text(
+                    "INSERT INTO system_config (key, value, category, data_type, description) "
+                    "VALUES (:key, :value, :category, :data_type, :description) "
+                    "ON CONFLICT (key) DO NOTHING"
+                ),
+                {"key": key, "value": value, "category": category, "data_type": data_type, "description": description},
+            )
+        await session.commit()

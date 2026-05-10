@@ -37,34 +37,24 @@ export function Dashboard() {
         />
       </div>
 
-      <section className="glass rounded-[20px] p-6 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <h2 className="face-title text-[15px]">Documentation links</h2>
-            <p className="face-helper text-[12px]">
-              Read the full REST reference for registering and authenticating faces.
-            </p>
-          </div>
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="face-title text-[15px]">Documentation</h2>
+          <p className="face-helper text-[12px]">REST API reference for face registration and authentication.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <a
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <DocCard
             href={`${base}/docs`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[color:var(--fill-tertiary)] border border-[color:var(--poc-border)] text-[12px] hover:bg-[color:var(--fill-primary)] transition-colors"
-          >
-            Swagger UI
-            <ExternalLink size={12} />
-          </a>
-          <a
+            icon="https://cdn.jsdelivr.net/gh/swagger-api/swagger-ui@master/dist/favicon-32x32.png"
+            title="Swagger UI"
+            description="Interactive API explorer"
+          />
+          <DocCard
             href={`${base}/redoc`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[color:var(--fill-tertiary)] border border-[color:var(--poc-border)] text-[12px] hover:bg-[color:var(--fill-primary)] transition-colors"
-          >
-            ReDoc
-            <ExternalLink size={12} />
-          </a>
+            icon="https://cdn.redoc.ly/redoc/logo-mini.svg"
+            title="ReDoc"
+            description="Clean API documentation"
+          />
         </div>
       </section>
     </div>
@@ -113,5 +103,31 @@ function ActionCard({ to, href, icon, title, description, external }: ActionCard
     <Link to={to!} className={className}>
       {content}
     </Link>
+  );
+}
+
+
+interface DocCardProps {
+  href: string;
+  icon: string;
+  title: string;
+  description: string;
+}
+
+function DocCard({ href, icon, title, description }: DocCardProps) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="glass-strong hover-glow rounded-[16px] p-4 flex items-center gap-3 cursor-pointer"
+    >
+      <img src={icon} alt="" width={28} height={28} className="rounded-md shrink-0" />
+      <div className="flex flex-col min-w-0">
+        <span className="face-title text-[13px]">{title}</span>
+        <span className="face-helper text-[11px]">{description}</span>
+      </div>
+      <ExternalLink size={14} className="shrink-0 text-[color:var(--label-tertiary)] ml-auto" />
+    </a>
   );
 }

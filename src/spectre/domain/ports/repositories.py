@@ -212,3 +212,19 @@ class AbstractAuditLogRepository(ABC):
         metadata: dict[str, Any] | None = None,
         ip_address: str | None = None,
     ) -> None: ...
+
+
+class AbstractConfigRepository(ABC):
+    """Data access contract for system configuration parameters."""
+
+    @abstractmethod
+    async def get_all(self) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    async def get_by_category(self, category: str) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    async def get_by_key(self, key: str) -> dict[str, Any] | None: ...
+
+    @abstractmethod
+    async def update_value(self, key: str, value: str, updated_by: UUID | None = None) -> dict[str, Any] | None: ...

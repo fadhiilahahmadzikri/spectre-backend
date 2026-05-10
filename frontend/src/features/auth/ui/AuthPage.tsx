@@ -36,7 +36,11 @@ export function AuthPage({ initialMode }: AuthPageProps) {
 
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden">
-      <aside className="w-full md:w-[52%] lg:w-[48%] xl:w-[44%] min-h-[100dvh] flex flex-col">
+      <aside className="w-full md:w-[52%] lg:w-[48%] xl:w-[44%] min-h-[100dvh] flex flex-col relative">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(130, 170, 255, 0.08) 0%, transparent 70%)" }}
+        />
         <header className="flex items-center justify-between px-6 md:px-10 pt-6 md:pt-8">
           <div className="flex items-center gap-2 text-[color:var(--label-primary)]">
             <FaceIDGlyph size={22} />

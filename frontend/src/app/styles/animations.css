@@ -131,24 +131,6 @@
 }
 
 
-/* Status indicator (checkmark / cross) */
-@keyframes status-ring-in {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-@keyframes status-tick-draw {
-  from { stroke-dashoffset: 100; }
-  to { stroke-dashoffset: 0; }
-}
-.status-ring {
-  animation: status-ring-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.status-tick {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: status-tick-draw 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
-}
-
 
 /* Cyber glitch animations for AuraRing indicator transitions */
 @keyframes cyber-glitch-1 {

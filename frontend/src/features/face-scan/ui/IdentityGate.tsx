@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { z } from "zod";
 import { FaceIDGlyph } from "@/shared/icons";
+import { Spinner } from "@/components/ui/spinner";
 import { FaceApiClient } from "../api/face-client";
 
 export interface IdentityGateResolved {
@@ -50,15 +51,15 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
 
   return (
     <div className="relative flex flex-col items-center justify-center w-full py-10">
-      <div className="glass-strong w-full max-w-[380px] rounded-[24px] p-8 flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-3">
+      <div className="w-full max-w-[380px] rounded-[24px] p-8 flex flex-col gap-6">
+        <div className="flex items-center gap-3">
           <div className="gate-icon-ring">
-            <FaceIDGlyph size={36} />
+            <FaceIDGlyph size={28} />
           </div>
-          <h2 className="face-title text-[20px]">Face Scan</h2>
-          <p className="face-helper text-[12px] text-center">
-            Paste API Key yang sudah di-generate
-          </p>
+          <div>
+            <h2 className="face-title text-[18px]">Face Scan</h2>
+            <p className="face-helper text-[12px]">Paste API Key yang sudah di-generate</p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -84,8 +85,9 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
             type="button"
             onClick={handleStart}
             disabled={loading || !apiKey.trim()}
-            className="btn-primary"
+            className="btn-primary inline-flex items-center justify-center gap-2"
           >
+            {loading && <Spinner size="sm" />}
             {loading ? "Memverifikasi..." : "Mulai Face Scan"}
           </button>
           {onCancel && (
@@ -93,11 +95,6 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
               Batal
             </button>
           )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="gate-separator" />
-          <p className="kbd-mono text-center mt-3">external_user_id · {externalUserId}</p>
         </div>
       </div>
     </div>

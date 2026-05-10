@@ -58,6 +58,8 @@ export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: Scanner
           sm:w-[440px] sm:h-[860px] sm:max-h-[94dvh] sm:!rounded-[32px]
           [&>button]:hidden
         "
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogTitle className="sr-only">Spectre face scanner</DialogTitle>
         <DialogDescription className="sr-only">

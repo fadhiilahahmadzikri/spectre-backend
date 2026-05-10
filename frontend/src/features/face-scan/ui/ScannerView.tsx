@@ -89,7 +89,7 @@ export function ScannerView({
   const showCanvas = CANVAS_PHASES.has(phase);
   const showVignette = VIGNETTE_PHASES.has(phase);
   const showMode = !isBusy && !isTerminal && phase !== PHASES.PREVIEW;
-  const showLogs = !isTerminal && phase !== PHASES.PREVIEW;
+  const showLogs = !isTerminal && phase !== PHASES.PREVIEW && phase !== PHASES.ANALYZING;
   const showSegments =
     phase !== PHASES.LOADING &&
     phase !== PHASES.SEARCHING &&
@@ -138,7 +138,7 @@ export function ScannerView({
 
       <ModeIndicator visible={showMode} mode={mode} />
 
-      <div className="flex-1 flex flex-col items-center justify-center pt-[20vh]" style={{ zIndex: 10 }}>
+      <div className="flex-1 flex flex-col items-center justify-center pt-[12vh]" style={{ zIndex: 10 }}>
         <motion.div
           animate={avatarControls}
           className="relative w-[400px] h-[400px] flex items-center justify-center"
@@ -154,7 +154,7 @@ export function ScannerView({
                 !cameraReady
                   ? "opacity-0"
                   : phase === PHASES.ANALYZING || phase === PHASES.PREVIEW || phase === PHASES.COMPLETE || phase === PHASES.FAILED
-                    ? "blur-[6px]"
+                    ? "opacity-0"
                     : ""
               }`}
               style={videoStyle}

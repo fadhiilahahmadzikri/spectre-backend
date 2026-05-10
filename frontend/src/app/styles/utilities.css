@@ -852,6 +852,13 @@ body {
   font-family: var(--font-sans) !important;
   padding: 12px 14px !important;
   min-height: 48px !important;
+  animation: toast-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+@keyframes toast-bounce-in {
+  0% { opacity: 0; transform: translateY(-16px) scale(0.92); }
+  60% { opacity: 1; transform: translateY(4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .ios-toast-title {

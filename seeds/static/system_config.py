@@ -9,6 +9,7 @@ DEFAULTS = [
     ("liveness_threshold", "0.5", "anti_spoofing", "float", "Minimum realperson probability for liveness pass"),
     ("similarity_threshold", "0.40", "anti_spoofing", "float", "Minimum cosine similarity for face match"),
     ("model_use_tta", "false", "anti_spoofing", "bool", "Enable Test-Time Augmentation for FAS inference"),
+    ("active_fas_model", "antispoofnet_v4", "anti_spoofing", "string", "Active FAS model provider (switchable at runtime)"),
     # Webhook & Delivery
     ("webhook_timeout_seconds", "10", "webhook", "int", "HTTP timeout for webhook delivery requests"),
     ("webhook_max_retries", "4", "webhook", "int", "Maximum retry attempts for failed webhooks"),

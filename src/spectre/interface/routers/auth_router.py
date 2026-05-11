@@ -224,10 +224,14 @@ async def login(
     jwt_handler = JWTHandler(settings)
 
     user = await user_repo.get_by_email(body.email.lower())
-    if not user or not user.password_hash:
+    if not user:
         raise InvalidCredentialsError()
 
-    if not pw_handler.verify(body.password, user.password_hash):
+    identity = await user_repo.get_identity("local", body.email.lower())
+    if not identity or not identity.password_hash:
+        raise InvalidCredentialsError()
+
+    if not pw_handler.verify(body.password, identity.password_hash):
         raise InvalidCredentialsError()
 
     if not user.is_active:

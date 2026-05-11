@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { GlassDrawer, GlassDrawerHeader } from "@/shared/ui/GlassDrawer";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -94,6 +96,7 @@ function ConfigPanelBody({
             <Row label="API key" value={apiKeyMasked} />
             <Row label="External user id" value={externalUserId} truncate />
           </div>
+          <MLCoreTag />
         </Section>
 
         <Section label="Mode (auto)">
@@ -211,6 +214,36 @@ function SettingRow({ title, description, checked, onChange }: SettingRowProps) 
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
     </label>
+  );
+}
+
+function MLCoreTag() {
+  const { data } = useQuery({
+    queryKey: ["admin-fas-models"],
+    queryFn: ({ signal }) => api.getFasModels({ signal }),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const active = data?.models.find((m) => m.is_active);
+
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+        <span className="inline-block size-1.5 rounded-full bg-indigo-400 animate-pulse" />
+        <span className="text-[10px] font-semibold text-indigo-300 uppercase tracking-wider">
+          ML Core
+        </span>
+      </div>
+      <span className="text-[11px] text-[color:var(--label-secondary)] font-medium">
+        {active ? `${active.model_id} v${active.version}` : "loading…"}
+      </span>
+      {active?.supports_tta && (
+        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">
+          TTA
+        </span>
+      )}
+    </div>
   );
 }
 

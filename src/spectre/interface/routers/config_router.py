@@ -29,6 +29,7 @@ _SETTINGS_MAP: dict[str, str] = {
     "liveness_threshold": "liveness_threshold",
     "similarity_threshold": "similarity_threshold",
     "model_use_tta": "model_use_tta",
+    "active_fas_model": "active_fas_model",
     "webhook_timeout_seconds": "webhook_timeout_seconds",
     "webhook_max_retries": "webhook_max_retries",
     "webhook_retry_backoff_base": "webhook_retry_backoff_base",
@@ -98,6 +99,17 @@ async def update_config(
         if not existing:
             continue
 
+        if key == "active_fas_model":
+            fas_registry = getattr(request.app.state, "fas_registry", None)
+            if fas_registry is None or not fas_registry.is_valid_model_id(new_value):
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error_code": "INVALID_MODEL_ID",
+                        "message": f"Unknown or unloaded FAS model: {new_value}",
+                    },
+                )
+
         old_value = existing["value"]
         await repo.update_value(key, new_value, updated_by=current_user.id)
 
@@ -122,3 +134,33 @@ async def update_config(
         categories[row["category"]].append(ConfigItem(**row))
 
     return ConfigResponse(categories=dict(categories))
+
+
+
+@router.get("/fas-models")
+async def list_fas_models(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    fas_registry = getattr(request.app.state, "fas_registry", None)
+    settings = request.app.state.settings
+
+    if fas_registry is None:
+        return {
+            "active_model_id": settings.active_fas_model,
+            "loaded_count": 0,
+            "models": [],
+        }
+
+    entries = fas_registry.list_models()
+    for entry in entries:
+        entry["is_active"] = entry["model_id"] == settings.active_fas_model
+
+    return {
+        "active_model_id": settings.active_fas_model,
+        "loaded_count": fas_registry.loaded_count,
+        "models": entries,
+    }

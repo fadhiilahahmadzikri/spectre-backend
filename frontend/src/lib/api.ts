@@ -226,6 +226,21 @@ export const api = {
       >;
     }>("/admin/config", { signal: opts.signal }),
 
+  getFasModels: (opts: RequestOpts = {}) =>
+    request<{
+      active_model_id: string;
+      loaded_count: number;
+      models: Array<{
+        model_id: string;
+        version: string;
+        description: string;
+        is_loaded: boolean;
+        supports_tta: boolean;
+        is_active: boolean;
+        load_error: string | null;
+      }>;
+    }>("/admin/fas-models", { signal: opts.signal }),
+
   updateConfig: (updates: Record<string, string>, opts: RequestOpts = {}) =>
     request<{
       categories: Record<

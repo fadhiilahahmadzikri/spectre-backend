@@ -80,9 +80,7 @@ class RegisterFace:
             if not is_valid:
                 raise ImageQualityInsufficientError(err)
 
-            fas_batch, weights = self._prep.build_tta_batch(image_bytes)
-
-            liveness = self._fas.predict_batch(fas_batch, weights, threshold=liveness_threshold)
+            liveness = self._fas.predict_batch(image_bytes, threshold=liveness_threshold)
             session.liveness_class = liveness.predicted_class
             session.liveness_confidence = liveness.confidence
             session.inference_time_ms = liveness.inference_time_ms
@@ -186,8 +184,7 @@ class AuthenticateFace:
             if not is_valid:
                 raise ImageQualityInsufficientError(err)
 
-            fas_batch, weights = self._prep.build_tta_batch(image_bytes)
-            liveness = self._fas.predict_batch(fas_batch, weights, threshold=liveness_threshold)
+            liveness = self._fas.predict_batch(image_bytes, threshold=liveness_threshold)
             session.liveness_class = liveness.predicted_class
             session.liveness_confidence = liveness.confidence
             session.inference_time_ms = liveness.inference_time_ms
@@ -312,8 +309,7 @@ class ReplaceFace:
         if not is_valid:
             raise ImageQualityInsufficientError(err)
 
-        fas_input = self._prep.preprocess(image_bytes)
-        liveness = self._fas.predict(fas_input, threshold=liveness_threshold)
+        liveness = self._fas.predict(image_bytes, threshold=liveness_threshold)
         session.liveness_class = liveness.predicted_class
         session.liveness_confidence = liveness.confidence
         session.inference_time_ms = liveness.inference_time_ms

@@ -34,9 +34,9 @@ env/
 
 # --- ML Models (large binaries) ---
 models/
-artifact/*.keras
-artifact/*.h5
-artifact/*.pb
+# artifact/*.keras
+# artifact/*.h5
+# artifact/*.pb
 *.tflite
 !artifact/.gitkeep
 

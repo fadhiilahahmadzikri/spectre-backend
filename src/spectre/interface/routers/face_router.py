@@ -45,12 +45,22 @@ router = APIRouter(
 
 def _build_face_use_case(request: Request, db, app, use_case_class):
     settings: Settings = request.app.state.settings
-    registry = request.app.state.model_registry
+    fas_registry = getattr(request.app.state, "fas_registry", None)
 
-    if registry is None:
+    if fas_registry is None or fas_registry.loaded_count == 0:
         raise HTTPException(
             status_code=503,
-            detail={"error_code": "MODEL_UNAVAILABLE", "message": "ML model not loaded."},
+            detail={"error_code": "MODEL_UNAVAILABLE", "message": "No FAS models loaded."},
+        )
+
+    active_id = settings.active_fas_model
+    if not fas_registry.is_valid_model_id(active_id):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error_code": "MODEL_UNAVAILABLE",
+                "message": f"Active FAS model '{active_id}' is not loaded.",
+            },
         )
 
     from spectre.infrastructure.ml.fas_adapter import KerasFASAdapter
@@ -59,7 +69,7 @@ def _build_face_use_case(request: Request, db, app, use_case_class):
 
     face_repo = SQLFaceProfileRepository(db)
     session_repo = SQLAuthSessionRepository(db)
-    fas_adapter = KerasFASAdapter(registry)
+    fas_adapter = KerasFASAdapter(fas_registry, settings)
     preprocessor = ImagePreprocessor(settings)
     encryption = AESEncryption(settings)
 
@@ -69,7 +79,16 @@ def _build_face_use_case(request: Request, db, app, use_case_class):
         embed_adapter = InsightFaceEmbeddingAdapter(insightface_reg)
     else:
         from spectre.infrastructure.ml.embedding_adapter import KerasEmbeddingAdapter
-        embed_adapter = KerasEmbeddingAdapter(registry)
+        legacy_registry = getattr(request.app.state, "model_registry", None)
+        if legacy_registry is None:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error_code": "EMBEDDING_UNAVAILABLE",
+                    "message": "No embedding model available (InsightFace down and legacy ModelRegistry missing).",
+                },
+            )
+        embed_adapter = KerasEmbeddingAdapter(legacy_registry)
 
     return use_case_class(
         face_repo=face_repo,

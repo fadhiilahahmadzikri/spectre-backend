@@ -88,3 +88,25 @@ class ModelInferenceError(SpectreError):
 
     def __init__(self, message: str = "ML model inference failed.") -> None:
         super().__init__(message)
+
+
+class ModelNotLoadedError(SpectreError):
+    error_code = "MODEL_NOT_LOADED"
+    http_status = 503
+
+    def __init__(
+        self,
+        message: str = "Requested FAS model is not loaded.",
+        *,
+        model_id: str | None = None,
+        available: list[str] | None = None,
+        load_errors: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            details={
+                "model_id": model_id,
+                "available": available or [],
+                "load_errors": load_errors or {},
+            },
+        )

@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     model_use_tta: bool = False
     inference_device: str = "cpu"
 
+    # --- Multi-Model FAS Inference ---
+    active_fas_model: str = "antispoofnet_v4"
+    ilhamcaesar_model_path: str = "artifact/multimodel/ilhamcaesar/model_final_v1.2.keras"
+
     # --- InsightFace (ArcFace identity embeddings) ---
     insightface_model_name: str = "buffalo_l"
     insightface_model_root: str | None = None
@@ -129,6 +133,13 @@ class Settings(BaseSettings):
     def model_path_resolved(self) -> Path:
         """Resolve model path relative to project root."""
         path = Path(self.model_path)
+        if path.is_absolute():
+            return path
+        return Path.cwd() / path
+
+    @property
+    def ilhamcaesar_model_path_resolved(self) -> Path:
+        path = Path(self.ilhamcaesar_model_path)
         if path.is_absolute():
             return path
         return Path.cwd() / path

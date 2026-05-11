@@ -70,6 +70,25 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.exception("ml_model_load_failed | error={}", exc)
         app.state.model_registry = None
 
+    # --- FAS Model Registry (multi-model inference) ---
+    from spectre.infrastructure.ml.fas_model_registry import FASModelRegistry
+
+    fas_registry = FASModelRegistry()
+    try:
+        fas_registry.load_all(
+            settings,
+            shared_antispoofnet_registry=app.state.model_registry,
+        )
+        app.state.fas_registry = fas_registry
+        logger.info(
+            "fas_registry_ready | loaded_count={} | active={}",
+            fas_registry.loaded_count,
+            settings.active_fas_model,
+        )
+    except Exception as exc:
+        logger.exception("fas_registry_load_failed | error={}", exc)
+        app.state.fas_registry = None
+
     # --- InsightFace ArcFace Registry (identity embeddings) ---
     from spectre.infrastructure.ml.insightface_registry import InsightFaceRegistry
 

@@ -12,9 +12,34 @@
     { "key": "app_id", "value": "" },
     { "key": "api_key", "value": "" },
     { "key": "test_email", "value": "newman_test@spectre.dev" },
-    { "key": "test_password", "value": "NewmanTest123!" }
+    { "key": "test_password", "value": "NewmanTest123!" },
+    { "key": "admin_email", "value": "admin@spectre.dev" },
+    { "key": "admin_password", "value": "Spectre@Admin123" }
   ],
   "item": [
+    {
+      "name": "Bootstrap — Admin Login",
+      "item": [
+        {
+          "name": "POST /auth/login — Get admin token",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/login", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"email\":\"{{admin_email}}\",\"password\":\"{{admin_password}}\"}"} },
+          "event": [{"listen":"test","script":{"exec":[
+            "if (pm.response.code === 200) {",
+            "  const body = pm.response.json();",
+            "  if (body.access_token) {",
+            "    pm.collectionVariables.set('auth_token', body.access_token);",
+            "    pm.test('Admin token captured', () => pm.expect(body.access_token).to.be.a('string'));",
+            "  }",
+            "  if (body.refresh_token) {",
+            "    pm.collectionVariables.set('refresh_token', body.refresh_token);",
+            "  }",
+            "} else {",
+            "  pm.test('Admin login failed (non-200) — admin tests will be skipped', () => true);",
+            "}"
+          ]}}]
+        }
+      ]
+    },
     {
       "name": "Health",
       "item": [
@@ -211,6 +236,56 @@
             "  pm.test('200 or 403', () => pm.expect([200,403]).to.include(pm.response.code));",
             "  if (pm.response.code === 200) {",
             "    pm.test('Has categories', () => pm.expect(pm.response.json()).to.have.property('categories'));",
+            "    pm.test('Has anti_spoofing category', () => pm.expect(pm.response.json().categories).to.have.property('anti_spoofing'));",
+            "    const items = pm.response.json().categories.anti_spoofing || [];",
+            "    const keys = items.map(i => i.key);",
+            "    pm.test('Has active_fas_model config', () => pm.expect(keys).to.include('active_fas_model'));",
+            "  }",
+            "} else { pm.test('Skipped (no token)', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "GET /admin/fas-models — List FAS models",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/fas-models", "header": [{"key":"Authorization","value":"Bearer {{auth_token}}"}] },
+          "event": [{"listen":"test","script":{"exec":[
+            "if (pm.variables.get('auth_token')) {",
+            "  pm.test('200 or 403', () => pm.expect([200,403]).to.include(pm.response.code));",
+            "  if (pm.response.code === 200) {",
+            "    const body = pm.response.json();",
+            "    pm.test('Has active_model_id', () => pm.expect(body).to.have.property('active_model_id'));",
+            "    pm.test('Has models array', () => pm.expect(body).to.have.property('models'));",
+            "    pm.test('Has loaded_count', () => pm.expect(body).to.have.property('loaded_count'));",
+            "    pm.test('At least 1 model loaded', () => pm.expect(body.loaded_count).to.be.at.least(1));",
+            "    pm.test('Active model is valid', () => {",
+            "      const ids = body.models.map(m => m.model_id);",
+            "      pm.expect(ids).to.include(body.active_model_id);",
+            "    });",
+            "    pm.test('Models have required fields', () => {",
+            "      body.models.forEach(m => {",
+            "        pm.expect(m).to.have.property('model_id');",
+            "        pm.expect(m).to.have.property('version');",
+            "        pm.expect(m).to.have.property('is_loaded');",
+            "        pm.expect(m).to.have.property('supports_tta');",
+            "        pm.expect(m).to.have.property('is_active');",
+            "      });",
+            "    });",
+            "  }",
+            "} else { pm.test('Skipped (no token)', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "GET /admin/fas-models — No auth (401/422)",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/fas-models" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('Rejects', () => pm.expect([401,422]).to.include(pm.response.code));"]}}]
+        },
+        {
+          "name": "PATCH /admin/config — Switch FAS model (invalid)",
+          "request": { "method": "PATCH", "url": "{{base_url}}/admin/config", "header": [{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{auth_token}}"}], "body": {"mode":"raw","raw":"{\"updates\":{\"active_fas_model\":\"nonexistent_model_xyz\"}}"} },
+          "event": [{"listen":"test","script":{"exec":[
+            "if (pm.variables.get('auth_token')) {",
+            "  pm.test('Rejects invalid model (400)', () => pm.expect([400,403]).to.include(pm.response.code));",
+            "  if (pm.response.code === 400) {",
+            "    pm.test('Has INVALID_MODEL_ID error', () => pm.expect(pm.response.json().detail.error_code).to.eql('INVALID_MODEL_ID'));",
             "  }",
             "} else { pm.test('Skipped (no token)', () => true); }"
           ]}}]

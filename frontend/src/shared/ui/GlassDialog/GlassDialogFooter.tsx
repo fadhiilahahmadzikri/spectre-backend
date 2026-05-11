@@ -26,7 +26,6 @@ export function GlassDialogFooter({
     <div
       className={cn(
         "flex flex-row items-stretch gap-2 px-6 py-4 min-w-0",
-        "border-t border-[color:var(--separator)]",
         "[&>*]:flex-1 [&>*]:min-w-0",
         ALIGN_CLASSES[align],
         className,

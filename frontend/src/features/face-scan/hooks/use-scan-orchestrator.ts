@@ -43,6 +43,7 @@ import { isIqaPhase } from "../lib/phase-guards";
 import { FaceApiClient, type FaceApiResponse } from "../api/face-client";
 import { useScanSession } from "../model/scan-store";
 import { scan } from "@/shared/lib/copy";
+import { maskKey, scanDebug } from "../lib/scan-debug";
 
 const { NUM_SEGMENTS, ANGLE_STEP } = SCAN_GEOMETRY;
 
@@ -52,6 +53,7 @@ export interface UseScanOrchestratorParams {
   apiKey: string;
   config: ConfigDraft;
   externalUserId: string;
+  initialMode: ScanMode;
   redirectUrl: string | null;
   showLog: (text: string, kind: LogEntry["kind"]) => void;
   clearLog: () => void;
@@ -66,7 +68,6 @@ export interface UseScanOrchestratorReturn {
   revealedSegments: number;
   draftCapture: string | null;
   analysisOpen: boolean;
-  modeResolved: boolean;
   currentLandmarks: Landmark[] | null;
   iqaState: IqaState;
   iqaMessage: { text: string; kind: string };
@@ -90,15 +91,15 @@ export function useScanOrchestrator({
   apiKey,
   config,
   externalUserId,
+  initialMode,
   redirectUrl,
   showLog,
   clearLog,
 }: UseScanOrchestratorParams): UseScanOrchestratorReturn {
-  const { getCachedMode, setCachedMode } = useScanSession();
-  const cachedMode = getCachedMode(apiKey);
+  const setCachedMode = useScanSession((s) => s.setCachedMode);
 
   const [phase, setPhaseState] = useState<Phase>(PHASES.LOADING);
-  const [mode, setMode] = useState<ScanMode>(cachedMode ?? MODE_REGISTER);
+  const [mode, setMode] = useState<ScanMode>(initialMode);
   const [activeSegments, setActiveSegments] = useState<Set<number>>(new Set());
   const [revealedSegments, setRevealedSegments] = useState(0);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -106,7 +107,6 @@ export function useScanOrchestrator({
   const [draftCapture, setDraftCapture] = useState<string | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [currentLandmarks, setCurrentLandmarks] = useState<Landmark[] | null>(null);
-  const [modeResolved, setModeResolved] = useState(cachedMode === MODE_AUTHENTICATE);
   const [pendingDiagnostics, setPendingDiagnostics] = useState<InferenceDiagnostics | null>(null);
   const [pendingBenchmark, setPendingBenchmark] = useState<BenchmarkApiResponse | null>(null);
   const pendingPhaseRef = useRef<Phase | null>(null);
@@ -125,10 +125,24 @@ export function useScanOrchestrator({
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const captureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialModeRef = useRef(true);
+  // When true, the NEXT mode-reset effect pass is consumed as a no-op. Used
+  // by executeApiSubmission to commit a flip-driven mode transition
+  // (REGISTER↔AUTHENTICATE, backend-authoritative) without the mode-reset
+  // effect clobbering the success UI via handleReset().
+  const suppressNextModeResetRef = useRef(false);
   const lastIqaLogRef = useRef<{ text: string; kind: LogEntry["kind"] }>({ text: "", kind: "info" });
   const instantFailsRef = useRef<IqaState[]>([]);
-  const clientRef = useRef(new FaceApiClient(apiKey));
+  const clientRef = useRef<FaceApiClient>(new FaceApiClient(apiKey));
+  // Keep clientRef in sync with the current apiKey. useRef's initializer runs
+  // only on mount, so without this effect any apiKey change (e.g. user enters
+  // a different key into IdentityGate while the orchestrator is still mounted,
+  // or the scan store rehydrates from localStorage with a different key) would
+  // leave the stale client in place and every /faces/* call would still go
+  // out with the previous X-API-Key header.
+  useEffect(() => {
+    clientRef.current = new FaceApiClient(apiKey);
+    scanDebug("orchestrator clientRef resynced", { apiKey: maskKey(apiKey) });
+  }, [apiKey]);
   // Primary cancellation path for network calls. Reset in handleReset so an
   // in-flight submission from a previous scan session is dropped the moment
   // the user restarts.
@@ -262,12 +276,46 @@ export function useScanOrchestrator({
         }
       }
 
-      const response: FaceApiResponse<FaceApiSuccessPayload & FaceApiErrorPayload> =
-        mode === MODE_REGISTER
-          ? await clientRef.current.register(externalUserId, b64, config.fas, { signal, detailMode: config.detailMode })
-          : await clientRef.current.authenticate(externalUserId, b64, config.fas, { signal, detailMode: config.detailMode });
+      const submit = (m: ScanMode) =>
+        m === MODE_REGISTER
+          ? clientRef.current.register(externalUserId, b64, config.fas, { signal, detailMode: config.detailMode })
+          : clientRef.current.authenticate(externalUserId, b64, config.fas, { signal, detailMode: config.detailMode });
+
+      let effectiveMode: ScanMode = mode;
+      let response: FaceApiResponse<FaceApiSuccessPayload & FaceApiErrorPayload> =
+        await submit(effectiveMode);
 
       if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
+
+      // Face identity is scoped to (app_id, external_user_id) on the backend,
+      // so if the frontend's mode disagrees with the backend's view — for
+      // example, a fresh API key under the same app where the lookup probe
+      // failed or returned stale data — adopt the backend's answer and retry
+      // once with the opposite endpoint. This is the single recovery path;
+      // we do not allow a second flip.
+      //
+      // We intentionally do NOT call setMode() here. Committing the mode state
+      // mid-submission would schedule a re-render during the `await submit()`
+      // microtask yield, the mode-reset effect would fire, and handleReset()
+      // would abort() the very AbortController this retry is using — killing
+      // the retry fetch with AbortError. The final mode state is committed at
+      // the end of this callback via `suppressNextModeResetRef`, which avoids
+      // that self-abort loop entirely.
+      const firstCode = !response.ok ? response.data?.error?.code : undefined;
+      const flipToAuth = effectiveMode === MODE_REGISTER && firstCode === "FACE_ALREADY_REGISTERED";
+      const flipToRegister = effectiveMode === MODE_AUTHENTICATE && firstCode === "FACE_PROFILE_NOT_FOUND";
+      if (flipToAuth || flipToRegister) {
+        effectiveMode = flipToAuth ? MODE_AUTHENTICATE : MODE_REGISTER;
+        setCachedMode(apiKey, effectiveMode);
+        showLog(
+          flipToAuth
+            ? scan.logs.alreadyEnrolledVerifying
+            : scan.logs.notEnrolledRegistering,
+          "warn",
+        );
+        response = await submit(effectiveMode);
+        if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
+      }
 
       const { ok, status, data } = response;
       if (ok && (status === 200 || status === 202) && data) {
@@ -275,7 +323,7 @@ export function useScanOrchestrator({
         const probs = data.metrics;
         const summary = parseSummary(probs);
         const detail = parseDetail(probs);
-        const baseLabel = mode === MODE_REGISTER
+        const baseLabel = effectiveMode === MODE_REGISTER
           ? scan.logs.registerSuccess
           : scan.logs.identityVerified;
         const label = config.fas ? baseLabel : `${baseLabel} (FAS off)`;
@@ -288,8 +336,8 @@ export function useScanOrchestrator({
           pendingPhaseRef.current = PHASES.COMPLETE;
         } else {
           setPhase(PHASES.COMPLETE);
-          if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
-          if (mode === MODE_REGISTER) {
+          if (effectiveMode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+          if (effectiveMode === MODE_REGISTER) {
             setTimeout(() => {
               if (requestEpochRef.current === epoch) {
                 setMode(MODE_AUTHENTICATE);
@@ -368,6 +416,14 @@ export function useScanOrchestrator({
             }, 2200);
           }
         }
+      }
+      // Commit a flip-driven mode transition now that all result/phase state
+      // has been written. The suppress flag keeps the mode-reset effect from
+      // calling handleReset() on top of the success/failure UI we just
+      // presented; the baseline is silently updated to `effectiveMode`.
+      if (effectiveMode !== mode) {
+        suppressNextModeResetRef.current = true;
+        setMode(effectiveMode);
       }
       inflightRef.current = false;
     },
@@ -490,33 +546,8 @@ export function useScanOrchestrator({
 
   // --- Effects: phase transitions ---
   useEffect(() => {
-    // If mode already resolved from cache, skip lookup
-    if (cachedMode === MODE_AUTHENTICATE) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const exists = await clientRef.current.lookupUser(externalUserId, {
-          signal: abortControllerRef.current.signal,
-        });
-        if (cancelled) return;
-        if (exists) {
-          setMode(MODE_AUTHENTICATE);
-          setCachedMode(apiKey, MODE_AUTHENTICATE);
-        } else {
-          setMode(MODE_REGISTER);
-        }
-        setModeResolved(true);
-      } catch {
-        if (!cancelled) { setMode(MODE_REGISTER); setModeResolved(true); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [externalUserId, apiKey, cachedMode, setCachedMode]);
-
-  useEffect(() => {
-    if (cameraReady && modeResolved && phaseRef.current === PHASES.LOADING) setPhase(PHASES.SEARCHING);
-  }, [cameraReady, modeResolved, setPhase]);
+    if (cameraReady && phaseRef.current === PHASES.LOADING) setPhase(PHASES.SEARCHING);
+  }, [cameraReady, setPhase]);
 
   useEffect(() => {
     if (phase !== PHASES.SEARCHING || iqaState !== IQA_STATE.READY) return;
@@ -590,10 +621,26 @@ export function useScanOrchestrator({
     }
   }, [iqaState, iqaMessage, phase, showLog]);
 
-  // Mode change reset
+  // Reset the scan surface when mode diverges from the initial mode the
+  // orchestrator was mounted with. Baseline is seeded from `initialMode` (the
+  // identity resolved at the gate), so the orchestrator never observes a
+  // "resolution" transition of its own — the only way `mode` diverges from
+  // baseline is a genuine flow event (post-register auto-advance, or the
+  // commit at the end of a flip-retry). The `suppressNextModeResetRef` escape
+  // hatch exists for the flip-retry case, where we want to commit the new
+  // mode to state without clobbering the success/failure UI.
+  const resolvedBaselineRef = useRef<ScanMode>(initialMode);
   useEffect(() => {
-    if (!initialModeRef.current) handleReset();
-    else initialModeRef.current = false;
+    if (resolvedBaselineRef.current === mode) return;
+    const suppressed = suppressNextModeResetRef.current;
+    suppressNextModeResetRef.current = false;
+    resolvedBaselineRef.current = mode;
+    if (suppressed) {
+      scanDebug("orchestrator mode transitioned → reset suppressed", { to: mode });
+      return;
+    }
+    scanDebug("orchestrator mode transitioned → reset", { to: mode });
+    handleReset();
   }, [mode, handleReset]);
 
   // When the user closes the radial AnalysisDrawer on a FAILED outcome, if
@@ -716,7 +763,6 @@ export function useScanOrchestrator({
     revealedSegments,
     draftCapture,
     analysisOpen,
-    modeResolved,
     currentLandmarks,
     iqaState,
     iqaMessage,

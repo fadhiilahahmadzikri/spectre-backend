@@ -14,7 +14,7 @@ from spectre.infrastructure.ml.handlers.base import BaseFASHandler
 logger = get_logger(__name__)
 
 _MODEL_ID = "ilhamcaesar_resnet50"
-_VERSION = "1.2"
+_VERSION = "1.3"
 _IMG_SIZE = 224
 
 
@@ -76,14 +76,26 @@ class IlhamCaesarResNet50Handler(BaseFASHandler):
         )
 
     def preprocess(self, image_bytes: bytes) -> np.ndarray:
-        from tensorflow.keras.applications.resnet50 import preprocess_input
-
+        # Authentic pipeline (from multimodel/tensorflow/ilhamcaesar.ipynb):
+        #   inputs = tf.keras.Input(...)
+        #   x = tf.keras.applications.resnet50.preprocess_input(inputs)   # INSIDE the saved graph
+        #   ...
+        #   model_resnet50.save("model_final.keras")
+        #
+        # The saved .keras file already contains `preprocess_input` as part of
+        # the Functional API graph. The notebook feeds RAW [0, 255] float32
+        # arrays from `image.img_to_array(...)` straight into `model.predict`.
+        #
+        # Therefore this handler MUST NOT call `resnet50.preprocess_input`
+        # again — doing so would BGR-swap and mean-subtract the input twice,
+        # corrupting the distribution the model was trained on.
+        #
+        # Training and validation used `image_dataset_from_directory`, whose
+        # default interpolation is BILINEAR, so we match that for faithfulness.
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img = img.resize((_IMG_SIZE, _IMG_SIZE), Image.Resampling.BICUBIC)
-        arr = np.array(img).astype(np.float32)
-        arr = preprocess_input(arr)
-        arr = np.expand_dims(arr, axis=0)
-        return arr.astype(np.float32)
+        img = img.resize((_IMG_SIZE, _IMG_SIZE), Image.Resampling.BILINEAR)
+        arr = np.array(img, dtype=np.float32)
+        return np.expand_dims(arr, axis=0)
 
     def predict(self, preprocessed: np.ndarray) -> np.ndarray:
         import tensorflow as tf

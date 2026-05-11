@@ -49,7 +49,7 @@ def sample_image_bytes() -> bytes:
 class TestIlhamCaesarResNet50Handler:
     def test_handler_metadata(self, loaded_handler) -> None:
         assert loaded_handler.model_id == "ilhamcaesar_resnet50"
-        assert loaded_handler.version == "1.2"
+        assert loaded_handler.version == "1.3"
         assert loaded_handler.supports_tta is False
         assert loaded_handler.is_loaded is True
 
@@ -60,12 +60,18 @@ class TestIlhamCaesarResNet50Handler:
         assert preprocessed.shape == (1, 224, 224, 3)
         assert preprocessed.dtype == np.float32
 
-    def test_preprocess_applies_resnet50_preprocessing(
+    def test_preprocess_returns_raw_pixels(
         self, loaded_handler, sample_image_bytes: bytes
     ) -> None:
+        # The saved .keras has `resnet50.preprocess_input` baked into its
+        # Functional API graph (see multimodel/tensorflow/ilhamcaesar.ipynb
+        # section "3. MODEL ARCHITECTURE"). The authentic notebook feeds RAW
+        # [0, 255] pixel values directly into `model.predict(...)`. Applying
+        # preprocess_input in the handler would double-apply BGR-swap and
+        # mean subtraction, corrupting the input distribution.
         preprocessed = loaded_handler.preprocess(sample_image_bytes)
-        assert preprocessed.min() < 0.0
-        assert preprocessed.max() < 200.0
+        assert preprocessed.min() >= 0.0
+        assert preprocessed.max() <= 255.0
 
     def test_infer_returns_valid_probabilities(
         self, loaded_handler, sample_image_bytes: bytes
@@ -82,7 +88,7 @@ class TestIlhamCaesarResNet50Handler:
     ) -> None:
         result = loaded_handler.infer(sample_image_bytes)
         assert result.model_id == "ilhamcaesar_resnet50"
-        assert result.model_version == "1.2"
+        assert result.model_version == "1.3"
         assert result.inference_time_ms >= 0
 
     def test_infer_tta_raises_not_implemented(

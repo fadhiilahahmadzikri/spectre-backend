@@ -1,5 +1,6 @@
 import { getBaseUrl } from "@/lib/config";
 import { isAbortError } from "@/shared/lib/http";
+import { maskKey, scanDebug, scanError } from "../lib/scan-debug";
 import type {
   BenchmarkApiResponse,
   FaceApiErrorPayload,
@@ -40,8 +41,10 @@ const ENDPOINT_BASE = "/api/v1/faces";
  */
 export class FaceApiClient {
   private readonly headers: Record<string, string>;
+  private readonly apiKey: string;
 
   constructor(apiKey: string) {
+    this.apiKey = apiKey;
     this.headers = {
       "X-API-Key": apiKey,
       "Content-Type": "application/json",
@@ -92,11 +95,26 @@ export class FaceApiClient {
     fas: boolean,
     opts: FaceRequestOpts & { detailMode?: boolean } = {},
   ) {
-    return this.request<FaceApiSuccessPayload & FaceApiErrorPayload>("/register", {
+    scanDebug("FaceApiClient.register →", {
+      apiKey: maskKey(this.apiKey),
+      externalUserId,
+      fas,
+      detailMode: opts.detailMode ?? false,
+    });
+    const p = this.request<FaceApiSuccessPayload & FaceApiErrorPayload>("/register", {
       method: "POST",
       body: JSON.stringify(this.payload(externalUserId, imageBase64, fas, opts.detailMode)),
       signal: opts.signal,
     });
+    p.then((res) => {
+      scanDebug("FaceApiClient.register ←", {
+        apiKey: maskKey(this.apiKey),
+        ok: res.ok,
+        status: res.status,
+        errorCode: res.data?.error?.code ?? null,
+      });
+    }).catch(() => {});
+    return p;
   }
 
   authenticate(
@@ -105,17 +123,42 @@ export class FaceApiClient {
     fas: boolean,
     opts: FaceRequestOpts & { detailMode?: boolean } = {},
   ) {
-    return this.request<FaceApiSuccessPayload & FaceApiErrorPayload>("/authenticate", {
+    scanDebug("FaceApiClient.authenticate →", {
+      apiKey: maskKey(this.apiKey),
+      externalUserId,
+      fas,
+      detailMode: opts.detailMode ?? false,
+    });
+    const p = this.request<FaceApiSuccessPayload & FaceApiErrorPayload>("/authenticate", {
       method: "POST",
       body: JSON.stringify(this.payload(externalUserId, imageBase64, fas, opts.detailMode)),
       signal: opts.signal,
     });
+    p.then((res) => {
+      scanDebug("FaceApiClient.authenticate ←", {
+        apiKey: maskKey(this.apiKey),
+        ok: res.ok,
+        status: res.status,
+        errorCode: res.data?.error?.code ?? null,
+      });
+    }).catch(() => {});
+    return p;
   }
 
   listProfiles(opts: FaceRequestOpts = {}) {
-    return this.request<{ profiles?: FaceProfile[] }>("", {
+    const p = this.request<{ profiles?: FaceProfile[] }>("", {
       signal: opts.signal,
     });
+    p.then((res) => {
+      scanDebug("FaceApiClient.listProfiles", {
+        apiKey: maskKey(this.apiKey),
+        ok: res.ok,
+        status: res.status,
+        count: Array.isArray(res.data?.profiles) ? res.data!.profiles!.length : null,
+        profiles: res.data?.profiles ?? null,
+      });
+    }).catch(() => {});
+    return p;
   }
 
   benchmark(
@@ -151,13 +194,40 @@ export class FaceApiClient {
     externalUserId: string,
     opts: FaceRequestOpts = {},
   ): Promise<boolean> {
-    const res = await this.listProfiles(opts);
-    if (!res.ok || !res.data?.profiles) return false;
-    return res.data.profiles.some((p) => p.external_user_id === externalUserId);
+    scanDebug("FaceApiClient.lookupUser →", {
+      apiKey: maskKey(this.apiKey),
+      externalUserId,
+    });
+    const res = await this.request<{ exists: boolean }>(
+      `/${encodeURIComponent(externalUserId)}/exists`,
+      { signal: opts.signal },
+    );
+    scanDebug("FaceApiClient.lookupUser ←", {
+      apiKey: maskKey(this.apiKey),
+      externalUserId,
+      ok: res.ok,
+      status: res.status,
+      body: res.data,
+    });
+    if (!res.ok || !res.data) {
+      scanError("FaceApiClient.lookupUser failed", {
+        apiKey: maskKey(this.apiKey),
+        externalUserId,
+        status: res.status,
+        body: res.data,
+      });
+      throw new Error(`face_exists_lookup_failed_status_${res.status}`);
+    }
+    return Boolean(res.data.exists);
   }
 
   async validate(opts: FaceRequestOpts = {}): Promise<boolean> {
     const res = await this.listProfiles(opts);
+    scanDebug("FaceApiClient.validate", {
+      apiKey: maskKey(this.apiKey),
+      ok: res.ok,
+      status: res.status,
+    });
     return res.ok;
   }
 }

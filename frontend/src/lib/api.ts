@@ -13,6 +13,8 @@ export interface Application {
 export interface ApiKeyRow {
   id: string;
   key_prefix: string;
+  label?: string | null;
+  status?: "active" | "revoked" | "grace_period";
   created_at: string;
   revoked_at?: string | null;
   last_used_at?: string | null;
@@ -167,6 +169,12 @@ export const api = {
     ),
 
   revokeKey: (appId: string, keyId: string, opts: RequestOpts = {}) =>
+    request<void>(`/api/v1/applications/${appId}/api-keys/${keyId}/revoke`, {
+      method: "POST",
+      signal: opts.signal,
+    }),
+
+  deleteKey: (appId: string, keyId: string, opts: RequestOpts = {}) =>
     request<void>(`/api/v1/applications/${appId}/api-keys/${keyId}`, {
       method: "DELETE",
       signal: opts.signal,

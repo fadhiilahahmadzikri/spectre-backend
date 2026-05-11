@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/store";
 import { SCAN_CONFIG } from "@/shared/config/scan.config";
-import { IdentityGate } from "./IdentityGate";
+import { IdentityGate, type IdentityGateResolved } from "./IdentityGate";
 import { ScannerView } from "./ScannerView";
 import { useScanSession } from "../model/scan-store";
+import { maskKey, scanDebug } from "../lib/scan-debug";
 
 interface ScannerModalProps {
   fallbackPath?: string;
@@ -25,7 +26,10 @@ function deriveExternalUserId(user: { id?: string; email?: string } | null): str
 export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: ScannerModalProps) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const { apiKey, setSession, clear } = useScanSession();
+  const apiKey = useScanSession((s) => s.apiKey);
+  const resolvedMode = useScanSession((s) => s.resolvedMode);
+  const resolveSession = useScanSession((s) => s.resolveSession);
+  const clear = useScanSession((s) => s.clear);
   const [open, setOpen] = useState(true);
   const externalUserId = deriveExternalUserId(user);
 
@@ -44,9 +48,21 @@ export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: Scanner
     }
   }
 
-  function handleGateResolved({ apiKey: key }: { apiKey: string }) {
-    setSession(key, externalUserId);
+  function handleGateResolved({ apiKey: key, mode }: IdentityGateResolved) {
+    scanDebug("ScannerModal.handleGateResolved", {
+      apiKey: maskKey(key),
+      externalUserId,
+      mode,
+    });
+    resolveSession({ apiKey: key, externalUserId, mode });
   }
+
+  // The gate and the scanner are two distinct pages of this modal. The scanner
+  // only mounts when the store reports a fully resolved identity — both the
+  // API key and the mode it should boot in. This is the contract that kills
+  // the mode flicker: the orchestrator never has to discover mode, because by
+  // the time it mounts the answer has already been committed.
+  const ready = apiKey !== null && resolvedMode !== null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -66,10 +82,11 @@ export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: Scanner
           Paste your API key and scan your identity.
         </DialogDescription>
         <div className="h-full w-full relative overflow-hidden flex flex-col">
-          {apiKey ? (
+          {ready ? (
             <ScannerView
               apiKey={apiKey}
               externalUserId={externalUserId}
+              initialMode={resolvedMode}
               onClose={() => handleOpenChange(false)}
               redirectUrl={redirectUrl ?? SCAN_CONFIG.redirectUrl}
             />

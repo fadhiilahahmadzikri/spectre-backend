@@ -12,6 +12,7 @@ import { useProgressiveLog } from "../hooks/use-progressive-log";
 import { useScanOrchestrator } from "../hooks/use-scan-orchestrator";
 import { setPersistedRedirectUrl } from "@/shared/config/scan.config";
 import { CONFIG_DRAFT_DEFAULT } from "../model/config-draft";
+import type { ScanMode } from "../model/types";
 import { AuraRing } from "./aura-ring/AuraRing";
 import { IrisShell } from "./iris-shell/IrisShell";
 import { CornerFrame } from "./iris-shell/CornerFrame";
@@ -31,6 +32,7 @@ import { ResultPanel } from "./result/ResultPanel";
 interface ScannerViewProps {
   apiKey: string;
   externalUserId: string;
+  initialMode: ScanMode;
   onClose?: () => void;
   redirectUrl?: string | null;
 }
@@ -46,6 +48,7 @@ function maskApiKey(apiKey: string): string {
 export function ScannerView({
   apiKey,
   externalUserId,
+  initialMode,
   onClose,
   redirectUrl = null,
 }: ScannerViewProps) {
@@ -84,6 +87,7 @@ export function ScannerView({
     apiKey,
     config,
     externalUserId,
+    initialMode,
     redirectUrl,
     showLog,
     clearLog,

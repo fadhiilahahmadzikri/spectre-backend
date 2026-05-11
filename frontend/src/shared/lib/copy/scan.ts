@@ -66,6 +66,10 @@ export const scan = {
     imageCaptured: "Gambar diambil",
     registeringToApi: "Mendaftarkan wajah ke API...",
     verifyingToApi: "Memverifikasi identitas ke API...",
+    alreadyEnrolledVerifying:
+      "Wajah sudah terdaftar di aplikasi ini — beralih ke verifikasi...",
+    notEnrolledRegistering:
+      "Belum terdaftar di aplikasi ini — beralih ke pendaftaran...",
     authSuccess: "Autentikasi Berhasil",
     registerSuccess: "Pendaftaran berhasil",
     identityVerified: "Identitas terverifikasi",

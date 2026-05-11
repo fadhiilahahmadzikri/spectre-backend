@@ -66,6 +66,12 @@ export const admin = {
     revokeDialogBody:
       "Applications using this key will lose access immediately.",
     revoke: "Revoke",
+    deleted: "API key deleted",
+    deleteFailed: "Failed to delete API key",
+    deleteDialogTitle: "Delete API key permanently?",
+    deleteDialogBody:
+      "The key record will be removed from the database. This cannot be undone and the audit record for this key will be lost.",
+    delete: "Delete",
     prefixCopied: "Prefix copied",
     copyPrefix: "Copy prefix",
     copied: "Copied",

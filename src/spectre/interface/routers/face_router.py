@@ -296,6 +296,24 @@ async def delete_face(
     return None
 
 
+@router.get("/faces/{external_user_id}/exists", status_code=200, response_model=dict)
+async def check_face_exists(
+    external_user_id: str,
+    db: DBSession,
+    app: AuthenticatedApp,
+) -> dict:
+    """Deterministic existence check for a face profile.
+
+    Returns {"exists": true|false} based on the unique (app_id, external_user_id)
+    index. Callers (e.g. the scanner frontend) use this to decide whether to
+    call /faces/register or /faces/authenticate, removing the need for any
+    retry-on-error mode flipping.
+    """
+    face_repo = SQLFaceProfileRepository(db)
+    exists = await face_repo.exists(app.id, external_user_id)
+    return {"exists": exists, "external_user_id": external_user_id}
+
+
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 async def get_session(
     session_id: uuid.UUID,

@@ -89,6 +89,9 @@ class AbstractApiKeyRepository(ABC):
     async def revoke(self, key_id: UUID) -> None: ...
 
     @abstractmethod
+    async def delete(self, key_id: UUID) -> None: ...
+
+    @abstractmethod
     async def update_last_used(self, key_id: UUID) -> None: ...
 
 
@@ -102,6 +105,11 @@ class AbstractFaceProfileRepository(ABC):
     async def get_by_external_user(
         self, app_id: UUID, external_user_id: str
     ) -> FaceProfile | None: ...
+
+    @abstractmethod
+    async def exists(
+        self, app_id: UUID, external_user_id: str
+    ) -> bool: ...
 
     @abstractmethod
     async def update(self, profile: FaceProfile) -> FaceProfile: ...

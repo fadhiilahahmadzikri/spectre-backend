@@ -160,11 +160,14 @@ function AppCard({
   onSaveEdit,
   onDelete,
 }: AppCardProps) {
+  const pending = !!app.pending;
   return (
     <div
+      data-pending={pending || undefined}
+      aria-disabled={pending || undefined}
       className={cn(
         "glass hover-glow rounded-[var(--radius-card)] p-5 flex flex-col gap-3 relative overflow-hidden min-h-[132px]",
-        app.pending && "opacity-80 shimmer",
+        pending && "opacity-80 shimmer pointer-events-none select-none",
       )}
     >
       <div className="flex items-center gap-3">
@@ -216,7 +219,7 @@ function AppCard({
               asChild
               variant="ghost-glass"
               size="inline"
-              className="!py-1.5 !px-3 !text-[12px] flex-1"
+              className="!h-9 !py-0 !px-3 !text-[12px] flex-1"
             >
               <Link to={`/applications/${app.id}/keys`}>
                 <KeyRound data-icon="inline-start" />
@@ -228,7 +231,6 @@ function AppCard({
               onClick={onStartEdit}
               className="icon-btn"
               aria-label="Rename"
-              disabled={app.pending}
             >
               <Pencil size={12} />
             </button>
@@ -237,7 +239,6 @@ function AppCard({
               onClick={onDelete}
               className="icon-btn"
               aria-label="Delete"
-              disabled={app.pending}
             >
               <Trash2 size={12} />
             </button>

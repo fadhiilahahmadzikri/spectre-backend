@@ -1,21 +1,21 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { notify } from "@/shared/lib/notify";
 import { useIosAlert } from "@/app/providers/ios-alert-context";
 import {
   KeyRound,
   Ban,
-  Copy,
-  CheckCircle2,
+  Trash2,
   ChevronLeft,
   Plus,
   Sparkles,
+  MoreVertical,
 } from "lucide-react";
 import { useApiKeysUi } from "@/features/api-keys/model/api-keys-ui-store";
 import { GenerateKeyDialog } from "@/features/api-keys/ui/GenerateKeyDialog";
 import {
   useRevokeApiKey,
+  useDeleteApiKey,
   type PendingApiKey,
 } from "@/features/api-keys/model/use-api-keys";
 import { EmptyState } from "@/shared/ui/EmptyState";
@@ -23,7 +23,13 @@ import { ResourceGridSkeleton } from "@/shared/ui/Skeleton";
 import { AddResourceTile } from "@/shared/ui/AddResourceTile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useCopyToClipboard } from "@/shared/hooks/use-copy-to-clipboard";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export function ApiKeys() {
@@ -38,11 +44,13 @@ export function ApiKeys() {
   });
 
   const revokeMut = useRevokeApiKey(appId!);
+  const deleteMut = useDeleteApiKey(appId!);
 
   async function handleRevoke(keyId: string) {
     const ok = await iosAlert.confirm({
       title: "Revoke API key?",
-      message: "Applications using this key will lose access immediately.",
+      message:
+        "Applications using this key will lose access immediately. The record is kept for audit history; use Delete to remove it entirely.",
       confirmLabel: "Revoke",
       cancelLabel: "Cancel",
       destructive: true,
@@ -50,8 +58,22 @@ export function ApiKeys() {
     if (ok) revokeMut.mutate({ keyId });
   }
 
-  const keys = (data?.data ?? []) as PendingApiKey[];
-  const isEmpty = !isLoading && keys.length === 0;
+  async function handleDelete(keyId: string) {
+    const ok = await iosAlert.confirm({
+      title: "Delete API key permanently?",
+      message:
+        "The key record will be removed from the database. This cannot be undone and the audit trail for this key is lost.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      destructive: true,
+    });
+    if (ok) deleteMut.mutate({ keyId });
+  }
+
+  const allKeys = (data?.data ?? []) as PendingApiKey[];
+  const activeKeys = allKeys.filter(isActiveKey);
+  const revokedKeys = allKeys.filter((k) => !isActiveKey(k));
+  const isEmpty = !isLoading && allKeys.length === 0;
 
   return (
     <>
@@ -107,16 +129,37 @@ export function ApiKeys() {
             }
           />
         ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {keys.map((key) => (
-              <KeyCard
-                key={key.id}
-                keyRow={key}
-                onRevoke={() => handleRevoke(key.id)}
-              />
-            ))}
-            <AddResourceTile title="Generate key" onClick={openGenerate} />
-          </div>
+          <>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {activeKeys.map((key) => (
+                <KeyCard
+                  key={key.id}
+                  keyRow={key}
+                  onRevoke={() => handleRevoke(key.id)}
+                  onDelete={() => handleDelete(key.id)}
+                />
+              ))}
+              <AddResourceTile title="Generate key" onClick={openGenerate} />
+            </div>
+            {revokedKeys.length > 0 && (
+              <details className="group">
+                <summary className="cursor-pointer face-helper text-[12px] select-none list-none flex items-center gap-2 mb-4">
+                  <span className="inline-block size-1.5 rounded-full bg-[color:var(--label-tertiary)]" />
+                  Revoked keys ({revokedKeys.length}) · click to show
+                </summary>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {revokedKeys.map((key) => (
+                    <KeyCard
+                      key={key.id}
+                      keyRow={key}
+                      onRevoke={() => handleRevoke(key.id)}
+                      onDelete={() => handleDelete(key.id)}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
         )}
       </div>
 
@@ -125,28 +168,36 @@ export function ApiKeys() {
   );
 }
 
+function isActiveKey(k: PendingApiKey): boolean {
+  // Prefer the explicit status field; fall back to revoked_at for any older
+  // payload that didn't include status. Any non-"active" status is treated
+  // as inactive.
+  if (k.status) return k.status === "active";
+  return !k.revoked_at;
+}
+
 interface KeyCardProps {
   keyRow: PendingApiKey;
   onRevoke: () => void;
+  onDelete: () => void;
 }
 
-function KeyCard({ keyRow, onRevoke }: KeyCardProps) {
-  const active = !keyRow.revoked_at;
-  const { copied, copy } = useCopyToClipboard();
-
-  async function copyPrefix() {
-    const ok = await copy(keyRow.key_prefix);
-    if (ok) notify.success("Prefix copied");
-  }
+function KeyCard({ keyRow, onRevoke, onDelete }: KeyCardProps) {
+  const active = isActiveKey(keyRow);
+  const pending = !!keyRow.pending;
 
   return (
     <div
+      data-pending={pending || undefined}
+      aria-disabled={pending || undefined}
       className={cn(
-        "glass hover-glow rounded-[var(--radius-card)] p-5 flex flex-col gap-3 relative overflow-hidden min-h-[132px]",
-        keyRow.pending && "opacity-80 shimmer",
+        "glass hover-glow rounded-[var(--radius-card)] p-5 flex flex-col gap-4 relative overflow-hidden min-h-[148px]",
+        pending && "opacity-80 shimmer pointer-events-none select-none",
+        !active && "opacity-75",
       )}
     >
-      <div className="flex items-center gap-3">
+      {/* Header: identity + actions menu */}
+      <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-[12px] bg-[color:var(--fill-tertiary)] border border-[color:var(--poc-border)] flex items-center justify-center shrink-0">
           <KeyRound size={18} className="text-[color:var(--label-primary)]" />
         </div>
@@ -167,37 +218,98 @@ function KeyCard({ keyRow, onRevoke }: KeyCardProps) {
             </Badge>
           </div>
         </div>
+        <KeyCardMenu
+          active={active}
+          onRevoke={onRevoke}
+          onDelete={onDelete}
+        />
       </div>
 
-      <div className="flex items-center gap-2 pt-1 mt-auto">
-        <Button
-          type="button"
-          variant="ghost-glass"
-          size="inline"
-          onClick={copyPrefix}
-          className="!py-1.5 !px-3 !text-[12px] flex-1"
-        >
-          {copied ? (
-            <CheckCircle2 data-icon="inline-start" />
-          ) : (
-            <Copy data-icon="inline-start" />
-          )}
-          {copied ? "Copied" : "Copy prefix"}
-        </Button>
-        {active && (
-          <Button
-            type="button"
-            variant="danger-soft"
-            size="inline"
-            onClick={onRevoke}
-            aria-label="Revoke"
-            disabled={keyRow.pending}
-          >
-            <Ban data-icon="inline-start" />
-            Revoke
-          </Button>
-        )}
-      </div>
+      {/* Meta: created + last used */}
+      <dl className="flex flex-col gap-1 mt-auto text-[11px]">
+        <MetaRow label="Created" value={formatRelative(keyRow.created_at)} />
+        <MetaRow
+          label="Last used"
+          value={
+            keyRow.last_used_at ? formatRelative(keyRow.last_used_at) : "Never"
+          }
+        />
+      </dl>
     </div>
   );
+}
+
+interface KeyCardMenuProps {
+  active: boolean;
+  onRevoke: () => void;
+  onDelete: () => void;
+}
+
+function KeyCardMenu({ active, onRevoke, onDelete }: KeyCardMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Key actions"
+          className={cn(
+            "shrink-0 size-8 -mt-1 -mr-1 rounded-[10px]",
+            "flex items-center justify-center",
+            "text-[color:var(--label-secondary)]",
+            "hover:bg-[color:var(--fill-tertiary)] hover:text-[color:var(--label-primary)]",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--label-secondary)]",
+            "transition-colors",
+          )}
+        >
+          <MoreVertical size={16} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[9rem]">
+        {active && (
+          <>
+            <DropdownMenuItem onSelect={onRevoke}>
+              <Ban size={14} />
+              Revoke
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash2 size={14} />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="face-helper text-[10px] uppercase tracking-wider">
+        {label}
+      </dt>
+      <dd className="kbd-mono text-[11px] text-[color:var(--label-secondary)]">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+// Lightweight relative formatter — avoids pulling in date-fns for a single
+// card. Not i18n-aware; acceptable for a developer dashboard.
+function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diffSec = Math.max(1, Math.floor((Date.now() - then) / 1000));
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 30) return `${diffDay}d ago`;
+  const diffMo = Math.floor(diffDay / 30);
+  if (diffMo < 12) return `${diffMo}mo ago`;
+  const diffYr = Math.floor(diffMo / 12);
+  return `${diffYr}y ago`;
 }

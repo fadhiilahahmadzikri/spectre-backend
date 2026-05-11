@@ -1,13 +1,16 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { TableRowsSkeleton } from "@/shared/ui/Skeleton";
 import { ConfigSwitcher, type ConfigOption } from "@/shared/ui/ConfigSwitcher";
-import { getBaseUrl, setBaseUrl, resolveEnvName, ENV, type EnvName } from "@/lib/config";
+import { getBaseUrl, resolveEnvName, type EnvName } from "@/lib/config";
 import { useOrchestrationStore } from "@/lib/store";
 import { notify } from "@/shared/lib/notify";
+import { useEnvironmentSwitch } from "@/features/configuration/model/useEnvironmentSwitch";
+import { useDatabaseSwitch } from "@/features/configuration/model/useDatabaseSwitch";
 import { KeepAliveDrawer } from "./KeepAliveDrawer";
 import {
   Database, Clock, RefreshCcw,
@@ -16,10 +19,11 @@ import {
 import { HuggingFaceIcon, SupabaseIcon, TensorFlowIcon } from "@/shared/icons";
 
 export function AdminHealth() {
-  const qc = useQueryClient();
   const [apiEnv, setApiEnv] = useState<EnvName>(() => resolveEnvName(getBaseUrl()));
   const [isKeepAliveOpen, setKeepAliveOpen] = useState(false);
-  const { isSyncing, setFrozen } = useOrchestrationStore();
+  const { isSyncing } = useOrchestrationStore();
+  const envSwitch = useEnvironmentSwitch();
+  const dbSwitch = useDatabaseSwitch();
 
   useEffect(() => {
     const listener = (e: Event) => setApiEnv(resolveEnvName((e as CustomEvent<string>).detail));
@@ -29,13 +33,13 @@ export function AdminHealth() {
 
   const { data: health, isLoading: loadingHealth, refetch: refetchHealth } = useQuery({
     queryKey: ["health"],
-    queryFn: () => api.getHealth(),
+    queryFn: ({ signal }) => api.getHealth({ signal }),
     refetchInterval: 30000,
   });
 
   const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["admin-stats"],
-    queryFn: () => api.getAdminStats(),
+    queryFn: ({ signal }) => api.getAdminStats({ signal }),
     refetchInterval: 60000,
   });
 
@@ -47,48 +51,8 @@ export function AdminHealth() {
     notify.success("Health status updated.");
   }
 
-  const waitForReadiness = async (maxAttempts = 30) => {
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const h = await api.getHealth();
-        if (h.status === "healthy") return true;
-      } catch { /* expected */ }
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    throw new Error("Readiness timeout.");
-  };
-
-  const handleApiSwitch = async (id: string) => {
-    setFrozen(true, "Switching API...");
-    notify.info("Switching API environment...");
-    try {
-      setBaseUrl(id === "hf" ? ENV.HF_SPACES : ENV.LOCAL);
-      await waitForReadiness();
-      await qc.invalidateQueries();
-      notify.success("API environment synchronized.");
-    } catch (err) {
-      notify.error(`Switch failed: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setFrozen(false);
-    }
-  };
-
-  const handleDbSwitch = async (id: string) => {
-    setFrozen(true, "Database failover...");
-    notify.info("Orchestrating database failover...");
-    try {
-      await api.switchDatabase(id);
-      if (apiEnv === "hf") await new Promise((r) => setTimeout(r, 5000));
-      await waitForReadiness();
-      await refetchStats();
-      qc.invalidateQueries();
-      notify.success(`Database transitioned to ${id}.`);
-    } catch (err) {
-      notify.error(`Failover failed: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setFrozen(false);
-    }
-  };
+  const handleApiSwitch = (id: string) => envSwitch.switchTo(id as EnvName);
+  const handleDbSwitch = (id: string) => dbSwitch.switchTo(id);
 
   const apiOptions: ConfigOption[] = [
     { id: "local", label: "Local Development", description: "localhost:8000", icon: <Server className="w-5 h-5" /> },
@@ -110,14 +74,20 @@ export function AdminHealth() {
           <p className="face-helper text-[13px]">Infrastructure Control</p>
           <h1 className="page-title">Admin Health</h1>
         </div>
-        <button
+        <Button
+          type="button"
+          variant="ghost-glass"
+          size="inline"
           onClick={refreshAll}
           disabled={isLoading}
-          className="btn-ghost inline-flex items-center gap-2 text-[13px] w-fit"
+          className="!text-[13px]"
         >
-          <RefreshCcw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <RefreshCcw
+            data-icon="inline-start"
+            className={isLoading ? "animate-spin" : ""}
+          />
           {isLoading ? "Refreshing..." : "Refresh"}
-        </button>
+        </Button>
       </div>
 
       {/* Infrastructure Cards */}
@@ -167,17 +137,26 @@ export function AdminHealth() {
       </div>
 
       {/* Keep-Alive */}
-      <section className="glass-strong rounded-[20px] overflow-hidden border border-white/5">
+      <section className="glass-strong rounded-[var(--radius-card-strong)] overflow-hidden border border-white/5">
         <div className="px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Clock className="w-4 h-4 text-[color:var(--label-secondary)]" />
             <span className="face-title text-[15px]">Keep-Alive Heartbeats</span>
           </div>
-          <button onClick={() => setKeepAliveOpen(true)} className="btn-ghost text-[11px] inline-flex items-center gap-1.5 w-fit group">
-            <Settings2 className="w-3.5 h-3.5" />
+          <Button
+            type="button"
+            variant="ghost-glass"
+            size="inline"
+            onClick={() => setKeepAliveOpen(true)}
+            className="!text-[11px] group"
+          >
+            <Settings2 data-icon="inline-start" />
             Manage
-            <ChevronRight className="w-3 h-3 opacity-50 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+            <ChevronRight
+              data-icon="inline-end"
+              className="opacity-50 group-hover:translate-x-0.5 transition-transform"
+            />
+          </Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -191,7 +170,7 @@ export function AdminHealth() {
             </thead>
             <tbody>
               {loadingStats && (
-                <tr><td colSpan={4}><div className="flex justify-center py-10"><Spinner /></div></td></tr>
+                <TableRowsSkeleton count={5} columns={4} />
               )}
               {!loadingStats && stats?.heartbeats.map((hb, i) => (
                 <tr key={hb.id} className={`hover:bg-white/[0.02] transition-colors ${i > 0 ? "border-t border-white/[0.04]" : ""}`}>
@@ -249,7 +228,7 @@ function InfraCard({ icon, accent, label, title, status, loading, rows }: InfraC
   })();
 
   return (
-    <div className={`glass-strong rounded-[20px] p-5 flex flex-col gap-4 border ${colors.border} ${colors.bg}`}>
+    <div className={`glass-strong rounded-[var(--radius-card-strong)] p-5 flex flex-col gap-4 border ${colors.border} ${colors.bg}`}>
       <div className="flex items-center justify-between">
         <div className={colors.icon}>{icon}</div>
         {loading ? <Spinner /> : status && (

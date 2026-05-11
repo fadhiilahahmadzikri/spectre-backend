@@ -49,6 +49,16 @@
   --radius-xl: 24px;
   --radius-2xl: 28px;
   --radius-full: 9999px;
+
+  /* Semantic radius tokens (layered on primitive --radius-*) */
+  /* Glass-strong surfaces: modals, drawers, hero cards */
+  --radius-card-strong: 24px;
+  /* Standard resource cards in grids */
+  --radius-card: 18px;
+  /* Form rows, config rows */
+  --radius-field: 14px;
+  /* Chips, pills, inline badges */
+  --radius-chip: 10px;
 }
 
 @theme inline {

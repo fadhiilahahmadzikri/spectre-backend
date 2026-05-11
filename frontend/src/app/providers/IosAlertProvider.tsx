@@ -9,6 +9,7 @@ import {
   type ConfirmOptions,
   type IosAlertContextValue,
 } from "./ios-alert-context";
+import { admin } from "@/shared/lib/copy";
 
 interface IosAlertProviderProps {
   children: ReactNode;
@@ -34,8 +35,8 @@ export function IosAlertProvider({ children }: IosAlertProviderProps) {
     ({
       title,
       message,
-      confirmLabel = "Konfirmasi",
-      cancelLabel = "Batal",
+      confirmLabel = admin.common.confirm,
+      cancelLabel = admin.common.cancel,
       destructive = false,
     }: ConfirmOptions) =>
       new Promise<boolean>((resolve) => {

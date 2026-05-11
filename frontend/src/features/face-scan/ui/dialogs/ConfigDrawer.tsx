@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { GlassDrawer, GlassDrawerHeader } from "@/shared/ui/GlassDrawer";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { FaceIDGlyph, ArrowRightIcon } from "@/shared/icons";
 import { MODE_REGISTER } from "../../model/constants";
 import type { ScanMode, ScanResult } from "../../model/types";
 import { type ConfigDraft } from "../../model/config-draft";
+import { scan } from "@/shared/lib/copy";
 
 export type { ConfigDraft };
 export { CONFIG_DRAFT_DEFAULT } from "../../model/config-draft";
@@ -73,16 +75,17 @@ function ConfigPanelBody({
     <div className="overflow-y-auto px-6 py-5 flex flex-col gap-6 pb-10">
         {result?.detail && (
           <Section label="Last analysis">
-            <button
+            <Button
               type="button"
-              className="btn-ghost flex items-center justify-center gap-2"
+              variant="ghost-glass"
               onClick={() => {
                 onClose();
                 onOpenAnalysis();
               }}
             >
-              Open category breakdown <ArrowRightIcon size={16} />
-            </button>
+              Open category breakdown
+              <ArrowRightIcon size={16} data-icon="inline-end" />
+            </Button>
           </Section>
         )}
 
@@ -107,20 +110,20 @@ function ConfigPanelBody({
         <Section label="Scan behavior">
           <div className="flex flex-col gap-3">
             <SettingRow
-              title="Liveness check"
-              description="Verify the capture against server anti-spoofing model."
+              title={scan.config.livenessCheck}
+              description={scan.config.livenessCheckDescription}
               checked={draft.fas}
               onChange={(fas) => setDraft((d) => ({ ...d, fas }))}
             />
             <SettingRow
-              title="Require head rotation"
-              description="Ask the user to rotate their head to fill the segment ring."
+              title={scan.config.requireHeadRotation}
+              description={scan.config.requireHeadRotationDescription}
               checked={draft.requirePose}
               onChange={(requirePose) => setDraft((d) => ({ ...d, requirePose }))}
             />
             <SettingRow
-              title="Show preview"
-              description="Review the captured frame before submitting."
+              title={scan.config.showPreview}
+              description={scan.config.showPreviewDescription}
               checked={draft.showPreview}
               onChange={(showPreview) => setDraft((d) => ({ ...d, showPreview }))}
             />
@@ -140,18 +143,18 @@ function ConfigPanelBody({
 
         <Section label="Actions">
           <div className="flex flex-col gap-2">
-            <button
+            <Button
               type="button"
-              className="btn-primary"
+              variant="primary-glass"
               disabled={!changed}
               onClick={() => onApply(draft)}
             >
-              Apply changes
-            </button>
+              {scan.config.applyChanges}
+            </Button>
             {onReset && (
-              <button type="button" className="btn-ghost" onClick={onReset}>
-                Reset scanner
-              </button>
+              <Button type="button" variant="ghost-glass" onClick={onReset}>
+                {scan.config.resetScanner}
+              </Button>
             )}
           </div>
         </Section>

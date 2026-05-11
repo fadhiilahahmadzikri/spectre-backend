@@ -1,15 +1,14 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/lib/store";
 import { FaceIDGlyph } from "@/shared/icons";
 import { ScanLine, LogOut, Settings2 } from "lucide-react";
 import { MobileMenu } from "./MobileMenu";
-import { ConfigDialog } from "@/features/configuration";
+import { ConfigDialog, useConfigUi } from "@/features/configuration";
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const [configOpen, setConfigOpen] = useState(false);
+  const { open: configOpen, openCount, openDialog, closeDialog } = useConfigUi();
 
   return (
     <header className="w-full sticky top-0 z-30">
@@ -56,7 +55,7 @@ export function AppHeader() {
               type="button"
               className="icon-btn hidden md:inline-flex"
               aria-label="System configuration"
-              onClick={() => setConfigOpen(true)}
+              onClick={openDialog}
             >
               <Settings2 size={16} />
             </button>
@@ -88,7 +87,11 @@ export function AppHeader() {
       </div>
 
       {user?.role === "admin" && (
-        <ConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
+        <ConfigDialog
+          key={openCount}
+          open={configOpen}
+          onClose={closeDialog}
+        />
       )}
     </header>
   );

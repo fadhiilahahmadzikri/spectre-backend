@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { z } from "zod";
 import { FaceIDGlyph } from "@/shared/icons";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FaceApiClient } from "../api/face-client";
+import { scan } from "@/shared/lib/copy";
 
 export interface IdentityGateResolved {
   apiKey: string;
@@ -10,17 +13,22 @@ export interface IdentityGateResolved {
 
 interface IdentityGateProps {
   onResolved: (result: IdentityGateResolved) => void;
-  externalUserId: string;
+  /**
+   * Upstream-supplied external user id. Reserved for future session wiring
+   * (and kept in the props surface so callers can plumb it). Currently unused
+   * inside the gate itself.
+   */
+  externalUserId?: string;
   onCancel?: () => void;
 }
 
 const apiKeySchema = z
   .string()
   .trim()
-  .startsWith("spk_", { message: "Kunci harus diawali dengan 'spk_'" })
-  .min(16, { message: "Kunci API terlalu pendek" });
+  .startsWith("spk_", { message: scan.identityGate.invalidKey })
+  .min(16, { message: scan.identityGate.tooShort });
 
-export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityGateProps) {
+export function IdentityGate({ onResolved, onCancel }: IdentityGateProps) {
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +36,7 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
   async function handleStart() {
     const parsed = apiKeySchema.safeParse(apiKey);
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Kunci tidak valid");
+      setError(parsed.error.issues[0]?.message ?? scan.identityGate.invalidKey);
       return;
     }
 
@@ -38,12 +46,12 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
       const client = new FaceApiClient(parsed.data);
       const valid = await client.validate();
       if (!valid) {
-        setError("API Key tidak valid atau server tidak tersedia");
+        setError(scan.identityGate.invalidKeyServer);
         return;
       }
       onResolved({ apiKey: parsed.data });
     } catch {
-      setError("API Key tidak valid atau server tidak tersedia");
+      setError(scan.identityGate.invalidKeyServer);
     } finally {
       setLoading(false);
     }
@@ -57,8 +65,10 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
             <FaceIDGlyph size={28} />
           </div>
           <div>
-            <h2 className="face-title text-[18px]">Face Scan</h2>
-            <p className="face-helper text-[12px]">Paste API Key yang sudah di-generate</p>
+            <h2 className="face-title text-[18px]">{scan.identityGate.title}</h2>
+            <p className="face-helper text-[12px]">
+              {scan.identityGate.placeholder}
+            </p>
           </div>
         </div>
 
@@ -79,21 +89,25 @@ export function IdentityGate({ onResolved, externalUserId, onCancel }: IdentityG
             spellCheck={false}
           />
           {error && (
-            <p className="text-[11px] text-[color:var(--danger)] font-mono">{error}</p>
+            <Alert variant="destructive" className="py-2 px-3">
+              <AlertDescription className="font-mono text-[11px]">
+                {error}
+              </AlertDescription>
+            </Alert>
           )}
-          <button
+          <Button
             type="button"
+            variant="primary-glass"
             onClick={handleStart}
             disabled={loading || !apiKey.trim()}
-            className="btn-primary inline-flex items-center justify-center gap-2"
           >
-            {loading && <Spinner size="sm" />}
-            {loading ? "Memverifikasi..." : "Mulai Face Scan"}
-          </button>
+            {loading && <Spinner size="sm" data-icon="inline-start" />}
+            {loading ? scan.identityGate.verifying : scan.identityGate.start}
+          </Button>
           {onCancel && (
-            <button type="button" className="btn-ghost" onClick={onCancel}>
-              Batal
-            </button>
+            <Button type="button" variant="ghost-glass" onClick={onCancel}>
+              {scan.identityGate.cancel}
+            </Button>
           )}
         </div>
       </div>

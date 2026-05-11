@@ -40,6 +40,7 @@ import { parseSummary, parseDetail } from "../lib/parse-probs";
 import { isIqaPhase } from "../lib/phase-guards";
 import { FaceApiClient, type FaceApiResponse } from "../api/face-client";
 import { useScanSession } from "../model/scan-store";
+import { scan } from "@/shared/lib/copy";
 
 const { NUM_SEGMENTS, ANGLE_STEP } = SCAN_GEOMETRY;
 
@@ -113,6 +114,10 @@ export function useScanOrchestrator({
   const lastIqaLogRef = useRef<{ text: string; kind: LogEntry["kind"] }>({ text: "", kind: "info" });
   const instantFailsRef = useRef<IqaState[]>([]);
   const clientRef = useRef(new FaceApiClient(apiKey));
+  // Primary cancellation path for network calls. Reset in handleReset so an
+  // in-flight submission from a previous scan session is dropped the moment
+  // the user restarts.
+  const abortControllerRef = useRef<AbortController>(new AbortController());
 
   const avatarControls = useAnimation();
 
@@ -161,6 +166,9 @@ export function useScanOrchestrator({
     revealIntervalRef.current = null;
     if (captureTimerRef.current !== null) clearTimeout(captureTimerRef.current);
     captureTimerRef.current = null;
+    // Cancel any in-flight FaceApiClient request from the previous session.
+    abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
     requestEpochRef.current++;
     inflightRef.current = false;
     captureGuardRef.current = false;
@@ -203,30 +211,35 @@ export function useScanOrchestrator({
       const epoch = requestEpochRef.current;
 
       setPhase(PHASES.ANALYZING);
-      showLog("Enkripsi & Kompresi data...", "active");
+      showLog(scan.logs.encrypting, "active");
       await new Promise((r) => setTimeout(r, 300));
       if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
 
-      showLog("Gambar diambil", "ok");
+      showLog(scan.logs.imageCaptured, "ok");
       showLog(
-        mode === MODE_REGISTER ? "Mendaftarkan wajah ke API..." : "Memverifikasi identitas ke API...",
+        mode === MODE_REGISTER
+          ? scan.logs.registeringToApi
+          : scan.logs.verifyingToApi,
         "active",
       );
 
+      const signal = abortControllerRef.current.signal;
       const response: FaceApiResponse<FaceApiSuccessPayload & FaceApiErrorPayload> =
         mode === MODE_REGISTER
-          ? await clientRef.current.register(externalUserId, b64, config.fas)
-          : await clientRef.current.authenticate(externalUserId, b64, config.fas);
+          ? await clientRef.current.register(externalUserId, b64, config.fas, { signal })
+          : await clientRef.current.authenticate(externalUserId, b64, config.fas, { signal });
 
       if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
 
       const { ok, status, data } = response;
       if (ok && (status === 200 || status === 202) && data) {
-        showLog("Autentikasi Berhasil", "ok");
+        showLog(scan.logs.authSuccess, "ok");
         const probs = data.metrics;
         const summary = parseSummary(probs);
         const detail = parseDetail(probs);
-        const baseLabel = mode === MODE_REGISTER ? "Pendaftaran berhasil" : "Identitas terverifikasi";
+        const baseLabel = mode === MODE_REGISTER
+          ? scan.logs.registerSuccess
+          : scan.logs.identityVerified;
         const label = config.fas ? baseLabel : `${baseLabel} (FAS off)`;
         setResult({ verdict: "ok", label, summary, detail });
         setPhase(PHASES.COMPLETE);
@@ -236,16 +249,16 @@ export function useScanOrchestrator({
             if (requestEpochRef.current === epoch) {
               setMode(MODE_AUTHENTICATE);
               setCachedMode(apiKey, MODE_AUTHENTICATE);
-              showLog("Masuk ke mode Verifikasi", "ok");
+              showLog(scan.logs.enteringVerifyMode, "ok");
             }
           }, 2800);
         }
       } else {
         const err = data?.error ?? {};
         const code = err.code ?? "UNKNOWN";
-        const msg = err.message ?? "Terjadi kesalahan";
+        const msg = err.message ?? scan.logs.genericError;
         const details = err.details ?? {};
-        showLog(`API Server: ${code}`, "err");
+        showLog(scan.logs.apiError(code), "err");
 
         if (code === "LIVENESS_CHECK_FAILED") {
           const probs = Array.isArray(details.probabilities) ? details.probabilities : null;
@@ -256,26 +269,37 @@ export function useScanOrchestrator({
             ? parseSummary(probs)
             : spoofCls === "realperson" ? { live: conf, spoof: 1 - conf } : { live: 1 - conf, spoof: conf };
           const detail = hasProbs ? parseDetail(probs) : null;
-          showLog(`Spoofing: ${msg}`, "err");
-          setResult({ verdict: "spoof", label: "SPOOF", summary, detail });
+          showLog(scan.logs.spoofing(msg), "err");
+          setResult({ verdict: "spoof", label: scan.logs.spoofShort, summary, detail });
           setPhase(PHASES.FAILED);
           if (detail) {
             setTimeout(() => { if (requestEpochRef.current === epoch) setAnalysisOpen(true); }, 1800);
           }
         } else if (code === "FACE_MATCH_FAILED") {
           const sim = typeof details.similarity_score === "number" ? details.similarity_score : 0;
-          showLog(`Tidak cocok (${sim.toFixed(2)})`, "err");
-          setResult({ verdict: "warn", label: "TIDAK COCOK", summary: { live: 0, spoof: 0 }, detail: null });
+          showLog(scan.logs.mismatch(sim.toFixed(2)), "err");
+          setResult({ verdict: "warn", label: scan.logs.mismatchShort, summary: { live: 0, spoof: 0 }, detail: null });
           setPhase(PHASES.FAILED);
         } else {
           showLog(`${code}: ${msg}`, "err");
-          setResult({ verdict: "warn", label: "ERROR", summary: { live: 0, spoof: 0 }, detail: null });
+          setResult({ verdict: "warn", label: scan.logs.errorShort, summary: { live: 0, spoof: 0 }, detail: null });
           setPhase(PHASES.FAILED);
         }
       }
       inflightRef.current = false;
     },
-    [mode, config.fas, externalUserId, redirectUrl, setPhase, showLog, startRedirect],
+    [
+      apiKey,
+      mode,
+      config.fas,
+      config.redirectUrl,
+      externalUserId,
+      redirectUrl,
+      setCachedMode,
+      setPhase,
+      showLog,
+      startRedirect,
+    ],
   );
 
   const processCapture = useCallback(async () => {
@@ -284,13 +308,13 @@ export function useScanOrchestrator({
     const epoch = requestEpochRef.current;
     const video = videoRef.current;
     if (!video) { captureGuardRef.current = false; inflightRef.current = false; return; }
-    showLog("Menyiapkan data biometrik...", "active");
+    showLog(scan.logs.preparingBiometric, "active");
     await new Promise((r) => setTimeout(r, 450));
     if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
-    showLog("Memproses frame mentah...", "active");
+    showLog(scan.logs.processingRawFrame, "active");
     const b64 = captureBase64FromVideo(video);
     if (!b64) {
-      showLog("Gagal memproses frame video", "err");
+      showLog(scan.logs.frameProcessingFailed, "err");
       captureGuardRef.current = false;
       inflightRef.current = false;
       setPhase(PHASES.FAILED);
@@ -305,7 +329,7 @@ export function useScanOrchestrator({
     (delayMs = 1500) => {
       if (captureGuardRef.current) return;
       captureGuardRef.current = true;
-      showLog("Memproses bingkai... Tahan posisi wajah Anda", "active");
+      showLog(scan.logs.processingFrameHold, "active");
       const attempt = () => {
         if (phaseRef.current === PHASES.LOADING || phaseRef.current === PHASES.FAILED) {
           captureGuardRef.current = false;
@@ -313,10 +337,10 @@ export function useScanOrchestrator({
         }
         if (instantFailsRef.current.length > 0) {
           const fails = instantFailsRef.current;
-          let warnMsg = "Menunggu posisi ideal...";
-          if (fails.includes(IQA_STATE.BLURRY)) warnMsg = "Kamera sedang fokus... Tahan posisi";
-          else if (fails.includes(IQA_STATE.TOO_CLOSE)) warnMsg = "Terlalu dekat dengan kamera... Mundur sedikit";
-          else if (fails.includes(IQA_STATE.LOW_LIGHT)) warnMsg = "Pencahayaan kurang baik...";
+          let warnMsg: string = scan.logs.waitingForPosition;
+          if (fails.includes(IQA_STATE.BLURRY)) warnMsg = scan.logs.cameraFocusing;
+          else if (fails.includes(IQA_STATE.TOO_CLOSE)) warnMsg = scan.logs.tooClose;
+          else if (fails.includes(IQA_STATE.LOW_LIGHT)) warnMsg = scan.logs.poorLighting;
           showLog(warnMsg, "warn");
           captureTimerRef.current = setTimeout(attempt, 500);
           return;
@@ -387,7 +411,9 @@ export function useScanOrchestrator({
     let cancelled = false;
     (async () => {
       try {
-        const exists = await clientRef.current.lookupUser(externalUserId);
+        const exists = await clientRef.current.lookupUser(externalUserId, {
+          signal: abortControllerRef.current.signal,
+        });
         if (cancelled) return;
         if (exists) {
           setMode(MODE_AUTHENTICATE);
@@ -461,11 +487,17 @@ export function useScanOrchestrator({
     let kind: LogEntry["kind"] = iqaMessage.kind as LogEntry["kind"];
     if (iqaState === IQA_STATE.READY) {
       if (phase === PHASES.SCANNING) {
-        text = captureGuardRef.current ? "Memproses bingkai... Tahan posisi wajah Anda" : "Putar kepala Anda perlahan";
+        text = captureGuardRef.current
+          ? scan.logs.processingFrameHold
+          : scan.logs.rotateHead;
         kind = "active";
-      } else if (!captureGuardRef.current) { text = "Wajah terdeteksi"; kind = "ok"; }
+      } else if (!captureGuardRef.current) {
+        text = scan.logs.faceDetected;
+        kind = "ok";
+      }
     } else if (iqaState === IQA_STATE.NO_FACE && phase !== PHASES.SEARCHING) {
-      text = "Wajah hilang dari bingkai"; kind = "warn";
+      text = scan.logs.faceLost;
+      kind = "warn";
     }
     if (text && (lastIqaLogRef.current.text !== text || lastIqaLogRef.current.kind !== kind)) {
       showLog(text, kind);
@@ -515,6 +547,7 @@ export function useScanOrchestrator({
     if (revealIntervalRef.current !== null) clearInterval(revealIntervalRef.current);
     if (redirectTimerRef.current !== null) clearInterval(redirectTimerRef.current);
     if (captureTimerRef.current !== null) clearTimeout(captureTimerRef.current);
+    abortControllerRef.current.abort();
   }, []);
 
   // --- Derived state ---
@@ -524,12 +557,12 @@ export function useScanOrchestrator({
   }, [phase]);
 
   const statusText = useMemo(() => {
-    if (phase === PHASES.ANALYZING) return "Memproses data biometrik...";
-    if (phase === PHASES.COMPLETE) return "Identitas Terverifikasi";
+    if (phase === PHASES.ANALYZING) return scan.logs.processingBiometric;
+    if (phase === PHASES.COMPLETE) return scan.logs.identityVerifiedShort;
     if (phase === PHASES.FAILED) {
-      if (result?.verdict === "spoof") return "Spoofing Terdeteksi";
-      if (result?.verdict === "warn") return "Tidak Dikenali";
-      return "Verifikasi Gagal";
+      if (result?.verdict === "spoof") return scan.logs.spoofDetected;
+      if (result?.verdict === "warn") return scan.logs.unknownIdentity;
+      return scan.logs.verificationFailed;
     }
     return "";
   }, [phase, result]);

@@ -1,7 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api, type Application } from "@/lib/api";
-import { notify } from "@/shared/lib/notify";
+import { api } from "@/lib/api";
 import { useIosAlert } from "@/app/providers/ios-alert-context";
 import {
   AppWindow,
@@ -15,37 +14,41 @@ import {
 } from "lucide-react";
 import { useAppsUi } from "@/features/applications/model/apps-ui-store";
 import { CreateApplicationDialog } from "@/features/applications/ui/CreateApplicationDialog";
-import { EmptyResourceState } from "@/shared/ui/EmptyResourceState";
+import {
+  useUpdateApplication,
+  useDeleteApplication,
+  type PendingApplication,
+} from "@/features/applications/model/use-applications";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { ResourceGridSkeleton } from "@/shared/ui/Skeleton";
 import { AddResourceTile } from "@/shared/ui/AddResourceTile";
-import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 export function Applications() {
-  const qc = useQueryClient();
   const iosAlert = useIosAlert();
-  const { editingId, setEditing, openCreate } = useAppsUi();
+  const { editingId, setEditing, openCreate, createOpenCount } = useAppsUi();
   const [editName, setEditName] = useState("");
 
-  const { data, isLoading } = useQuery({ queryKey: ["apps"], queryFn: api.listApps });
+  const { data, isLoading } = useQuery({
+    queryKey: ["apps"],
+    queryFn: ({ signal }) => api.listApps({ signal }),
+  });
 
-  const updateMut = useMutation({
-    mutationFn: () => api.updateApp(editingId!, { name: editName }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["apps"] });
+  const updateMut = useUpdateApplication();
+  const deleteMut = useDeleteApplication();
+
+  function handleSaveEdit(app: PendingApplication) {
+    const nextName = editName.trim();
+    if (!nextName || nextName === app.name) {
       setEditing(null);
-      notify.success("Application updated");
-    },
-    onError: (err) => notify.error((err as Error).message),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api.deleteApp(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["apps"] });
-      notify.success("Application removed");
-    },
-    onError: (err) => notify.error((err as Error).message),
-  });
+      return;
+    }
+    // Close the edit input immediately — the list reconciles optimistically.
+    setEditing(null);
+    updateMut.mutate({ id: app.id, name: nextName });
+  }
 
   async function handleDelete(id: string, appName: string) {
     const ok = await iosAlert.confirm({
@@ -55,10 +58,10 @@ export function Applications() {
       cancelLabel: "Cancel",
       destructive: true,
     });
-    if (ok) deleteMut.mutate(id);
+    if (ok) deleteMut.mutate({ id });
   }
 
-  const apps = data?.data ?? [];
+  const apps = (data?.data ?? []) as PendingApplication[];
   const isEmpty = !isLoading && apps.length === 0;
 
   return (
@@ -67,30 +70,44 @@ export function Applications() {
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="flex flex-col gap-1.5">
             <h1 className="page-title">Applications</h1>
-            <p className="face-helper text-[13px]">Manage your registered apps.</p>
+            <p className="face-helper text-[13px]">
+              Manage your registered apps.
+            </p>
           </div>
           {!isEmpty && !isLoading && (
-            <button
+            <Button
               type="button"
+              variant="primary-glass"
+              size="inline"
               onClick={openCreate}
-              className="btn-primary is-inline px-5 inline-flex items-center gap-2"
+              className="!px-5"
             >
-              <Plus size={16} />
+              <Plus data-icon="inline-start" />
               New application
-            </button>
+            </Button>
           )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-16"><Spinner label="Loading applications..." /></div>
+          <ResourceGridSkeleton count={8} />
         ) : isEmpty ? (
-          <EmptyResourceState
+          <EmptyState
+            variant="full"
             icon={<Sparkles size={26} />}
             title="No applications yet"
             description="Create your first application to start issuing API keys and running face scans."
-            actionLabel="Create application"
-            actionIcon={<Plus size={16} />}
-            onAction={openCreate}
+            action={
+              <Button
+                type="button"
+                variant="primary-glass"
+                size="inline"
+                onClick={openCreate}
+                className="!px-6"
+              >
+                <Plus data-icon="inline-start" />
+                Create application
+              </Button>
+            }
           />
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -106,7 +123,7 @@ export function Applications() {
                 }}
                 onCancelEdit={() => setEditing(null)}
                 onChangeEdit={setEditName}
-                onSaveEdit={() => updateMut.mutate()}
+                onSaveEdit={() => handleSaveEdit(app)}
                 onDelete={() => handleDelete(app.id, app.name)}
               />
             ))}
@@ -115,13 +132,15 @@ export function Applications() {
         )}
       </div>
 
-      <CreateApplicationDialog />
+      {/* key={createOpenCount} forces a fresh component instance on every open,
+          which kills carried-over form state (AP-05). */}
+      <CreateApplicationDialog key={createOpenCount} />
     </>
   );
 }
 
 interface AppCardProps {
-  app: Application;
+  app: PendingApplication;
   editing: boolean;
   editName: string;
   onStartEdit: () => void;
@@ -142,7 +161,12 @@ function AppCard({
   onDelete,
 }: AppCardProps) {
   return (
-    <div className="glass hover-glow rounded-[18px] p-5 flex flex-col gap-3 relative overflow-hidden min-h-[132px]">
+    <div
+      className={cn(
+        "glass hover-glow rounded-[var(--radius-card)] p-5 flex flex-col gap-3 relative overflow-hidden min-h-[132px]",
+        app.pending && "opacity-80 shimmer",
+      )}
+    >
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-[12px] bg-[color:var(--fill-tertiary)] border border-[color:var(--poc-border)] flex items-center justify-center shrink-0">
           <AppWindow size={18} className="text-[color:var(--label-primary)]" />
@@ -188,18 +212,23 @@ function AppCard({
           </>
         ) : (
           <>
-            <Link
-              to={`/applications/${app.id}/keys`}
-              className="btn-ghost is-inline inline-flex items-center gap-1.5 !py-1.5 !px-3 text-[12px] flex-1 justify-center"
+            <Button
+              asChild
+              variant="ghost-glass"
+              size="inline"
+              className="!py-1.5 !px-3 !text-[12px] flex-1"
             >
-              <KeyRound size={12} />
-              API keys
-            </Link>
+              <Link to={`/applications/${app.id}/keys`}>
+                <KeyRound data-icon="inline-start" />
+                API keys
+              </Link>
+            </Button>
             <button
               type="button"
               onClick={onStartEdit}
               className="icon-btn"
               aria-label="Rename"
+              disabled={app.pending}
             >
               <Pencil size={12} />
             </button>
@@ -208,6 +237,7 @@ function AppCard({
               onClick={onDelete}
               className="icon-btn"
               aria-label="Delete"
+              disabled={app.pending}
             >
               <Trash2 size={12} />
             </button>

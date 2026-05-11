@@ -27,6 +27,8 @@ export default tseslint.config(
         'error',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
+      '@typescript-eslint/no-explicit-any': 'error',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   {

@@ -1,4 +1,5 @@
 import { getBaseUrl } from "@/lib/config";
+import { isAbortError } from "@/shared/lib/http";
 import type {
   FaceApiErrorPayload,
   FaceApiSuccessPayload,
@@ -21,14 +22,24 @@ interface FacePayload {
   metadata: { source: string; bypass_fas: boolean };
 }
 
+export interface FaceRequestOpts {
+  signal?: AbortSignal;
+}
+
 const ENDPOINT_BASE = "/api/v1/faces";
 
+/**
+ * Scanner API client.
+ *
+ * Reads `getBaseUrl()` on every request so environment switches are picked
+ * up live (the client no longer freezes a stale baseUrl at construction).
+ * Accepts an `AbortSignal` per call so callers can cancel in-flight requests
+ * when the scan session resets.
+ */
 export class FaceApiClient {
-  private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
   constructor(apiKey: string) {
-    this.baseUrl = `${getBaseUrl()}${ENDPOINT_BASE}`;
     this.headers = {
       "X-API-Key": apiKey,
       "Content-Type": "application/json",
@@ -37,16 +48,18 @@ export class FaceApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {},
+    options: RequestInit & FaceRequestOpts = {},
   ): Promise<FaceApiResponse<T>> {
+    const url = `${getBaseUrl()}${ENDPOINT_BASE}${endpoint}`;
     try {
-      const res = await fetch(`${this.baseUrl}${endpoint}`, {
+      const res = await fetch(url, {
         ...options,
-        headers: this.headers,
+        headers: { ...this.headers, ...(options.headers as Record<string, string>) },
       });
       const data = res.status !== 204 ? ((await res.json()) as T) : null;
       return { ok: res.ok, status: res.status, data };
-    } catch {
+    } catch (err) {
+      if (isAbortError(err)) throw err;
       return {
         ok: false,
         status: 0,
@@ -57,7 +70,11 @@ export class FaceApiClient {
     }
   }
 
-  private payload(externalUserId: string, imageBase64: string, fas: boolean): FacePayload {
+  private payload(
+    externalUserId: string,
+    imageBase64: string,
+    fas: boolean,
+  ): FacePayload {
     return {
       external_user_id: externalUserId,
       image: imageBase64,
@@ -65,40 +82,63 @@ export class FaceApiClient {
     };
   }
 
-  register(externalUserId: string, imageBase64: string, fas: boolean) {
+  register(
+    externalUserId: string,
+    imageBase64: string,
+    fas: boolean,
+    opts: FaceRequestOpts = {},
+  ) {
     return this.request<FaceApiSuccessPayload & FaceApiErrorPayload>("/register", {
       method: "POST",
       body: JSON.stringify(this.payload(externalUserId, imageBase64, fas)),
+      signal: opts.signal,
     });
   }
 
-  authenticate(externalUserId: string, imageBase64: string, fas: boolean) {
+  authenticate(
+    externalUserId: string,
+    imageBase64: string,
+    fas: boolean,
+    opts: FaceRequestOpts = {},
+  ) {
     return this.request<FaceApiSuccessPayload & FaceApiErrorPayload>("/authenticate", {
       method: "POST",
       body: JSON.stringify(this.payload(externalUserId, imageBase64, fas)),
+      signal: opts.signal,
     });
   }
 
-  listProfiles() {
-    return this.request<{ profiles?: FaceProfile[] }>("");
+  listProfiles(opts: FaceRequestOpts = {}) {
+    return this.request<{ profiles?: FaceProfile[] }>("", {
+      signal: opts.signal,
+    });
   }
 
-  deleteProfile(externalUserId: string) {
-    return this.request<FaceApiSuccessPayload>(`/${externalUserId}`, { method: "DELETE" });
+  deleteProfile(externalUserId: string, opts: FaceRequestOpts = {}) {
+    return this.request<FaceApiSuccessPayload>(`/${externalUserId}`, {
+      method: "DELETE",
+      signal: opts.signal,
+    });
   }
 
-  purgeAll() {
-    return this.request<{ purged_count?: number }>("", { method: "DELETE" });
+  purgeAll(opts: FaceRequestOpts = {}) {
+    return this.request<{ purged_count?: number }>("", {
+      method: "DELETE",
+      signal: opts.signal,
+    });
   }
 
-  async lookupUser(externalUserId: string): Promise<boolean> {
-    const res = await this.listProfiles();
+  async lookupUser(
+    externalUserId: string,
+    opts: FaceRequestOpts = {},
+  ): Promise<boolean> {
+    const res = await this.listProfiles(opts);
     if (!res.ok || !res.data?.profiles) return false;
     return res.data.profiles.some((p) => p.external_user_id === externalUserId);
   }
 
-  async validate(): Promise<boolean> {
-    const res = await this.listProfiles();
+  async validate(opts: FaceRequestOpts = {}): Promise<boolean> {
+    const res = await this.listProfiles(opts);
     return res.ok;
   }
 }

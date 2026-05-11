@@ -14,10 +14,23 @@ import { OAuthCallback } from "./pages/OAuthCallback";
 import { ProtectedRoute } from "./app/guards/ProtectedRoute";
 import { FaceScanRoute } from "./app/guards/FaceScanRoute";
 import { IosAlertProvider } from "./app/providers/IosAlertProvider";
+import { OrchestrationOverlay } from "@/shared/ui/OrchestrationOverlay";
 import { Toaster } from "@/components/ui/sonner";
 import "./index.css";
 
-const qc = new QueryClient();
+const qc = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -52,6 +65,7 @@ createRoot(document.getElementById("root")!).render(
             </Route>
           </Routes>
           <Toaster />
+          <OrchestrationOverlay />
         </BrowserRouter>
       </IosAlertProvider>
     </QueryClientProvider>

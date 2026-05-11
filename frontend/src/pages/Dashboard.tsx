@@ -96,7 +96,7 @@ function ActionCard({ to, href, icon, title, description, external }: ActionCard
   );
 
   const className =
-    "glass-strong hover-glow rounded-[20px] p-5 flex items-center gap-4 cursor-pointer";
+    "glass-strong hover-glow rounded-[var(--radius-card-strong)] p-5 flex items-center gap-4 cursor-pointer";
 
   if (href) {
     return (
@@ -132,7 +132,7 @@ function DocCard({ href, icon, title, description }: DocCardProps) {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="glass-strong hover-glow rounded-[16px] p-4 flex items-center gap-3 cursor-pointer"
+      className="glass-strong hover-glow rounded-[var(--radius-card)] p-4 flex items-center gap-3 cursor-pointer"
     >
       <img src={icon} alt="" width={28} height={28} className="rounded-md shrink-0" />
       <div className="flex flex-col min-w-0">

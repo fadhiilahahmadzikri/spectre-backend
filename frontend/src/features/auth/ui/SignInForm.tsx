@@ -5,6 +5,15 @@ import { useAuthStore } from "@/lib/store";
 import { getBaseUrl } from "@/lib/config";
 import { GoogleIcon } from "@/shared/icons";
 import { notify } from "@/shared/lib/notify";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { useAuthUi } from "../model/auth-ui-store";
 
 export function SignInForm() {
@@ -26,9 +35,9 @@ export function SignInForm() {
       notify.success("Signed in", { description: data.user.email });
       navigate("/");
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      notify.error(message);
+      // Inline error below the form is enough feedback; no duplicate toast
+      // (per UX feedback plan: AP-10 redundant multi-channel errors).
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -38,45 +47,64 @@ export function SignInForm() {
     <div className="w-full max-w-[360px] flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
         <h1 className="face-title text-[26px]">Sign in to Spectre</h1>
-        <p className="face-helper text-[13px]">Enter your credentials to continue.</p>
+        <p className="face-helper text-[13px]">
+          Enter your credentials to continue.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="input-mono"
-          autoComplete="email"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="input-mono"
-          autoComplete="current-password"
-          required
-        />
-        {error && (
-          <p className="text-[11px] text-[color:var(--danger)] font-mono">{error}</p>
-        )}
-        <button type="submit" disabled={loading} className="btn-primary mt-1">
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
+      <form onSubmit={handleSubmit}>
+        <FieldGroup>
+          <Field data-invalid={!!error || undefined}>
+            <FieldLabel htmlFor="signin-email">Email</FieldLabel>
+            <Input
+              id="signin-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+              aria-invalid={!!error || undefined}
+              className="input-mono"
+            />
+          </Field>
+          <Field data-invalid={!!error || undefined}>
+            <FieldLabel htmlFor="signin-password">Password</FieldLabel>
+            <Input
+              id="signin-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              aria-invalid={!!error || undefined}
+              className="input-mono"
+            />
+            {error && (
+              <FieldDescription data-invalid className="text-[color:var(--danger)] font-mono">
+                {error}
+              </FieldDescription>
+            )}
+          </Field>
+          <Button
+            type="submit"
+            variant="primary-glass"
+            disabled={loading}
+            className="mt-1"
+          >
+            {loading && <Spinner size="sm" data-icon="inline-start" />}
+            {loading ? "Signing in…" : "Sign in"}
+          </Button>
+        </FieldGroup>
       </form>
 
       <div className="flex flex-col gap-3">
         <div className="gate-separator" />
-        <a
-          href={`${getBaseUrl()}/api/v1/auth/oauth/google`}
-          className="btn-ghost inline-flex items-center justify-center gap-2"
-        >
-          <GoogleIcon size={16} />
-          Continue with Google
-        </a>
+        <Button asChild variant="ghost-glass">
+          <a href={`${getBaseUrl()}/api/v1/auth/oauth/google`}>
+            <GoogleIcon size={16} data-icon="inline-start" />
+            Continue with Google
+          </a>
+        </Button>
       </div>
 
       <p className="face-helper text-[12px] text-center">

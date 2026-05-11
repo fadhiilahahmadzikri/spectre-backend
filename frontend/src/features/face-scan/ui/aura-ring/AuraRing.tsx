@@ -74,6 +74,9 @@ export function AuraRing({ size = 450, config = DEFAULT_AURA_CONFIG }: AuraRingP
     if (config.expression === "berhasil" || config.expression === "gagal") {
       runCycle(config.expression);
     } else {
+      // Legitimate state sync: internalExpr is a local state machine that
+      // must reset to the incoming prop when the cycle doesn't own it.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInternalExpr(config.expression);
       setGlitchActive(false);
     }

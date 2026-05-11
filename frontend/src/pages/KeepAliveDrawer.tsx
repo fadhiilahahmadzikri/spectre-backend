@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { GlassDrawer, GlassDrawerHeader } from "@/shared/ui/GlassDrawer";
-import { Spinner } from "@/components/ui/spinner";
+import { FormSkeleton } from "@/shared/ui/Skeleton";
 import { Activity, Box, Clock, ExternalLink, ShieldCheck } from "lucide-react";
 import { HuggingFaceIcon, SupabaseIcon } from "@/shared/icons";
 
@@ -13,7 +13,7 @@ interface KeepAliveDrawerProps {
 export function KeepAliveDrawer({ open, onClose }: KeepAliveDrawerProps) {
   const { data: status, isLoading } = useQuery({
     queryKey: ["automation-status"],
-    queryFn: () => api.getAutomationStatus(),
+    queryFn: ({ signal }) => api.getAutomationStatus({ signal }),
     enabled: open,
   });
 
@@ -28,7 +28,7 @@ export function KeepAliveDrawer({ open, onClose }: KeepAliveDrawerProps) {
 
       <div className="overflow-y-auto px-6 py-6 flex flex-col gap-6 pb-12">
         {isLoading ? (
-          <div className="py-12 flex justify-center"><Spinner /></div>
+          <FormSkeleton rows={3} />
         ) : status?.error ? (
           <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 text-red-400 text-xs font-mono">
             {status.error}

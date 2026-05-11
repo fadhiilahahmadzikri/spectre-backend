@@ -8,15 +8,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/store";
 import { useMediaQuery, MEDIA_MOBILE } from "@/shared/hooks/use-media-query";
 import { FaceIDGlyph } from "@/shared/icons";
-import { ConfigDialog } from "@/features/configuration";
+import { useConfigUi } from "@/features/configuration";
 
 export function MobileMenu() {
   const isMobile = useMediaQuery(MEDIA_MOBILE);
   const [open, setOpen] = useState(false);
-  const [configOpen, setConfigOpen] = useState(false);
+  const openDialog = useConfigUi((s) => s.openDialog);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export function MobileMenu() {
 
   function handleOpenConfig() {
     setOpen(false);
-    setTimeout(() => setConfigOpen(true), 200);
+    setTimeout(() => openDialog(), 200);
   }
 
   return (
@@ -79,20 +80,17 @@ export function MobileMenu() {
             </nav>
 
             <div className="mt-auto p-5 flex flex-col gap-4 border-t border-[color:var(--separator)]">
-              <button type="button" className="btn-ghost" onClick={handleLogout}>
-                <span className="inline-flex items-center gap-2 justify-center">
-                  <LogOut size={14} />
-                  Log out
-                </span>
-              </button>
+              <Button type="button" variant="ghost-glass" onClick={handleLogout}>
+                <LogOut data-icon="inline-start" />
+                Log out
+              </Button>
             </div>
           </div>
         </SheetContent>
       </Sheet>
 
-      {user?.role === "admin" && (
-        <ConfigDialog open={configOpen} onClose={() => setConfigOpen(false)} />
-      )}
+      {/* ConfigDialog is mounted once at the AppHeader level; we simply
+          trigger the shared store here. */}
     </>
   );
 }

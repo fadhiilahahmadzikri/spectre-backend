@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Terminal } from "lucide-react";
-import { ENV, getBaseUrl, resolveEnvName, setBaseUrl, type EnvName } from "@/lib/config";
-import { notify } from "@/shared/lib/notify";
+import { getBaseUrl, resolveEnvName, type EnvName } from "@/lib/config";
+import { useEnvironmentSwitch } from "@/features/configuration/model/useEnvironmentSwitch";
+import { admin } from "@/shared/lib/copy";
 
 const HF_LOGO_URL = "https://huggingface.co/front/assets/huggingface_logo-noborder.svg";
 
@@ -11,13 +11,18 @@ interface EnvToggleProps {
 }
 
 const LABELS: Record<EnvName, string> = {
-  local: "Local",
-  hf: "HF Space",
+  local: admin.layout.envLocal,
+  hf: admin.layout.envHf,
 };
 
+/**
+ * EnvToggle — thin UI over `useEnvironmentSwitch`. The orchestration overlay
+ * provides user feedback during the switch; this component just fires the
+ * command.
+ */
 export function EnvToggle({ showLabel = true }: EnvToggleProps) {
-  const qc = useQueryClient();
   const [env, setEnv] = useState<EnvName>(() => resolveEnvName(getBaseUrl()));
+  const { switchTo, isSyncing } = useEnvironmentSwitch();
 
   useEffect(() => {
     const listener = (e: Event) => {
@@ -29,15 +34,9 @@ export function EnvToggle({ showLabel = true }: EnvToggleProps) {
   }, []);
 
   function toggle() {
+    if (isSyncing) return;
     const next: EnvName = env === "hf" ? "local" : "hf";
-    const nextUrl = next === "hf" ? ENV.HF_SPACES : ENV.LOCAL;
-    setEnv(next);
-    setBaseUrl(nextUrl);
-    qc.invalidateQueries();
-    notify.success(`Switched to ${LABELS[next]}`, {
-      description: nextUrl,
-      duration: 2200,
-    });
+    void switchTo(next);
   }
 
   const isHf = env === "hf";
@@ -47,8 +46,11 @@ export function EnvToggle({ showLabel = true }: EnvToggleProps) {
       type="button"
       role="switch"
       aria-checked={isHf}
-      aria-label={`Switch to ${isHf ? "Local" : "HF Space"} environment`}
+      aria-label={admin.layout.envSwitchTo(
+        isHf ? admin.layout.envLocal : admin.layout.envHf,
+      )}
       onClick={toggle}
+      disabled={isSyncing}
       className="env-toggle"
       data-state={env}
     >

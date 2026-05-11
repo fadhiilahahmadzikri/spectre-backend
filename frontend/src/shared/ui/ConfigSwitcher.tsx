@@ -62,7 +62,7 @@ export function ConfigSwitcher({
   };
 
   return (
-    <div className="glass-strong rounded-[20px] p-6 flex flex-col gap-6 shadow-sm border border-white/5">
+    <div className="glass-strong rounded-[var(--radius-card-strong)] p-6 flex flex-col gap-6 shadow-sm border border-white/5">
       <div className="flex items-center gap-3 border-b border-white/[0.06] pb-4">
         <div className="p-2 rounded-lg bg-[color:var(--bg-secondary)] text-[color:var(--label-secondary)]">
           {icon}

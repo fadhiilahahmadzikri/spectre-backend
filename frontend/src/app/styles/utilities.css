@@ -76,6 +76,7 @@ body {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--poc-border);
+  border-radius: var(--radius-card);
 }
 
 .glass-strong {
@@ -83,6 +84,7 @@ body {
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: var(--radius-card-strong);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.05) inset,
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -273,82 +275,10 @@ body {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
 }
 
-.btn-primary {
-  width: 100%;
-  padding: 15px 20px;
-  border-radius: var(--radius-md);
-  background: #ffffff;
-  color: #000000;
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.01em;
-  transition: opacity 180ms ease, transform 120ms ease;
-  font-family: var(--font-sans);
-  line-height: 1;
-}
-
-.btn-primary.is-inline,
-.btn-ghost.is-inline,
-.btn-danger-soft.is-inline {
-  width: auto;
-}
-
-.btn-primary:hover {
-  opacity: 0.93;
-}
-
-.btn-primary:active {
-  transform: scale(0.985);
-  opacity: 0.88;
-}
-
-.btn-primary:disabled {
-  opacity: 0.32;
-  cursor: not-allowed;
-}
-
-.btn-ghost {
-  width: 100%;
-  padding: 13px 16px;
-  border-radius: var(--radius-md);
-  background: var(--fill-tertiary);
-  color: var(--fg);
-  border: 1px solid var(--poc-border);
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-  transition: background 180ms ease;
-  font-family: var(--font-sans);
-}
-
-.btn-ghost:hover {
-  background: var(--fill-secondary);
-}
-
-.btn-ghost:active {
-  transform: scale(0.985);
-}
-
-.btn-danger-soft {
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 69, 58, 0.10);
-  color: #ff6b63;
-  border: 1px solid rgba(255, 69, 58, 0.20);
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.01em;
-  transition: background 180ms ease;
-  font-family: var(--font-sans);
-}
-
-.btn-danger-soft:hover {
-  background: rgba(255, 69, 58, 0.16);
-}
-
-.btn-danger-soft:active {
-  transform: scale(0.97);
-}
+/* Legacy glass button utility classes have been consolidated into the shadcn
+   <Button> primitive at src/components/ui/button.tsx as variants
+   `primary-glass`, `ghost-glass`, and `danger-soft` (with size `inline` for
+   auto-width). */
 
 .toggle-switch {
   width: 42px;

@@ -3,6 +3,7 @@ import {
   AlertDialogContent,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 export interface IosAlertAction {
   label: string;
@@ -34,7 +35,7 @@ export function IOSAlertDialog({ config, onClose }: IOSAlertDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent
-        className="glass-strong p-0 border-none w-[320px] sm:max-w-[320px] overflow-hidden !rounded-[24px]"
+        className="glass-strong p-0 border-none w-[320px] sm:max-w-[320px] overflow-hidden !rounded-[var(--radius-card-strong,24px)]"
       >
         <div className="pt-7 pb-5 px-6 flex flex-col items-center gap-2">
           <AlertDialogTitle className="face-title text-[17px] text-center">
@@ -47,25 +48,32 @@ export function IOSAlertDialog({ config, onClose }: IOSAlertDialogProps) {
           )}
         </div>
         <div className="flex flex-col gap-2 px-6 pb-6">
-          {config.actions.map((action, i) => (
-            <button
-              key={`${action.label}-${i}`}
-              type="button"
-              className={
-                action.style === "destructive"
-                  ? "btn-primary !bg-[rgba(255,69,58,0.15)] !text-[#FF453A] hover:!bg-[rgba(255,69,58,0.25)]"
-                  : action.style === "cancel"
-                    ? "btn-ghost"
-                    : "btn-primary"
-              }
-              onClick={() => {
-                action.onClick();
-                onClose();
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
+          {config.actions.map((action, i) => {
+            const variant =
+              action.style === "destructive"
+                ? "primary-glass"
+                : action.style === "cancel"
+                  ? "ghost-glass"
+                  : "primary-glass";
+            return (
+              <Button
+                key={`${action.label}-${i}`}
+                type="button"
+                variant={variant}
+                className={
+                  action.style === "destructive"
+                    ? "!bg-[rgba(255,69,58,0.15)] !text-[#FF453A] hover:!bg-[rgba(255,69,58,0.25)]"
+                    : undefined
+                }
+                onClick={() => {
+                  action.onClick();
+                  onClose();
+                }}
+              >
+                {action.label}
+              </Button>
+            );
+          })}
         </div>
       </AlertDialogContent>
     </AlertDialog>

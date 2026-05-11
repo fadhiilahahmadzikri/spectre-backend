@@ -1,15 +1,17 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  GlassDialog,
+  GlassDialogHeader,
+  GlassDialogBody,
+  GlassDialogFooter,
+} from "@/shared/ui/GlassDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { FormSkeleton } from "@/shared/ui/Skeleton";
 import { notify } from "@/shared/lib/notify";
 import {
   Settings2,
@@ -27,6 +29,7 @@ import {
   type ConfigDraft,
   type ConfigResponse,
 } from "../model/types";
+import { useUpdateConfig } from "../model/use-update-config";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   anti_spoofing: <ShieldCheck size={14} />,
@@ -41,133 +44,156 @@ interface ConfigDialogProps {
   onClose: () => void;
 }
 
+/**
+ * Resolve the current server value for a config key by scanning the response
+ * categories tree.
+ */
+function serverValue(data: ConfigResponse | undefined, key: string): string | undefined {
+  if (!data) return undefined;
+  for (const items of Object.values(data.categories)) {
+    for (const item of items) {
+      if (item.key === key) return item.value;
+    }
+  }
+  return undefined;
+}
+
 export function ConfigDialog({ open, onClose }: ConfigDialogProps) {
-  const qc = useQueryClient();
-  const [draft, setDraft] = useState<ConfigDraft>({});
   const [activeTab, setActiveTab] = useState(CATEGORY_ORDER[0]);
+
+  // Local edit overrides. Only keys the user has actively touched live here;
+  // everything else resolves from the server query.
+  const [overrides, setOverrides] = useState<ConfigDraft>({});
 
   const { data, isLoading, isError } = useQuery<ConfigResponse>({
     queryKey: ["admin-config"],
-    queryFn: () => api.getConfig(),
+    queryFn: ({ signal }) => api.getConfig({ signal }),
     enabled: open,
   });
 
-  useEffect(() => {
-    if (!data) return;
-    const d: ConfigDraft = {};
-    for (const items of Object.values(data.categories)) {
-      for (const item of items) d[item.key] = item.value;
-    }
-    setDraft(d);
-  }, [data]);
+  const mutation = useUpdateConfig();
 
-  const mutation = useMutation({
-    mutationFn: (updates: Record<string, string>) => api.updateConfig(updates),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-config"] });
-      notify.success("Configuration saved", { description: "Changes applied immediately." });
-    },
-    onError: (err) => {
-      notify.error("Save failed", { description: err instanceof Error ? err.message : "Unknown error" });
-    },
-  });
+  // Effective draft = server values merged with user overrides.
+  const draft: ConfigDraft = {};
+  if (data) {
+    for (const items of Object.values(data.categories)) {
+      for (const item of items) {
+        draft[item.key] = overrides[item.key] ?? item.value;
+      }
+    }
+  }
+
+  const hasChanges = Object.entries(overrides).some(
+    ([k, v]) => v !== serverValue(data, k),
+  );
 
   function handleSave() {
     if (!data) return;
     const updates: Record<string, string> = {};
-    for (const items of Object.values(data.categories)) {
-      for (const item of items) {
-        if (draft[item.key] !== item.value) updates[item.key] = draft[item.key];
-      }
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v !== serverValue(data, k)) updates[k] = v;
     }
     if (!Object.keys(updates).length) {
       notify.info("No changes to save.");
       return;
     }
     mutation.mutate(updates);
+    // Clear overrides; the optimistic cache update has already propagated the
+    // new values, so resolving from `data` will be correct.
+    setOverrides({});
   }
 
-  const hasChanges = data
-    ? Object.values(data.categories).some((items) =>
-        items.some((item) => draft[item.key] !== item.value)
-      )
-    : false;
-
   const availableCategories = CATEGORY_ORDER.filter(
-    (c) => data?.categories[c]?.length
+    (c) => data?.categories[c]?.length,
   );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="
-          glass-strong border-none p-0 overflow-hidden
-          !rounded-[24px] sm:max-w-[720px] max-h-[88vh] flex flex-col
-          [&>button]:top-5 [&>button]:right-5 [&>button]:text-[color:var(--label-secondary)]
-        "
-      >
-        {/* Header — left aligned */}
-        <div className="flex items-center gap-3 px-7 pt-7 pb-5 border-b border-[color:var(--separator)]">
-          <div className="gate-icon-ring shrink-0">
-            <Settings2 size={20} className="text-[color:var(--label-primary)]" />
-          </div>
-          <div className="flex flex-col">
-            <DialogTitle className="face-title text-[17px]">System Configuration</DialogTitle>
-            <DialogDescription className="face-helper text-[12px] mt-0.5">
-              Manage operational parameters. Changes apply immediately.
-            </DialogDescription>
-          </div>
-        </div>
+    <GlassDialog
+      open={open}
+      onOpenChange={(v) => !v && onClose()}
+      size="lg"
+      className="max-h-[88vh]"
+    >
+      <GlassDialogHeader
+        align="left"
+        icon={<Settings2 size={20} />}
+        title="System Configuration"
+        description="Manage operational parameters. Changes apply immediately."
+      />
 
-        {/* Body */}
-        <div className="flex-1 flex flex-col min-h-0 px-7 py-6">
-          {isLoading ? (
-            <div className="flex justify-center py-12"><Spinner /></div>
-          ) : isError || !data || !availableCategories.length ? (
-            <EmptyState
-              icon={<WifiOff className="w-6 h-6" />}
-              title="Unable to load configuration"
-              description="Backend is not reachable or configuration has not been seeded yet."
-            />
-          ) : (
-            <>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
-                <TabsList variant="line" className="w-full h-auto gap-2 bg-transparent justify-start flex-nowrap overflow-x-auto">
-                  {availableCategories.map((cat) => (
-                    <TabsTrigger key={cat} value={cat} className="text-[11px] px-3 py-1.5 inline-flex items-center gap-1.5 shrink-0">
-                      <span className="text-[color:var(--label-tertiary)]">{CATEGORY_ICONS[cat]}</span>
-                      {CATEGORY_LABELS[cat] ?? cat}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
-                <div className="flex-1 overflow-y-auto mt-5 -mx-1 px-1 pb-2">
-                  {availableCategories.map((cat) => (
-                    <TabsContent key={cat} value={cat}>
-                      <ConfigSection
-                        items={data.categories[cat] ?? []}
-                        draft={draft}
-                        onChange={(key, value) => setDraft((d) => ({ ...d, [key]: value }))}
-                      />
-                    </TabsContent>
-                  ))}
-                </div>
-              </Tabs>
-
-              <div className="pt-5 border-t border-[color:var(--separator)] flex items-center justify-end">
-                <button
-                  type="button"
-                  className="btn-primary !px-6"
-                  disabled={!hasChanges || mutation.isPending}
-                  onClick={handleSave}
+      <GlassDialogBody>
+        {isLoading ? (
+          <FormSkeleton rows={5} />
+        ) : isError || !data || !availableCategories.length ? (
+          <EmptyState
+            icon={<WifiOff className="w-6 h-6" />}
+            title="Unable to load configuration"
+            description="Backend is not reachable or configuration has not been seeded yet."
+          />
+        ) : (
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex-1 min-h-0 flex flex-col"
+          >
+            <TabsList
+              variant="line"
+              className="w-full h-auto gap-2 bg-transparent justify-start flex-nowrap overflow-x-auto"
+            >
+              {availableCategories.map((cat) => (
+                <TabsTrigger
+                  key={cat}
+                  value={cat}
+                  className="text-[11px] px-3 py-1.5 inline-flex items-center gap-1.5 shrink-0"
                 >
-                  {mutation.isPending ? "Saving…" : "Save changes"}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                  <span className="text-[color:var(--label-tertiary)]">
+                    {CATEGORY_ICONS[cat]}
+                  </span>
+                  {CATEGORY_LABELS[cat] ?? cat}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <div className="flex-1 overflow-y-auto mt-5 -mx-1 px-1 pb-2">
+              {availableCategories.map((cat) => (
+                <TabsContent key={cat} value={cat}>
+                  <ConfigSection
+                    items={data.categories[cat] ?? []}
+                    draft={draft}
+                    onChange={(key, value) =>
+                      setOverrides((d) => ({ ...d, [key]: value }))
+                    }
+                  />
+                </TabsContent>
+              ))}
+            </div>
+          </Tabs>
+        )}
+      </GlassDialogBody>
+
+      {!isLoading && data && !!availableCategories.length && (
+        <GlassDialogFooter>
+          <Button
+            type="button"
+            variant="primary-glass"
+            size="inline"
+            className="!px-6 relative"
+            disabled={!hasChanges || mutation.isPending}
+            onClick={handleSave}
+          >
+            {mutation.isPending && (
+              <Spinner size="sm" data-icon="inline-start" />
+            )}
+            {hasChanges && !mutation.isPending && (
+              <span
+                aria-hidden
+                className="inline-block size-1.5 rounded-full bg-current opacity-70 mr-2 pulse-dot"
+              />
+            )}
+            {mutation.isPending ? "Saving…" : "Save changes"}
+          </Button>
+        </GlassDialogFooter>
+      )}
+    </GlassDialog>
   );
 }

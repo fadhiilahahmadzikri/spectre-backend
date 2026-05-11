@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import type { ScanResult } from "../../model/types";
+import { scan } from "@/shared/lib/copy";
 
 interface ResultPanelProps {
   result: ScanResult | null;
@@ -19,12 +21,17 @@ export function ResultPanel({ result, onReset, redirectIn }: ResultPanelProps) {
       className="flex flex-col gap-3 mx-auto w-full max-w-[420px]"
     >
       <div className="flex gap-2 items-center">
-        <button type="button" className="btn-ghost flex-1" onClick={onReset}>
-          Pindai Ulang
-        </button>
+        <Button
+          type="button"
+          variant="ghost-glass"
+          className="flex-1"
+          onClick={onReset}
+        >
+          {scan.result.rescan}
+        </Button>
         {typeof redirectIn === "number" && (
           <div className="flex-1 flex items-center justify-center kbd-mono">
-            Mengalihkan {redirectIn}s
+            {scan.result.redirecting(redirectIn)}
           </div>
         )}
       </div>

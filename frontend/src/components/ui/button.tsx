@@ -19,6 +19,16 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        // Spectre POC-parity glass variants. These re-implement the legacy
+        // glass-button utility classes as shadcn variants. `!` prefix forces
+        // these styles to win over whatever size is applied (glass buttons
+        // are padding/height-driven, not h-based like the shadcn defaults).
+        "primary-glass":
+          "w-full !rounded-[var(--radius-md)] !h-auto !px-[20px] !py-[15px] !text-[15px] bg-white font-semibold text-black tracking-[-0.01em] transition-[opacity,transform] duration-[180ms] ease-out hover:opacity-[0.93] active:scale-[0.985] active:opacity-[0.88] disabled:opacity-[0.32]",
+        "ghost-glass":
+          "w-full !rounded-[var(--radius-md)] !h-auto !px-[16px] !py-[13px] !text-[14px] border bg-[var(--fill-tertiary)] text-[color:var(--fg)] font-medium tracking-[-0.01em] transition-colors duration-[180ms] ease-out hover:bg-[var(--fill-secondary)] active:scale-[0.985]",
+        "danger-soft":
+          "!rounded-[var(--radius-sm)] !h-auto !px-[14px] !py-[10px] !text-[12px] border font-semibold tracking-[0.01em] transition-colors duration-[180ms] ease-out active:scale-[0.97] bg-[rgba(255,69,58,0.10)] text-[#ff6b63] border-[rgba(255,69,58,0.20)] hover:bg-[rgba(255,69,58,0.16)]",
       },
       size: {
         default:
@@ -32,6 +42,10 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        // Size "inline" = auto width. Pairs with primary-glass/ghost-glass/
+        // danger-soft variants when the button should shrink to its content
+        // instead of filling the row.
+        inline: "!w-auto",
       },
     },
     defaultVariants: {

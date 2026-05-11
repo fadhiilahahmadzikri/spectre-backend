@@ -282,6 +282,7 @@ export function ScannerView({
         phase={phase}
         detailMode={config.detailMode}
         benchmarkMode={config.benchmarkMode}
+        visible={!(isTerminal && result !== null)}
       />
     </div>
   );

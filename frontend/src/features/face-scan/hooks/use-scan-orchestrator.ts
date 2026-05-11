@@ -116,6 +116,12 @@ export function useScanOrchestrator({
   const captureGuardRef = useRef(false);
   const requestEpochRef = useRef(0);
   const inflightRef = useRef(false);
+  // When benchmark runs on a FAILED outcome, we don't show the interceptor
+  // immediately — we let the failed animation (and the radial AnalysisDrawer
+  // for spoof) play first, then reveal benchmark. The result is parked here
+  // until the trigger fires (drawer close, or a delayed timer for paths
+  // without an auto-drawer).
+  const benchmarkReserveRef = useRef<BenchmarkApiResponse | null>(null);
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const captureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -191,6 +197,7 @@ export function useScanOrchestrator({
     setDraftCapture(null);
     setPendingDiagnostics(null);
     setPendingBenchmark(null);
+    benchmarkReserveRef.current = null;
     pendingPhaseRef.current = null;
     setPhase(PHASES.LOADING);
     setTimeout(() => {
@@ -311,14 +318,26 @@ export function useScanOrchestrator({
           showLog(scan.logs.spoofing(msg), "err");
           setResult({ verdict: "spoof", label: scan.logs.spoofShort, summary, detail });
           if (config.detailMode && details.diagnostics) {
+            // Detail mode on — surface diagnostics (and benchmark, if any) in
+            // the tabbed interceptor BEFORE the failed animation plays.
             setPendingDiagnostics(details.diagnostics);
-            pendingPhaseRef.current = PHASES.FAILED;
-          } else if (benchmarkResult !== null) {
+            if (benchmarkResult !== null) setPendingBenchmark(benchmarkResult);
             pendingPhaseRef.current = PHASES.FAILED;
           } else {
+            // Detail mode off — let the failed animation fire first.
             setPhase(PHASES.FAILED);
             if (detail) {
+              // Radial AnalysisDrawer auto-opens at 1800ms. Benchmark will be
+              // revealed by the analysisOpen→false effect when user closes it.
               setTimeout(() => { if (requestEpochRef.current === epoch) setAnalysisOpen(true); }, 1800);
+              if (benchmarkResult !== null) benchmarkReserveRef.current = benchmarkResult;
+            } else if (benchmarkResult !== null) {
+              // No radial drawer — wait for the failed animation to settle,
+              // then show benchmark directly.
+              setTimeout(() => {
+                if (requestEpochRef.current !== epoch) return;
+                setPendingBenchmark(benchmarkResult);
+              }, 2200);
             }
           }
         } else if (code === "FACE_MATCH_FAILED") {
@@ -327,19 +346,26 @@ export function useScanOrchestrator({
           setResult({ verdict: "warn", label: scan.logs.mismatchShort, summary: { live: 0, spoof: 0 }, detail: null });
           if (config.detailMode && details.diagnostics) {
             setPendingDiagnostics(details.diagnostics);
-            pendingPhaseRef.current = PHASES.FAILED;
-          } else if (benchmarkResult !== null) {
+            if (benchmarkResult !== null) setPendingBenchmark(benchmarkResult);
             pendingPhaseRef.current = PHASES.FAILED;
           } else {
             setPhase(PHASES.FAILED);
+            if (benchmarkResult !== null) {
+              setTimeout(() => {
+                if (requestEpochRef.current !== epoch) return;
+                setPendingBenchmark(benchmarkResult);
+              }, 2200);
+            }
           }
         } else {
           showLog(`${code}: ${msg}`, "err");
           setResult({ verdict: "warn", label: scan.logs.errorShort, summary: { live: 0, spoof: 0 }, detail: null });
+          setPhase(PHASES.FAILED);
           if (benchmarkResult !== null) {
-            pendingPhaseRef.current = PHASES.FAILED;
-          } else {
-            setPhase(PHASES.FAILED);
+            setTimeout(() => {
+              if (requestEpochRef.current !== epoch) return;
+              setPendingBenchmark(benchmarkResult);
+            }, 2200);
           }
         }
       }
@@ -569,6 +595,19 @@ export function useScanOrchestrator({
     if (!initialModeRef.current) handleReset();
     else initialModeRef.current = false;
   }, [mode, handleReset]);
+
+  // When the user closes the radial AnalysisDrawer on a FAILED outcome, if
+  // benchmark ran we surface it as the next gate. This is the final step of
+  // the spoof UX chain: failed animation → radial drawer → benchmark.
+  const prevAnalysisOpenRef = useRef(false);
+  useEffect(() => {
+    const wasOpen = prevAnalysisOpenRef.current;
+    prevAnalysisOpenRef.current = analysisOpen;
+    if (wasOpen && !analysisOpen && benchmarkReserveRef.current) {
+      setPendingBenchmark(benchmarkReserveRef.current);
+      benchmarkReserveRef.current = null;
+    }
+  }, [analysisOpen]);
 
   // Avatar animation
   useEffect(() => {

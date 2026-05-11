@@ -1,0 +1,1043 @@
+import os
+import sys
+import io
+import gc
+import math
+import random
+import datetime
+import faulthandler
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+import warnings
+
+warnings.filterwarnings("ignore")
+os.environ["KERAS_BACKEND"] = "tensorflow"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_XLA_FLAGS"] = "--tf_xla_auto_jit=0"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+
+import tensorflow as tf
+tf.config.optimizer.set_jit(False)
+
+import numpy as np
+import pandas as pd
+from PIL import Image, ImageFilter, ImageEnhance
+from sklearn.metrics import f1_score, accuracy_score
+import keras
+from keras import layers, mixed_precision
+
+from rich.console import Console
+from rich.markup import escape
+from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, TimeElapsedColumn
+
+console = Console()
+
+def _log(tag: str, msg: str, color: str = "green") -> None:
+    console.print(f"[{color}][bold]{tag:>16}[/bold][/{color}] {escape(str(msg))}")
+
+class Config:
+    TRAIN_DIR = "/kaggle/input/datasets/berrymilkyss/tf-fas/dataset_split_v2/train"
+    VAL_DIR = "/kaggle/input/datasets/berrymilkyss/tf-fas/dataset_split_v2/val"
+    OUTPUT_DIR = "/kaggle/working/fas_outputv5"
+    LOG_DIR = "/kaggle/working/logsv5"
+    SEED = 42
+    IMG_SIZE = 256
+    BASE_BATCH_SIZE = 32
+    REDUCED_BATCH_SIZE = 8
+    TOTAL_EPOCHS = 150
+    WARMUP_EPOCHS = 5
+    STAGE4_WARMUP_EPOCHS = 3
+    PATIENCE = 15
+    EMA_DECAY = 0.9995
+    LABEL_SMOOTH = 0.08
+    GAMMA = 2.5
+    CLASSES = ("fake_mannequin", "fake_mask", "fake_papercut", "fake_printed", "fake_screen", "realperson")
+    NUM_CLASSES = 6
+    REAL_CLASS_IDX = 5
+    FREQ_DIM = 256
+    CDC_DIM = 256
+    MEAN = (0.485, 0.456, 0.406)
+    STD = (0.229, 0.224, 0.225)
+    STAGES = ((0, 10, 1), (10, 25, 2), (25, 42, 3), (42, 92, 4), (92, 150, 5))
+    LR_BY_STAGE = {1: 5e-4, 2: 2e-4, 3: 8e-5, 4: 1e-5, 5: 5e-6}
+    HEAD_LR_SCALE = 0.1
+    MIXUP_ALPHA = 0.40
+    CUTMIX_ALPHA = 1.0
+    WEIGHT_DECAY = 5e-4
+    MANNEQUIN_CLASS_IDX = 0
+
+@dataclass
+class EpochRecord:
+    epoch: int
+    stage: int
+    loss: float
+    lr: float
+    train_f1: float
+    val_f1: float
+    best_f1: float
+    train_per_class: dict
+    val_per_class: dict
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat(timespec="seconds"))
+
+class TrainingHistory:
+    def __init__(self) -> None:
+        self._records: List[EpochRecord] = []
+
+    def push(self, record: EpochRecord) -> None:
+        self._records.append(record)
+
+    def previous(self) -> Optional[EpochRecord]:
+        return self._records[-2] if len(self._records) >= 2 else None
+
+    def best_record(self) -> Optional[EpochRecord]:
+        return max(self._records, key=lambda r: r.val_f1) if self._records else None
+
+    def to_dataframe(self) -> pd.DataFrame:
+        rows = []
+        for r in self._records:
+            row: Dict = {
+                "epoch": r.epoch, "stage": r.stage, "loss": round(r.loss, 6),
+                "lr": r.lr, "train_f1": round(r.train_f1, 6), "val_f1": round(r.val_f1, 6),
+                "best_f1": round(r.best_f1, 6), "timestamp": r.timestamp,
+            }
+            for cls in Config.CLASSES:
+                row[f"train_{cls}"] = round(r.train_per_class.get(cls, 0.0), 6)
+                row[f"val_{cls}"] = round(r.val_per_class.get(cls, 0.0), 6)
+            rows.append(row)
+        return pd.DataFrame(rows)
+
+class DirectoryParser:
+    def __init__(self, root: Path, cfg: Config) -> None:
+        self._root = root
+        self._cfg = cfg
+
+    def parse(self) -> List[Tuple[str, int]]:
+        samples = []
+        for target, cls_name in enumerate(self._cfg.CLASSES):
+            cls_dir = self._root / cls_name
+            if not cls_dir.exists():
+                continue
+            for f in cls_dir.iterdir():
+                if f.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+                    samples.append((str(f), target))
+        return samples
+
+class ImageLoader:
+    def __init__(self, cfg: Config, is_train: bool) -> None:
+        self._size = cfg.IMG_SIZE
+        self._is_train = is_train
+
+    def load(self, path: str, label: int = -1) -> np.ndarray:
+        try:
+            img = Image.open(path).convert("RGB")
+        except Exception:
+            img = Image.new("RGB", (self._size, self._size))
+
+        if self._is_train:
+            if random.random() < 0.3:
+                scale = random.uniform(1.0, 1.15)
+                new_sz = int(self._size * scale)
+                img = img.resize((new_sz, new_sz), Image.BICUBIC)
+                left = (new_sz - self._size) // 2
+                top = (new_sz - self._size) // 2
+                img = img.crop((left, top, left + self._size, top + self._size))
+            else:
+                img = img.resize((self._size, self._size), Image.BICUBIC)
+
+            if random.random() > 0.5:
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            if random.random() > 0.85:
+                img = img.convert("L").convert("RGB")
+            if random.random() > 0.5:
+                img = ImageEnhance.Brightness(img).enhance(random.uniform(0.70, 1.30))
+            if random.random() > 0.5:
+                img = ImageEnhance.Contrast(img).enhance(random.uniform(0.70, 1.30))
+            if random.random() > 0.5:
+                img = ImageEnhance.Color(img).enhance(random.uniform(0.70, 1.30))
+            if random.random() > 0.5:
+                img = ImageEnhance.Sharpness(img).enhance(random.uniform(1.5, 2.5))
+            if random.random() > 0.7:
+                angle = random.uniform(-18.0, 18.0)
+                img = img.rotate(angle, Image.BICUBIC, expand=False)
+            if random.random() > 0.7:
+                img = self._random_perspective(img, distortion_scale=0.15)
+            if random.random() > 0.75:
+                img = self._random_erasing(img)
+            if label == Config.MANNEQUIN_CLASS_IDX and random.random() > 0.4:
+                img = self._elastic_distortion(img)
+
+            img = self._down_up_resample(img)
+            img = self._specular_highlight(img)
+            img = self._jpeg_simulation(img)
+            img = self._moire_overlay(img)
+            img = self._print_simulation(img)
+            img = self._gaussian_noise(img)
+        else:
+            img = img.resize((self._size, self._size), Image.BICUBIC)
+
+        return np.array(img).astype(np.float32) / 255.0
+
+    def _random_perspective(self, img: Image.Image, distortion_scale: float = 0.15) -> Image.Image:
+        w, h = img.size
+        half_h, half_w = h // 2, w // 2
+        d = distortion_scale
+        top_left = (random.randint(0, int(d * half_w)), random.randint(0, int(d * half_h)))
+        top_right = (random.randint(w - int(d * half_w) - 1, w - 1), random.randint(0, int(d * half_h)))
+        bot_right = (random.randint(w - int(d * half_w) - 1, w - 1), random.randint(h - int(d * half_h) - 1, h - 1))
+        bot_left = (random.randint(0, int(d * half_w)), random.randint(h - int(d * half_h) - 1, h - 1))
+        src = [top_left, top_right, bot_right, bot_left]
+        dst = [(0, 0), (w - 1, 0), (w - 1, h - 1), (0, h - 1)]
+        coeffs = self._find_perspective_coeffs(src, dst)
+        return img.transform((w, h), Image.PERSPECTIVE, coeffs, Image.BICUBIC)
+
+    @staticmethod
+    def _find_perspective_coeffs(src: List[Tuple[int, int]], dst: List[Tuple[int, int]]) -> List[float]:
+        matrix = []
+        for s, d in zip(src, dst):
+            matrix.append([d[0], d[1], 1, 0, 0, 0, -s[0] * d[0], -s[0] * d[1]])
+            matrix.append([0, 0, 0, d[0], d[1], 1, -s[1] * d[0], -s[1] * d[1]])
+        a_mat = np.array(matrix, dtype=np.float32)
+        b_vec = np.array([s for pt in src for s in pt], dtype=np.float32)
+        try:
+            res = np.linalg.solve(a_mat, b_vec)
+        except np.linalg.LinAlgError:
+            res = np.array([1, 0, 0, 0, 1, 0, 0, 0], dtype=np.float32)
+        return res.tolist()
+
+    def _random_erasing(self, img: Image.Image) -> Image.Image:
+        arr = np.array(img)
+        h, w = arr.shape[:2]
+        area = h * w
+        for _ in range(3):
+            cut_area = random.uniform(0.02, 0.20) * area
+            aspect = random.uniform(0.3, 3.3)
+            cut_h = int(math.sqrt(cut_area / aspect))
+            cut_w = int(math.sqrt(cut_area * aspect))
+            if cut_h >= h or cut_w >= w:
+                continue
+            x = random.randint(0, w - cut_w)
+            y = random.randint(0, h - cut_h)
+            arr[y: y + cut_h, x: x + cut_w] = np.array([int(m * 255) for m in (0.485, 0.456, 0.406)], dtype=np.uint8)
+            break
+        return Image.fromarray(arr)
+
+    def _elastic_distortion(self, img: Image.Image) -> Image.Image:
+        arr = np.array(img).astype(np.float32)
+        h, w = arr.shape[:2]
+        alpha = random.uniform(8.0, 18.0)
+        sigma = random.uniform(3.0, 5.0)
+        dx = np.random.randn(h, w).astype(np.float32) * alpha
+        dy = np.random.randn(h, w).astype(np.float32) * alpha
+        from scipy.ndimage import gaussian_filter, map_coordinates
+        dx = gaussian_filter(dx, sigma)
+        dy = gaussian_filter(dy, sigma)
+        y_coords, x_coords = np.mgrid[0:h, 0:w]
+        map_x = np.clip(x_coords + dx, 0, w - 1)
+        map_y = np.clip(y_coords + dy, 0, h - 1)
+        result = np.zeros_like(arr)
+        for c in range(3):
+            result[..., c] = map_coordinates(arr[..., c], [map_y.ravel(), map_x.ravel()], order=1).reshape(h, w)
+        return Image.fromarray(result.clip(0, 255).astype(np.uint8))
+
+    def _down_up_resample(self, img: Image.Image) -> Image.Image:
+        if random.random() > 0.25: return img
+        w, h = img.size
+        scale = random.uniform(0.15, 0.40)
+        small = img.resize((int(w * scale), int(h * scale)), Image.BILINEAR)
+        return small.resize((w, h), Image.BICUBIC)
+
+    def _specular_highlight(self, img: Image.Image) -> Image.Image:
+        if random.random() > 0.20: return img
+        arr = np.array(img).astype(np.float32)
+        h, w = arr.shape[:2]
+        cx, cy = random.randint(0, w), random.randint(0, h)
+        radius = random.uniform(15.0, 60.0)
+        intensity = random.uniform(50.0, 160.0)
+        y, x = np.ogrid[:h, :w]
+        mask = np.exp(-((x - cx)**2 + (y - cy)**2) / (2 * radius**2))
+        arr = arr + mask[..., np.newaxis] * intensity
+        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+    def _jpeg_simulation(self, img: Image.Image) -> Image.Image:
+        if random.random() > 0.4: return img
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=random.randint(30, 85))
+        buf.seek(0)
+        return Image.open(buf).copy()
+
+    def _moire_overlay(self, img: Image.Image) -> Image.Image:
+        if random.random() > 0.15: return img
+        arr = np.array(img).astype(np.float32) / 255.0
+        h, w = arr.shape[:2]
+        f = random.uniform(8.0, 50.0)
+        a = random.uniform(0.0, math.pi)
+        s = random.uniform(0.02, 0.07)
+        yi, xi = np.mgrid[0:h, 0:w]
+        r = xi * math.cos(a) + yi * math.sin(a)
+        m = np.sin(2 * math.pi * r / f) * s
+        return Image.fromarray((np.clip(arr + m[..., None], 0.0, 1.0) * 255).astype(np.uint8))
+
+    def _print_simulation(self, img: Image.Image) -> Image.Image:
+        if random.random() > 0.15: return img
+        img = img.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.3, 1.2)))
+        arr = np.array(img).astype(np.float32) / 255.0
+        noise = np.random.normal(0, random.uniform(0.008, 0.025), arr.shape)
+        return Image.fromarray((np.clip(arr + noise, 0.0, 1.0) * 255).astype(np.uint8))
+
+    def _gaussian_noise(self, img: Image.Image) -> Image.Image:
+        if random.random() > 0.30: return img
+        arr = np.array(img).astype(np.float32) / 255.0
+        noise = np.random.normal(0, random.uniform(0.005, 0.020), arr.shape)
+        return Image.fromarray((np.clip(arr + noise, 0.0, 1.0) * 255).astype(np.uint8))
+
+class DatasetFactory:
+    def __init__(self, cfg: Config) -> None:
+        self._cfg = cfg
+
+    @staticmethod
+    def compute_dynamic_oversample(samples: List[Tuple[str, int]], num_classes: int) -> Dict[int, int]:
+        counts = {i: 0 for i in range(num_classes)}
+        for _, cls in samples:
+            counts[cls] += 1
+        max_count = max(counts.values()) if counts else 1
+        return {cls: max(1, max_count // count) for cls, count in counts.items() if count > 0}
+
+    @staticmethod
+    def _apply_oversample(samples: List[Tuple[str, int]], oversample: Dict[int, int]) -> List[Tuple[str, int]]:
+        result = []
+        for path, cls in samples:
+            repeats = oversample.get(cls, 1)
+            for _ in range(repeats):
+                result.append((path, cls))
+        return result
+
+    def build(self, samples: List[Tuple[str, int]], is_train: bool, global_batch: int) -> tf.data.Dataset:
+        size = self._cfg.IMG_SIZE
+        mean = np.array(self._cfg.MEAN, dtype=np.float32)
+        std = np.array(self._cfg.STD, dtype=np.float32)
+        loader = ImageLoader(self._cfg, is_train)
+        local_samples = list(samples)
+
+        def generator():
+            working = list(local_samples)
+            if is_train: random.shuffle(working)
+            for path, cls in working:
+                img_arr = loader.load(path, label=cls)
+                img_arr = (img_arr - mean) / std
+                img_arr = np.clip(img_arr, -2.5, 2.5)
+                yield img_arr, np.int32(cls)
+
+        ds = tf.data.Dataset.from_generator(
+            generator,
+            output_signature=(
+                tf.TensorSpec(shape=(size, size, 3), dtype=tf.float32),
+                tf.TensorSpec(shape=(), dtype=tf.int32),
+            ),
+        )
+        ds = ds.batch(global_batch, drop_remainder=is_train)
+        ds = ds.prefetch(tf.data.AUTOTUNE)
+        return ds
+
+@keras.saving.register_keras_serializable()
+class CDCConv(keras.Layer):
+    def __init__(self, filters: int, kernel_size: int = 3, strides: int = 1, theta: float = 0.7, **kw):
+        super().__init__(**kw)
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.strides = strides
+        self.theta = theta
+        self._conv = layers.Conv2D(filters, kernel_size, strides=strides, padding="same", use_bias=False)
+
+    def call(self, x):
+        normal = self._conv(x)
+        ksum = tf.reduce_sum(self._conv.kernel, axis=[0, 1], keepdims=True)
+        diff = tf.nn.conv2d(tf.cast(x, tf.float32), tf.cast(ksum, tf.float32), strides=[1, self.strides, self.strides, 1], padding="SAME")
+        diff = tf.cast(diff, normal.dtype)
+        return self.theta * normal + (1.0 - self.theta) * (normal - diff)
+
+    def get_config(self):
+        return {**super().get_config(), "filters": self.filters, "kernel_size": self.kernel_size, "strides": self.strides, "theta": self.theta}
+
+@keras.saving.register_keras_serializable()
+class FrequencyBranch(keras.Layer):
+    def __init__(self, out_dim: int = 256, **kw):
+        super().__init__(**kw)
+        self.out_dim = out_dim
+        ch = [32, 64, 128, 256]
+        self._convs = [layers.Conv2D(c, 3, strides=2, padding="same", name=f"fb_conv{i}") for i, c in enumerate(ch)]
+        self._lns = [layers.LayerNormalization(name=f"fb_ln{i}") for i in range(len(ch))]
+        self._pool = layers.GlobalAveragePooling2D(name="fb_gap")
+        self._proj = layers.Dense(out_dim, name="fb_proj")
+        self._norm = layers.LayerNormalization(name="fb_outnorm")
+
+    def call(self, x, training=False):
+        gray = tf.reduce_mean(tf.cast(x, tf.float32), axis=-1)
+        fft = tf.signal.fft2d(tf.cast(tf.complex(gray, tf.zeros_like(gray)), tf.complex64))
+        fft = tf.roll(tf.roll(fft, tf.shape(fft)[-2] // 2, axis=-2), tf.shape(fft)[-1] // 2, axis=-1)
+        mag = tf.expand_dims(tf.math.log(tf.abs(fft) + 1e-8), -1)
+        h = tf.cast(mag, tf.float32)
+        for conv, ln in zip(self._convs, self._lns):
+            h = tf.nn.swish(ln(conv(h), training=training))
+        return self._norm(self._proj(self._pool(h)))
+
+    def get_config(self):
+        return {**super().get_config(), "out_dim": self.out_dim}
+
+@keras.saving.register_keras_serializable()
+class CDCBranch(keras.Layer):
+    def __init__(self, out_dim: int = 256, **kw):
+        super().__init__(**kw)
+        self.out_dim = out_dim
+        ch = [32, 64, 128, 256]
+        self._cdcs = [CDCConv(c, strides=2, theta=0.7, name=f"cb_cdc{i}") for i, c in enumerate(ch)]
+        self._lns = [layers.LayerNormalization(name=f"cb_ln{i}") for i in range(len(ch))]
+        self._pool = layers.GlobalAveragePooling2D(name="cb_gap")
+        self._proj = layers.Dense(out_dim, name="cb_proj")
+        self._norm = layers.LayerNormalization(name="cb_outnorm")
+
+    def call(self, x, training=False):
+        h = x
+        for cdc, ln in zip(self._cdcs, self._lns):
+            h = tf.nn.gelu(ln(cdc(h), training=training))
+        return self._norm(self._proj(self._pool(h)))
+
+    def get_config(self):
+        return {**super().get_config(), "out_dim": self.out_dim}
+
+@keras.saving.register_keras_serializable()
+class AttentionPooling(keras.Layer):
+    def __init__(self, dim: int = 512, **kw):
+        super().__init__(**kw)
+        self.dim = dim
+        self._fc1 = layers.Dense(dim // 4, activation="tanh")
+        self._fc2 = layers.Dense(1)
+
+    def call(self, x):
+        w = tf.nn.softmax(self._fc2(self._fc1(x)), axis=1)
+        return tf.reduce_sum(x * w, axis=1)
+
+    def get_config(self):
+        return {**super().get_config(), "dim": self.dim}
+
+@keras.saving.register_keras_serializable()
+class HingeACERFocalLoss(keras.losses.Loss):
+    def __init__(self, gamma: float = 2.0, alpha: Optional[List[float]] = None, label_smoothing: float = 0.08, num_classes: int = 6, real_idx: int = 5, acer_weight: float = 1.0, **kw):
+        super().__init__(reduction="none", **kw)
+        self.gamma = gamma
+        self.alpha = alpha
+        self.label_smoothing = label_smoothing
+        self.num_classes = num_classes
+        self.real_idx = real_idx
+        self.acer_weight = acer_weight
+
+    def call(self, y_true, y_pred):
+        y_true = tf.cast(y_true, tf.int32)
+        y_oh = tf.one_hot(y_true, self.num_classes)
+        y_s = (y_oh * (1.0 - self.label_smoothing) + self.label_smoothing / self.num_classes)
+        log_p = tf.nn.log_softmax(tf.cast(y_pred, tf.float32), axis=-1)
+        p = tf.exp(log_p)
+        ce = -tf.reduce_sum(y_s * log_p, axis=-1)
+        pt = tf.reduce_sum(y_oh * p, axis=-1)
+        fw = tf.pow(1.0 - pt, self.gamma)
+        if self.alpha is not None:
+            fw = fw * tf.gather(tf.constant(self.alpha, tf.float32), y_true)
+        focal_loss = fw * ce
+
+        is_real_true = tf.cast(y_true == self.real_idx, tf.float32)
+        is_spoof_true = 1.0 - is_real_true
+        p_real = p[:, self.real_idx]
+        p_spoof = 1.0 - p_real
+
+        apcer_penalty = is_spoof_true * tf.maximum(0.0, p_real - 0.1)
+        bpcer_penalty = is_real_true * tf.maximum(0.0, p_spoof - 0.1)
+        acer_loss = apcer_penalty + bpcer_penalty
+
+        return focal_loss + self.acer_weight * acer_loss
+
+    def get_config(self):
+        return {**super().get_config(), "gamma": self.gamma, "alpha": self.alpha, "label_smoothing": self.label_smoothing, "num_classes": self.num_classes, "real_idx": self.real_idx, "acer_weight": self.acer_weight}
+
+class AntiSpoofModelFactory:
+    def __init__(self, cfg: Config) -> None:
+        self._cfg = cfg
+
+    def build(self) -> keras.Model:
+        inp = keras.Input(shape=(self._cfg.IMG_SIZE, self._cfg.IMG_SIZE, 3), name="image")
+        active_policy_name = mixed_precision.global_policy().name
+        mixed_precision.set_global_policy("float32")
+        backbone = keras.applications.ConvNeXtSmall(
+            include_top=False, weights="imagenet",
+            input_shape=(self._cfg.IMG_SIZE, self._cfg.IMG_SIZE, 3), pooling=None
+        )
+        mixed_precision.set_global_policy(active_policy_name)
+        backbone_out = backbone(inp)
+
+        spatial_dim = (self._cfg.IMG_SIZE // 32) ** 2
+        x_reshaped = layers.Reshape((spatial_dim, 768), name="backbone_reshape")(backbone_out)
+        feat = AttentionPooling(dim=768, name="backbone_attn_pool")(x_reshaped)
+
+        freq_feat = FrequencyBranch(out_dim=self._cfg.FREQ_DIM, name="freq_branch")(inp)
+        cdc_feat = CDCBranch(out_dim=self._cfg.CDC_DIM, name="cdc_branch")(inp)
+        fused = layers.Concatenate(name="fused")([feat, freq_feat, cdc_feat])
+
+        x = layers.Dense(512, kernel_regularizer=keras.regularizers.L2(1e-4), name="fsfm_embedder")(fused)
+        x = layers.LayerNormalization(name="fsfm_ln")(x)
+        x = layers.Activation("gelu", name="fsfm_act")(x)
+        x = layers.Dropout(0.50, name="fsfm_dropout")(x)
+        logits = layers.Dense(self._cfg.NUM_CLASSES, dtype="float32", name="logits")(x)
+
+        return keras.Model(inputs=inp, outputs=logits, name="AntiSpoofNetV4")
+
+class StageController:
+    _HEAD = frozenset([
+        "freq_branch", "cdc_branch", "fsfm_embedder", "fsfm_ln",
+        "fsfm_act", "fsfm_dropout", "logits", "backbone_reshape",
+        "backbone_attn_pool", "fused"
+    ])
+
+    def configure(self, model: keras.Model, stage: int) -> int:
+        for layer in model.layers:
+            layer.trainable = False
+            if isinstance(layer, keras.Model):
+                layer.trainable = True
+                for inner in layer.layers:
+                    inner.trainable = False
+
+        for layer in model.layers:
+            if layer.name in self._HEAD:
+                layer.trainable = True
+            if isinstance(layer, keras.Model):
+                for inner in layer.layers:
+                    if stage >= 2 and "stage_3" in inner.name: inner.trainable = True
+                    if stage >= 3 and any(k in inner.name for k in ("stage_2", "stage_3")): inner.trainable = True
+                    if stage >= 4: inner.trainable = True
+
+        return int(sum(tf.size(v).numpy() for v in model.trainable_weights))
+
+class WarmupCosineSchedule(keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, peak_lr: float, warmup_steps: int, total_steps: int, step_offset: int = 0, min_lr_frac: float = 1e-3):
+        self._peak_lr = float(peak_lr)
+        self._warmup_steps = int(warmup_steps)
+        self._total_steps = int(total_steps)
+        self._step_offset = int(step_offset)
+        self._min_lr_frac = float(min_lr_frac)
+
+    def __call__(self, step):
+        step = tf.maximum(tf.cast(step, tf.float32) - float(self._step_offset), 0.0)
+        ws = tf.cast(self._warmup_steps, tf.float32)
+        ts = tf.cast(self._total_steps, tf.float32)
+        is_warmup = tf.cast(step < ws, tf.float32)
+        wlr = self._peak_lr * step / tf.maximum(ws, 1.0)
+        cos_s = tf.maximum(step - ws, 0.0)
+        decay = tf.maximum(ts - ws, 1.0)
+        clr = self._peak_lr * 0.5 * (1.0 + tf.cos(math.pi * cos_s / decay))
+        clr = tf.maximum(clr, tf.cast(self._peak_lr * self._min_lr_frac, tf.float32))
+        return is_warmup * wlr + (1.0 - is_warmup) * clr
+
+    def get_config(self):
+        return {
+            "peak_lr": self._peak_lr, "warmup_steps": self._warmup_steps,
+            "total_steps": self._total_steps, "step_offset": self._step_offset,
+            "min_lr_frac": self._min_lr_frac
+        }
+
+class EMATracker:
+    def __init__(self, strategy, model: keras.Model, decay: float) -> None:
+        self.strategy = strategy
+        self._decay = decay
+        self._weights_dict = {}
+        self._model_weights = []
+        self._backup = None
+        self._build(model)
+
+    @staticmethod
+    def _key(w) -> str:
+        return (getattr(w, "path", None) or w.name).split(":")[0]
+
+    @staticmethod
+    def _read(w) -> tf.Tensor:
+        return tf.identity(w)
+
+    def _build(self, model: keras.Model):
+        self._model_weights = model.trainable_weights
+        for w in self._model_weights:
+            k = self._key(w)
+            if k not in self._weights_dict:
+                self._weights_dict[k] = tf.Variable(self._read(w), trainable=False, dtype=tf.as_dtype(w.dtype))
+
+    def extend(self, model: keras.Model) -> None:
+        self._build(model)
+
+    def update(self) -> None:
+        decay = self._decay
+        for w in self._model_weights:
+            k = self._key(w)
+            if k in self._weights_dict:
+                ema_var = self._weights_dict[k]
+                ema_var.assign(tf.cast(decay, ema_var.dtype) * ema_var + tf.cast(1.0 - decay, ema_var.dtype) * tf.cast(self._read(w), ema_var.dtype))
+
+    def apply(self, model: keras.Model) -> None:
+        self._backup = {self._key(w): self._read(w) for w in model.trainable_weights}
+        for w in model.trainable_weights:
+            k = self._key(w)
+            if k in self._weights_dict:
+                w.assign(tf.cast(self._read(self._weights_dict[k]), tf.as_dtype(w.dtype)))
+
+    def restore(self, model: keras.Model) -> None:
+        if self._backup is not None:
+            for w in model.trainable_weights:
+                k = self._key(w)
+                if k in self._backup:
+                    w.assign(tf.cast(self._backup[k], tf.as_dtype(w.dtype)))
+
+class EpochTrainer:
+    def __init__(self, strategy, model: keras.Model, optimizer, focal_loss: HingeACERFocalLoss, head_lr_scale: float, mixup_alpha: float, cutmix_alpha: float, num_classes: int) -> None:
+        self.strategy = strategy
+        self._model = model
+        self._optimizer = optimizer
+        self._focal_loss = focal_loss
+        self._head_lr_scale = head_lr_scale
+        self._mixup_alpha = float(mixup_alpha)
+        self._cutmix_alpha = float(cutmix_alpha)
+        self._num_classes = num_classes
+
+        head_frags = StageController._HEAD
+        trainable_pairs = [(v, any(frag in (getattr(v, "path", None) or v.name).split(":")[0] for frag in head_frags)) for v in model.trainable_weights]
+        self._trainable_vars = [v for v, _ in trainable_pairs]
+        self._is_head_flags = [is_h for _, is_h in trainable_pairs]
+        optimizer.build(self._trainable_vars)
+        self._step_fn = self._compile()
+
+    @staticmethod
+    def _sample_beta(alpha: float) -> tf.Tensor:
+        g1 = tf.random.gamma([1], alpha=alpha, dtype=tf.float32)
+        g2 = tf.random.gamma([1], alpha=alpha, dtype=tf.float32)
+        lam = tf.squeeze(g1 / (g1 + g2 + 1e-8))
+        return tf.maximum(lam, 1.0 - lam)
+
+    def _compile(self):
+        apply_head_scale = self._head_lr_scale < 1.0
+        mixup_alpha = self._mixup_alpha
+        cutmix_alpha = self._cutmix_alpha
+        num_classes = self._num_classes
+
+        def cutmix_fn(imgs, lbls, lam, perm):
+            bsz = tf.shape(imgs)[0]
+            h = tf.cast(tf.shape(imgs)[1], tf.float32)
+            w = tf.cast(tf.shape(imgs)[2], tf.float32)
+            cut_rat = tf.sqrt(1.0 - lam)
+            cut_h = tf.cast(h * cut_rat, tf.int32)
+            cut_w = tf.cast(w * cut_rat, tf.int32)
+            cx = tf.random.uniform([], 0, tf.cast(w, tf.int32), dtype=tf.int32)
+            cy = tf.random.uniform([], 0, tf.cast(h, tf.int32), dtype=tf.int32)
+            x1 = tf.maximum(cx - cut_w // 2, 0)
+            y1 = tf.maximum(cy - cut_h // 2, 0)
+            x2 = tf.minimum(cx + cut_w // 2, tf.cast(w, tf.int32))
+            y2 = tf.minimum(cy + cut_h // 2, tf.cast(h, tf.int32))
+            actual_lam = 1.0 - tf.cast((x2 - x1) * (y2 - y1), tf.float32) / (h * w)
+
+            imgs_b = tf.gather(imgs, perm)
+            mask_shape = [bsz, tf.shape(imgs)[1], tf.shape(imgs)[2], 1]
+            patch = tf.ones([bsz, y2 - y1, x2 - x1, 1], dtype=imgs.dtype)
+            padding = [[0, 0], [y1, tf.shape(imgs)[1] - y2], [x1, tf.shape(imgs)[2] - x2], [0, 0]]
+            patch_mask = tf.pad(patch, padding)
+            mixed = imgs * (1.0 - patch_mask) + imgs_b * patch_mask
+            return mixed, actual_lam
+
+        def step_fn(imgs, lbls):
+            bsz = tf.shape(imgs)[0]
+            perm = tf.random.shuffle(tf.range(bsz))
+            lbls_b = tf.gather(lbls, perm)
+
+            use_cutmix = tf.random.uniform([]) > 0.5
+            lam = tf.cond(use_cutmix,
+                          lambda: self._sample_beta(cutmix_alpha),
+                          lambda: self._sample_beta(mixup_alpha))
+
+            mixed, actual_lam = tf.cond(
+                use_cutmix,
+                lambda: cutmix_fn(imgs, lbls, lam, perm),
+                lambda: (lam * imgs + (1.0 - lam) * tf.gather(imgs, perm), lam)
+            )
+
+            lam_vec = tf.where(lbls == lbls_b, tf.ones([bsz], dtype=tf.float32), tf.fill([bsz], actual_lam))
+
+            with tf.GradientTape() as tape:
+                logits = self._model(mixed, training=True)
+                loss_a = self._focal_loss(lbls, logits)
+                loss_b = self._focal_loss(lbls_b, logits)
+                loss = lam_vec * loss_a + (1.0 - lam_vec) * loss_b
+                loss = tf.reduce_mean(loss)
+                loss = loss / tf.cast(self.strategy.num_replicas_in_sync, tf.float32)
+
+            grads = tape.gradient(loss, self._trainable_vars)
+            clipped, _ = tf.clip_by_global_norm(grads, 1.0)
+
+            if apply_head_scale:
+                scaled = [g * tf.cast(self._head_lr_scale, g.dtype) if is_h else g for g, is_h in zip(clipped, self._is_head_flags)]
+            else:
+                scaled = clipped
+
+            self._optimizer.apply_gradients(zip(scaled, self._trainable_vars))
+            return loss, tf.argmax(logits, axis=1), tf.cast(lbls, tf.int32)
+
+        @tf.function(jit_compile=False)
+        def distributed_step(batch):
+            imgs, lbls = batch
+            per_replica_losses, per_replica_preds, per_replica_lbls = self.strategy.run(step_fn, args=(imgs, lbls))
+            total_loss = self.strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+            if self.strategy.num_replicas_in_sync > 1:
+                preds = tf.concat(self.strategy.experimental_local_results(per_replica_preds), axis=0)
+                lbls_out = tf.concat(self.strategy.experimental_local_results(per_replica_lbls), axis=0)
+            else:
+                preds = per_replica_preds
+                lbls_out = per_replica_lbls
+            return total_loss, preds, lbls_out
+
+        return distributed_step
+
+    def run(self, dataset, n_data_steps: int, ema: EMATracker) -> Tuple[float, List[int], List[int]]:
+        all_preds, all_labels = [], []
+        total_loss = 0.0
+
+        with Progress(TextColumn("[bold cyan]Training[/bold cyan]"), SpinnerColumn(), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn(), console=console) as progress:
+            task = progress.add_task("train", total=n_data_steps)
+            for batch in dataset:
+                try:
+                    loss, preds, lbls = self._step_fn(batch)
+                except Exception as e:
+                    console.print(f"[red]Step error: {e}[/red]")
+                    sys.stderr.flush()
+                    raise
+
+                ema.update()
+                total_loss += float(loss.numpy())
+                all_preds.extend(preds.numpy().tolist())
+                all_labels.extend(lbls.numpy().tolist())
+                progress.update(task, advance=1)
+
+        return total_loss / max(n_data_steps, 1), all_labels, all_preds
+
+class EpochValidator:
+    def __init__(self, strategy, model: keras.Model) -> None:
+        self.strategy = strategy
+        self._step_fn = self._compile(model)
+
+    def _compile(self, model):
+        def step_fn(imgs, lbls):
+            logits = model(imgs, training=False)
+            return tf.argmax(logits, axis=1), tf.cast(lbls, tf.int32)
+
+        @tf.function(jit_compile=False)
+        def distributed_step(batch):
+            imgs, lbls = batch
+            per_replica_preds, per_replica_lbls = self.strategy.run(step_fn, args=(imgs, lbls))
+            if self.strategy.num_replicas_in_sync > 1:
+                preds = tf.concat(self.strategy.experimental_local_results(per_replica_preds), axis=0)
+                lbls = tf.concat(self.strategy.experimental_local_results(per_replica_lbls), axis=0)
+            else:
+                preds = per_replica_preds
+                lbls = per_replica_lbls
+            return preds, lbls
+
+        return distributed_step
+
+    def run(self, dataset) -> Tuple[List[int], List[int]]:
+        all_preds, all_labels = [], []
+        for batch in dataset:
+            preds, lbls = self._step_fn(batch)
+            all_preds.extend(preds.numpy().tolist())
+            all_labels.extend(lbls.numpy().tolist())
+        return all_labels, all_preds
+
+class CheckpointManager:
+    def __init__(self, output_dir: Path) -> None:
+        self._path = output_dir / "best_model.keras"
+        self._best_f1 = 0.0
+
+    @property
+    def best_f1(self) -> float:
+        return self._best_f1
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def try_save(self, model: keras.Model, val_f1: float) -> bool:
+        if val_f1 > self._best_f1:
+            self._best_f1 = val_f1
+            model.save(str(self._path))
+            _log("Saved", f"New best val_f1={val_f1:.4f}", color="bold green")
+            return True
+        return False
+
+class MetricsComputer:
+    @staticmethod
+    def compute(labels: List[int], preds: List[int], class_names: tuple) -> Dict:
+        macro_f1 = float(f1_score(labels, preds, average="macro", zero_division=0))
+        accuracy = float(accuracy_score(labels, preds))
+        per_cls = f1_score(labels, preds, average=None, labels=list(range(len(class_names))), zero_division=0)
+        return {"macro_f1": macro_f1, "accuracy": accuracy, "per_class": {cls: float(per_cls[i]) for i, cls in enumerate(class_names)}}
+
+class TrainingLogger:
+    _WARN = 0.70
+    _DANGER = 0.50
+    _REGRESSION_MARGIN = 0.010
+
+    def __init__(self, output_dir: Path, log_dir: Path) -> None:
+        self._history = TrainingHistory()
+        self._csv_path = output_dir / "training_log.csv"
+        self._tb_writer = tf.summary.create_file_writer(str(log_dir))
+
+    def record(self, epoch: int, stage: int, loss: float, lr: float, train_m: Dict, val_m: Dict, best_f1: float) -> None:
+        rec = EpochRecord(
+            epoch=epoch, stage=stage, loss=loss, lr=lr,
+            train_f1=train_m["macro_f1"], val_f1=val_m["macro_f1"], best_f1=best_f1,
+            train_per_class=train_m["per_class"], val_per_class=val_m["per_class"],
+        )
+        self._history.push(rec)
+        self._flush_csv()
+        self._flush_tensorboard(rec)
+        self._print_metrics(rec)
+
+    def _flush_csv(self) -> None:
+        self._history.to_dataframe().to_csv(self._csv_path, index=False)
+
+    def _flush_tensorboard(self, r: EpochRecord) -> None:
+        with self._tb_writer.as_default():
+            tf.summary.scalar("loss/train", r.loss, r.epoch)
+            tf.summary.scalar("metrics/train_f1", r.train_f1, r.epoch)
+            tf.summary.scalar("metrics/val_f1", r.val_f1, r.epoch)
+            tf.summary.scalar("lr", r.lr, r.epoch)
+            for cls in Config.CLASSES:
+                tf.summary.scalar(f"per_class/{cls}", r.val_per_class.get(cls, 0.0), r.epoch)
+        self._tb_writer.flush()
+
+    def _print_metrics(self, r: EpochRecord) -> None:
+        prev = self._history.previous()
+        d_str = ""
+        if prev is not None:
+            d = r.val_f1 - prev.val_f1
+            c = "green" if d >= 0 else "red"
+            s = "+" if d >= 0 else ""
+            d_str = f" [{c}]{s}{d:.4f}[/{c}]"
+
+        console.print(f"\n[bold white]Ep {r.epoch:02d}[/bold white] | Stg [bold yellow]{r.stage}[/bold yellow] | Loss [yellow]{r.loss:.4f}[/yellow] | Tr [cyan]{r.train_f1:.4f}[/cyan] | Vl [magenta]{r.val_f1:.4f}[/magenta]{d_str} | Bst [green]{r.best_f1:.4f}[/green] | LR {r.lr:.2e}")
+
+        cls_strs = []
+        for c in Config.CLASSES:
+            tr = r.train_per_class.get(c, 0.0)
+            vl = r.val_per_class.get(c, 0.0)
+            vcol = "green" if vl >= self._WARN else ("yellow" if vl >= self._DANGER else "red")
+            abbr = c.split("_")[-1][:4].upper()
+            cls_strs.append(f"{abbr} {tr:.2f}/[{vcol}]{vl:.2f}[/{vcol}]")
+        console.print(" | ".join(cls_strs))
+
+        if prev is not None and r.val_f1 < prev.val_f1 - self._REGRESSION_MARGIN:
+            console.print(f"[bold red]Regression: {prev.val_f1:.4f} -> {r.val_f1:.4f}[/bold red]")
+            for c in Config.CLASSES:
+                pv = prev.val_per_class.get(c, 0.0)
+                cv = r.val_per_class.get(c, 0.0)
+                if cv < pv - 0.05:
+                    console.print(f"[red] - {c} regressed {pv:.4f} -> {cv:.4f}[/red]")
+
+        weak = [f"[bold]{c}[/bold]({f:.3f})" for c, f in sorted(r.val_per_class.items(), key=lambda kv: kv[1])[:2] if f < self._WARN]
+        if weak:
+            console.print(f"[yellow]Needs attention -> {' '.join(weak)}[/yellow]")
+
+    def print_summary(self) -> None:
+        console.rule("[bold cyan]Training Complete[/bold cyan]")
+        best = self._history.best_record()
+        if best is None: return
+        _log("Best", f"Val F1={best.val_f1:.4f}  Epoch={best.epoch:02d}  Stage={best.stage}", color="bold green")
+        for cls in Config.CLASSES:
+            f1 = best.val_per_class.get(cls, 0.0)
+            color = "green" if f1 >= self._WARN else ("yellow" if f1 >= self._DANGER else "red")
+            status = "[green]OK[/green]" if f1 >= self._WARN else ("[yellow]WEAK[/yellow]" if f1 >= self._DANGER else "[red]CRITICAL[/red]")
+            console.print(f"[{color}]{cls:<16} : {f1:.4f}[/{color}] {status}")
+        console.print(f"[dim]Log -> {self._csv_path}[/dim]")
+
+class TrainingOrchestrator:
+    def __init__(self, cfg: Config) -> None:
+        self._cfg = cfg
+        self._output = Path(cfg.OUTPUT_DIR)
+        self._output.mkdir(parents=True, exist_ok=True)
+        Path(cfg.LOG_DIR).mkdir(parents=True, exist_ok=True)
+
+    def _bootstrap(self) -> None:
+        random.seed(self._cfg.SEED)
+        os.environ["PYTHONHASHSEED"] = str(self._cfg.SEED)
+        np.random.seed(self._cfg.SEED)
+        tf.random.set_seed(self._cfg.SEED)
+
+    def run(self) -> None:
+        self._bootstrap()
+
+        try:
+            tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+            tf.config.experimental_connect_to_cluster(tpu)
+            tf.tpu.experimental.initialize_tpu_system(tpu)
+            strategy = tf.distribute.TPUStrategy(tpu)
+            _log("Device", f"TPUStrategy  {tpu.master()} detected (8 cores)", color="green")
+            mixed_precision.set_global_policy("mixed_bfloat16")
+        except ValueError:
+            gpus = tf.config.list_physical_devices("GPU")
+            if len(gpus) > 1:
+                strategy = tf.distribute.MirroredStrategy()
+                _log("Device", f"MirroredStrategy  {len(gpus)} GPUs detected", color="green")
+                mixed_precision.set_global_policy("mixed_float16")
+            elif len(gpus) == 1:
+                strategy = tf.distribute.get_strategy()
+                _log("Device", f"Single GPU: {gpus[0].name}", color="yellow")
+                mixed_precision.set_global_policy("mixed_float16")
+            else:
+                strategy = tf.distribute.get_strategy()
+                _log("Device", "No GPU/TPU found  running on CPU", color="yellow")
+
+        num_replicas = strategy.num_replicas_in_sync
+
+        train_s = DirectoryParser(Path(self._cfg.TRAIN_DIR), self._cfg).parse()
+        val_s = DirectoryParser(Path(self._cfg.VAL_DIR), self._cfg).parse()
+
+        oversample_map = DatasetFactory.compute_dynamic_oversample(train_s, self._cfg.NUM_CLASSES)
+        train_s = DatasetFactory._apply_oversample(train_s, oversample_map)
+
+        _log("Dataset", f"Train={len(train_s)}  Val={len(val_s)}", color="blue")
+        for i, cls_name in enumerate(self._cfg.CLASSES):
+            n = sum(1 for _, lbl in train_s if lbl == i)
+            _log("TrainClass", f"{cls_name:<16} {n:>8}", color="cyan")
+
+        tr_labels = [s[1] for s in train_s]
+        counts = np.bincount(tr_labels, minlength=self._cfg.NUM_CLASSES).astype(float)
+        inv = 1.0 / np.sqrt(counts + 1e-8)
+        alpha = (inv / inv.sum() * self._cfg.NUM_CLASSES).tolist()
+
+        factory = DatasetFactory(self._cfg)
+
+        with strategy.scope():
+            model = AntiSpoofModelFactory(self._cfg).build()
+            _log("Model", f"Parameters: {model.count_params():,}", color="blue")
+
+            stage_ctrl = StageController()
+            ckpt_mgr = CheckpointManager(self._output)
+            logger = TrainingLogger(self._output, Path(self._cfg.LOG_DIR))
+            
+            focal_loss = HingeACERFocalLoss(
+                gamma=self._cfg.GAMMA, 
+                alpha=alpha, 
+                label_smoothing=self._cfg.LABEL_SMOOTH, 
+                num_classes=self._cfg.NUM_CLASSES,
+                real_idx=self._cfg.REAL_CLASS_IDX,
+                acer_weight=1.0
+            )
+
+            global_ep = 0
+            stop_flag = False
+            ema = None
+            current_global_batch = -1
+            train_ds, val_ds, n_data_steps = None, None, 0
+
+            for s_start, s_end, s_num in self._cfg.STAGES:
+                if stop_flag: break
+                gc.collect()
+
+                target_per_replica = self._cfg.BASE_BATCH_SIZE if s_num < 4 else self._cfg.REDUCED_BATCH_SIZE
+                target_global = target_per_replica * num_replicas
+
+                if current_global_batch != target_global:
+                    if train_ds is not None:
+                        del train_ds
+                        del val_ds
+                        gc.collect()
+                    current_global_batch = target_global
+                    train_ds = strategy.experimental_distribute_dataset(factory.build(train_s, True, current_global_batch))
+                    val_ds = strategy.experimental_distribute_dataset(factory.build(val_s, False, current_global_batch))
+                    n_data_steps = len(train_s) // current_global_batch
+                    _log("Batch", f"global={current_global_batch}  steps/epoch={n_data_steps}", color="magenta")
+
+                n_params = stage_ctrl.configure(model, s_num)
+                if s_num == 1:
+                    ema = EMATracker(strategy, model, self._cfg.EMA_DECAY)
+                else:
+                    ema.extend(model)
+
+                stage_data_steps = (s_end - s_start) * n_data_steps
+
+                if s_num == 1:
+                    warmup_opt_steps = self._cfg.WARMUP_EPOCHS * n_data_steps
+                elif s_num == 4:
+                    warmup_opt_steps = self._cfg.STAGE4_WARMUP_EPOCHS * n_data_steps
+                else:
+                    warmup_opt_steps = n_data_steps
+
+                optimizer = keras.optimizers.AdamW(
+                    weight_decay=self._cfg.WEIGHT_DECAY,
+                    learning_rate=WarmupCosineSchedule(
+                        self._cfg.LR_BY_STAGE[s_num],
+                        warmup_opt_steps,
+                        stage_data_steps,
+                        step_offset=0
+                    )
+                )
+
+                head_lr_scale = 1.0 if s_num == 1 else self._cfg.HEAD_LR_SCALE
+                console.rule(f"[bold yellow]Stage {s_num}  Epochs {s_start+1}-{s_end}[/bold yellow]")
+                _log("Trainable", f"{n_params:,} params", color="dim")
+                _log("HeadLRScale", f"{head_lr_scale}", color="dim")
+
+                trainer = EpochTrainer(
+                    strategy, model, optimizer, focal_loss,
+                    head_lr_scale, self._cfg.MIXUP_ALPHA,
+                    self._cfg.CUTMIX_ALPHA, self._cfg.NUM_CLASSES
+                )
+                validator = EpochValidator(strategy, model)
+                patience_cnt = 0
+
+                for _ in range(s_end - s_start):
+                    global_ep += 1
+                    avg_loss, tr_lbl, tr_pred = trainer.run(train_ds, n_data_steps, ema)
+
+                    ema.apply(model)
+                    val_lbl, val_pred = validator.run(val_ds)
+                    val_m = MetricsComputer.compute(val_lbl, val_pred, self._cfg.CLASSES)
+                    saved = ckpt_mgr.try_save(model, val_m["macro_f1"])
+                    ema.restore(model)
+
+                    train_m = MetricsComputer.compute(tr_lbl, tr_pred, self._cfg.CLASSES)
+                    current_lr = self._read_lr(optimizer)
+
+                    logger.record(global_ep, s_num, avg_loss, current_lr, train_m, val_m, ckpt_mgr.best_f1)
+
+                    if saved:
+                        patience_cnt = 0
+                    else:
+                        patience_cnt += 1
+                        if patience_cnt >= self._cfg.PATIENCE:
+                            _log("EarlyStopped", f"Epoch {global_ep}", color="bold red")
+                            stop_flag = True
+                            break
+
+                del trainer
+                del validator
+                gc.collect()
+
+        logger.print_summary()
+        _log("Finished", f"Model saved at {ckpt_mgr.path}", color="cyan")
+
+    @staticmethod
+    def _read_lr(opt) -> float:
+        lr = opt.learning_rate
+        itr = opt.iterations
+        return float(lr(itr).numpy()) if callable(lr) and itr is not None else float(lr.numpy() if hasattr(lr, "numpy") else lr)
+
+def main() -> None:
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+    keras.backend.clear_session()
+    cfg = Config()
+    orchestrator = TrainingOrchestrator(cfg)
+    orchestrator.run()
+
+if __name__ == "__main__":
+    main()

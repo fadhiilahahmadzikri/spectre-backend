@@ -85,10 +85,12 @@ class AntiSpoofNetV4Handler(BaseFASHandler):
             model_id=self.model_id,
             model_version=self.version,
         )
-        logger.debug(
-            "fas_inference | model_id={} | version={} | latency_ms={} | mode=tta",
+        logger.info(
+            "fas_inference | model_id={} | version={} | latency_ms={} | mode=tta | top_class={} | confidence={}",
             self.model_id,
             self.version,
             elapsed_ms,
+            int(np.argmax(probs)),
+            round(float(np.max(probs)), 4),
         )
         return result

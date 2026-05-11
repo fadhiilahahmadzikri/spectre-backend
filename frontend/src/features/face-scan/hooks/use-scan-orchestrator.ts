@@ -19,6 +19,8 @@ import {
 } from "../model/constants";
 import type {
   AuraConfig,
+  BenchmarkApiResponse,
+  InferenceDiagnostics,
   IqaState,
   Landmark,
   LogEntry,
@@ -76,6 +78,10 @@ export interface UseScanOrchestratorReturn {
   handleReset: () => void;
   setAnalysisOpen: (v: boolean) => void;
   executeApiSubmission: (b64: string) => Promise<void>;
+  pendingDiagnostics: InferenceDiagnostics | null;
+  continueFromDiagnostics: () => void;
+  pendingBenchmark: BenchmarkApiResponse | null;
+  dismissBenchmark: () => void;
 }
 
 export function useScanOrchestrator({
@@ -101,6 +107,9 @@ export function useScanOrchestrator({
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [currentLandmarks, setCurrentLandmarks] = useState<Landmark[] | null>(null);
   const [modeResolved, setModeResolved] = useState(cachedMode === MODE_AUTHENTICATE);
+  const [pendingDiagnostics, setPendingDiagnostics] = useState<InferenceDiagnostics | null>(null);
+  const [pendingBenchmark, setPendingBenchmark] = useState<BenchmarkApiResponse | null>(null);
+  const pendingPhaseRef = useRef<Phase | null>(null);
 
   const phaseRef = useRef<Phase>(PHASES.LOADING);
   const iqaStateRef = useRef<IqaState>(IQA_STATE.NO_FACE);
@@ -180,6 +189,9 @@ export function useScanOrchestrator({
     setRevealedSegments(0);
     setResult(null);
     setDraftCapture(null);
+    setPendingDiagnostics(null);
+    setPendingBenchmark(null);
+    pendingPhaseRef.current = null;
     setPhase(PHASES.LOADING);
     setTimeout(() => {
       if (phaseRef.current === PHASES.LOADING) setPhase(PHASES.SEARCHING);
@@ -224,10 +236,29 @@ export function useScanOrchestrator({
       );
 
       const signal = abortControllerRef.current.signal;
+
+      // Local capture — do NOT rely on the `pendingBenchmark` closure value
+      // below. That state setter is async and `pendingBenchmark` is not in
+      // this callback's deps, so reading it later in the same invocation
+      // would always return the stale render-time value (null).
+      let benchmarkResult: BenchmarkApiResponse | null = null;
+      if (config.benchmarkMode) {
+        showLog("Running benchmark across models…", "active");
+        const benchRes = await clientRef.current.benchmark(b64, externalUserId, { signal });
+        if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
+        if (benchRes.ok && benchRes.data) {
+          benchmarkResult = benchRes.data;
+          setPendingBenchmark(benchRes.data);
+          showLog("Benchmark complete", "ok");
+        } else {
+          showLog("Benchmark unavailable, continuing", "warn");
+        }
+      }
+
       const response: FaceApiResponse<FaceApiSuccessPayload & FaceApiErrorPayload> =
         mode === MODE_REGISTER
-          ? await clientRef.current.register(externalUserId, b64, config.fas, { signal })
-          : await clientRef.current.authenticate(externalUserId, b64, config.fas, { signal });
+          ? await clientRef.current.register(externalUserId, b64, config.fas, { signal, detailMode: config.detailMode })
+          : await clientRef.current.authenticate(externalUserId, b64, config.fas, { signal, detailMode: config.detailMode });
 
       if (requestEpochRef.current !== epoch) { inflightRef.current = false; return; }
 
@@ -242,16 +273,24 @@ export function useScanOrchestrator({
           : scan.logs.identityVerified;
         const label = config.fas ? baseLabel : `${baseLabel} (FAS off)`;
         setResult({ verdict: "ok", label, summary, detail });
-        setPhase(PHASES.COMPLETE);
-        if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
-        if (mode === MODE_REGISTER) {
-          setTimeout(() => {
-            if (requestEpochRef.current === epoch) {
-              setMode(MODE_AUTHENTICATE);
-              setCachedMode(apiKey, MODE_AUTHENTICATE);
-              showLog(scan.logs.enteringVerifyMode, "ok");
-            }
-          }, 2800);
+
+        if (config.detailMode && data.diagnostics) {
+          setPendingDiagnostics(data.diagnostics);
+          pendingPhaseRef.current = PHASES.COMPLETE;
+        } else if (benchmarkResult !== null) {
+          pendingPhaseRef.current = PHASES.COMPLETE;
+        } else {
+          setPhase(PHASES.COMPLETE);
+          if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+          if (mode === MODE_REGISTER) {
+            setTimeout(() => {
+              if (requestEpochRef.current === epoch) {
+                setMode(MODE_AUTHENTICATE);
+                setCachedMode(apiKey, MODE_AUTHENTICATE);
+                showLog(scan.logs.enteringVerifyMode, "ok");
+              }
+            }, 2800);
+          }
         }
       } else {
         const err = data?.error ?? {};
@@ -271,19 +310,37 @@ export function useScanOrchestrator({
           const detail = hasProbs ? parseDetail(probs) : null;
           showLog(scan.logs.spoofing(msg), "err");
           setResult({ verdict: "spoof", label: scan.logs.spoofShort, summary, detail });
-          setPhase(PHASES.FAILED);
-          if (detail) {
-            setTimeout(() => { if (requestEpochRef.current === epoch) setAnalysisOpen(true); }, 1800);
+          if (config.detailMode && details.diagnostics) {
+            setPendingDiagnostics(details.diagnostics);
+            pendingPhaseRef.current = PHASES.FAILED;
+          } else if (benchmarkResult !== null) {
+            pendingPhaseRef.current = PHASES.FAILED;
+          } else {
+            setPhase(PHASES.FAILED);
+            if (detail) {
+              setTimeout(() => { if (requestEpochRef.current === epoch) setAnalysisOpen(true); }, 1800);
+            }
           }
         } else if (code === "FACE_MATCH_FAILED") {
           const sim = typeof details.similarity_score === "number" ? details.similarity_score : 0;
           showLog(scan.logs.mismatch(sim.toFixed(2)), "err");
           setResult({ verdict: "warn", label: scan.logs.mismatchShort, summary: { live: 0, spoof: 0 }, detail: null });
-          setPhase(PHASES.FAILED);
+          if (config.detailMode && details.diagnostics) {
+            setPendingDiagnostics(details.diagnostics);
+            pendingPhaseRef.current = PHASES.FAILED;
+          } else if (benchmarkResult !== null) {
+            pendingPhaseRef.current = PHASES.FAILED;
+          } else {
+            setPhase(PHASES.FAILED);
+          }
         } else {
           showLog(`${code}: ${msg}`, "err");
           setResult({ verdict: "warn", label: scan.logs.errorShort, summary: { live: 0, spoof: 0 }, detail: null });
-          setPhase(PHASES.FAILED);
+          if (benchmarkResult !== null) {
+            pendingPhaseRef.current = PHASES.FAILED;
+          } else {
+            setPhase(PHASES.FAILED);
+          }
         }
       }
       inflightRef.current = false;
@@ -292,7 +349,9 @@ export function useScanOrchestrator({
       apiKey,
       mode,
       config.fas,
+      config.detailMode,
       config.redirectUrl,
+      config.benchmarkMode,
       externalUserId,
       redirectUrl,
       setCachedMode,
@@ -567,6 +626,48 @@ export function useScanOrchestrator({
     return "";
   }, [phase, result]);
 
+  const continueFromDiagnostics = useCallback(() => {
+    const nextPhase = pendingPhaseRef.current;
+    setPendingDiagnostics(null);
+    pendingPhaseRef.current = null;
+    if (!nextPhase) return;
+    const epoch = requestEpochRef.current;
+    setPhase(nextPhase);
+    if (nextPhase === PHASES.COMPLETE) {
+      if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+      if (mode === MODE_REGISTER) {
+        setTimeout(() => {
+          if (requestEpochRef.current === epoch) {
+            setMode(MODE_AUTHENTICATE);
+            setCachedMode(apiKey, MODE_AUTHENTICATE);
+            showLog(scan.logs.enteringVerifyMode, "ok");
+          }
+        }, 2800);
+      }
+    }
+  }, [apiKey, mode, config.redirectUrl, redirectUrl, setCachedMode, setPhase, showLog, startRedirect]);
+
+  const dismissBenchmark = useCallback(() => {
+    setPendingBenchmark(null);
+    const nextPhase = pendingPhaseRef.current;
+    if (!nextPhase) return;
+    pendingPhaseRef.current = null;
+    const epoch = requestEpochRef.current;
+    setPhase(nextPhase);
+    if (nextPhase === PHASES.COMPLETE) {
+      if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+      if (mode === MODE_REGISTER) {
+        setTimeout(() => {
+          if (requestEpochRef.current === epoch) {
+            setMode(MODE_AUTHENTICATE);
+            setCachedMode(apiKey, MODE_AUTHENTICATE);
+            showLog(scan.logs.enteringVerifyMode, "ok");
+          }
+        }, 2800);
+      }
+    }
+  }, [apiKey, mode, config.redirectUrl, redirectUrl, setCachedMode, setPhase, showLog, startRedirect]);
+
   return {
     phase,
     mode,
@@ -588,5 +689,9 @@ export function useScanOrchestrator({
     handleReset,
     setAnalysisOpen,
     executeApiSubmission,
+    pendingDiagnostics,
+    continueFromDiagnostics,
+    pendingBenchmark,
+    dismissBenchmark,
   };
 }

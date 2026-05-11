@@ -60,7 +60,23 @@
             "pm.test('Service is spectre-api', () => pm.expect(pm.response.json().service).to.eql('spectre-api'));",
             "pm.test('DB healthy', () => pm.expect(pm.response.json().components.database).to.eql('healthy'));",
             "pm.test('Redis healthy', () => pm.expect(pm.response.json().components.redis).to.eql('healthy'));",
-            "pm.test('ML loaded', () => pm.expect(pm.response.json().components.ml_model).to.eql('loaded'));"
+            "pm.test('ML loaded', () => pm.expect(pm.response.json().components.ml_model).to.eql('loaded'));",
+            "pm.test('FAS registry present', () => pm.expect(pm.response.json().components.fas_registry).to.include('models'));"
+          ]}}]
+        },
+        {
+          "name": "GET /health/ml-status — Active ML model (public)",
+          "request": { "method": "GET", "url": "{{base_url}}/health/ml-status" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('Has active_model_id', () => pm.expect(body).to.have.property('active_model_id'));",
+            "pm.test('Has active_model object', () => pm.expect(body).to.have.property('active_model'));",
+            "if (body.active_model) {",
+            "  pm.test('Model has model_id', () => pm.expect(body.active_model).to.have.property('model_id'));",
+            "  pm.test('Model has version', () => pm.expect(body.active_model).to.have.property('version'));",
+            "  pm.test('Model has supports_tta', () => pm.expect(body.active_model).to.have.property('supports_tta'));",
+            "}"
           ]}}]
         }
       ]
@@ -212,6 +228,16 @@
           "name": "POST /client-logs — Valid telemetry",
           "request": { "method": "POST", "url": "{{base_url}}/api/v1/client-logs", "header": [{"key":"Content-Type","value":"application/json"},{"key":"X-API-Key","value":"{{api_key}}"}], "body": {"mode":"raw","raw":"{\"level\":\"info\",\"message\":\"Newman test log\",\"source\":\"newman\"}"} },
           "event": [{"listen":"test","script":{"exec":["pm.test('202', () => pm.response.to.have.status(202));"]}}]
+        },
+        {
+          "name": "POST /faces/benchmark — Without benchmark enabled (403)",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/faces/benchmark", "header": [{"key":"Content-Type","value":"application/json"},{"key":"X-API-Key","value":"{{api_key}}"}], "body": {"mode":"raw","raw":"{\"image\":\"dGVzdA==\"}"} },
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Benchmark disabled returns 403', () => pm.expect([400,403,422]).to.include(pm.response.code));",
+            "if (pm.response.code === 403) {",
+            "  pm.test('Has BENCHMARK_DISABLED code', () => pm.expect(pm.response.json().detail.error_code).to.eql('BENCHMARK_DISABLED'));",
+            "}"
+          ]}}]
         }
       ]
     },

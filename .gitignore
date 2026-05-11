@@ -34,9 +34,6 @@ env/
 
 # --- ML Models (large binaries) ---
 models/
-# artifact/*.keras
-# artifact/*.h5
-# artifact/*.pb
 *.tflite
 !artifact/.gitkeep
 
@@ -98,8 +95,13 @@ dist-ssr
 # --- Agent ---
 .agent/
 
-# --- Artifacts ---
-artifact/
+# --- Artifacts (large model files tracked via Git LFS or uploaded separately) ---
+# Note: .keras files are NOT ignored here because deploy.py reads .gitignore
+# and we need them uploaded to HF Spaces. Use Git LFS for version control.
+artifact/*.h5
+artifact/*.pb
+artifact/**/*.h5
+artifact/**/*.pb
 
 # --- Conductor ---
 .conductor/

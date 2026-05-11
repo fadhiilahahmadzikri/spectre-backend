@@ -97,8 +97,12 @@ async def health_check(request: Request) -> dict:
     registry = getattr(request.app.state, "model_registry", None)
     components["ml_model"] = "loaded" if registry is not None else "not_loaded"
 
+    # FAS registry health
+    fas_registry = getattr(request.app.state, "fas_registry", None)
+    components["fas_registry"] = f"{fas_registry.loaded_count}_models" if fas_registry else "not_loaded"
+
     overall = "healthy" if all(
-        v in ("healthy", "loaded") for v in components.values()
+        v in ("healthy", "loaded") or "models" in v for v in components.values()
     ) else "degraded"
 
     return {
@@ -107,6 +111,43 @@ async def health_check(request: Request) -> dict:
         "version": "0.1.0",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "components": components,
+    }
+
+
+@router.get("/health/ml-status")
+async def ml_status(request: Request) -> dict:
+    fas_registry = getattr(request.app.state, "fas_registry", None)
+    settings = request.app.state.settings
+    active_id = settings.active_fas_model
+
+    import json as _json
+    try:
+        benchmark_ids = _json.loads(settings.benchmark_models)
+        if not isinstance(benchmark_ids, list):
+            benchmark_ids = []
+    except (ValueError, _json.JSONDecodeError):
+        benchmark_ids = []
+
+    if fas_registry is None:
+        return {
+            "active_model_id": active_id,
+            "active_model": None,
+            "benchmark_enabled": settings.benchmark_enabled,
+            "benchmark_models": benchmark_ids,
+            "detail_mode_default": settings.detail_mode_default,
+        }
+
+    handler = fas_registry._handlers.get(active_id)
+    return {
+        "active_model_id": active_id,
+        "active_model": {
+            "model_id": handler.model_id,
+            "version": handler.version,
+            "supports_tta": handler.supports_tta,
+        } if handler else None,
+        "benchmark_enabled": settings.benchmark_enabled,
+        "benchmark_models": benchmark_ids,
+        "detail_mode_default": settings.detail_mode_default,
     }
 
 

@@ -94,6 +94,9 @@ class Settings(BaseSettings):
     # --- Multi-Model FAS Inference ---
     active_fas_model: str = "antispoofnet_v4"
     ilhamcaesar_model_path: str = "artifact/multimodel/ilhamcaesar/model_final_v1.2.keras"
+    benchmark_enabled: bool = False
+    benchmark_models: str = "[\"antispoofnet_v4\",\"ilhamcaesar_resnet50\"]"
+    detail_mode_default: bool = False
 
     # --- InsightFace (ArcFace identity embeddings) ---
     insightface_model_name: str = "buffalo_l"

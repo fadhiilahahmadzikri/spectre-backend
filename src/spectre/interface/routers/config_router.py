@@ -30,6 +30,9 @@ _SETTINGS_MAP: dict[str, str] = {
     "similarity_threshold": "similarity_threshold",
     "model_use_tta": "model_use_tta",
     "active_fas_model": "active_fas_model",
+    "benchmark_enabled": "benchmark_enabled",
+    "benchmark_models": "benchmark_models",
+    "detail_mode_default": "detail_mode_default",
     "webhook_timeout_seconds": "webhook_timeout_seconds",
     "webhook_max_retries": "webhook_max_retries",
     "webhook_retry_backoff_base": "webhook_retry_backoff_base",
@@ -110,6 +113,32 @@ async def update_config(
                     },
                 )
 
+        if key == "benchmark_models":
+            import json as _json
+            try:
+                requested = _json.loads(new_value)
+                if not isinstance(requested, list) or not all(isinstance(x, str) for x in requested):
+                    raise ValueError("must be a JSON array of strings")
+            except (ValueError, _json.JSONDecodeError) as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error_code": "INVALID_BENCHMARK_MODELS",
+                        "message": f"benchmark_models must be a JSON array of model_id strings: {exc}",
+                    },
+                )
+            fas_registry = getattr(request.app.state, "fas_registry", None)
+            if fas_registry is not None:
+                missing = [m for m in requested if not fas_registry.is_valid_model_id(m)]
+                if missing:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "error_code": "INVALID_BENCHMARK_MODELS",
+                            "message": f"Models not loaded in registry: {missing}",
+                        },
+                    )
+
         old_value = existing["value"]
         await repo.update_value(key, new_value, updated_by=current_user.id)
 
@@ -152,15 +181,28 @@ async def list_fas_models(
         return {
             "active_model_id": settings.active_fas_model,
             "loaded_count": 0,
+            "benchmark_enabled": settings.benchmark_enabled,
+            "benchmark_models": [],
             "models": [],
         }
+
+    import json as _json
+    try:
+        benchmark_ids = _json.loads(settings.benchmark_models)
+        if not isinstance(benchmark_ids, list):
+            benchmark_ids = []
+    except (ValueError, _json.JSONDecodeError):
+        benchmark_ids = []
 
     entries = fas_registry.list_models()
     for entry in entries:
         entry["is_active"] = entry["model_id"] == settings.active_fas_model
+        entry["in_benchmark"] = entry["model_id"] in benchmark_ids
 
     return {
         "active_model_id": settings.active_fas_model,
         "loaded_count": fas_registry.loaded_count,
+        "benchmark_enabled": settings.benchmark_enabled,
+        "benchmark_models": benchmark_ids,
         "models": entries,
     }

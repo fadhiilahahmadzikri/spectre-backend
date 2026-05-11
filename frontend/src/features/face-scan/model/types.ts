@@ -114,6 +114,7 @@ export interface FaceApiErrorPayload {
       confidence?: number;
       spoof_class?: string;
       similarity_score?: number;
+      diagnostics?: InferenceDiagnostics | null;
     };
   };
 }
@@ -124,4 +125,77 @@ export interface FaceApiSuccessPayload {
   similarity_score?: number;
   inference_time_ms?: number;
   status?: string;
+  diagnostics?: InferenceDiagnostics | null;
+}
+
+export interface InferenceDiagnostics {
+  outcome: string;
+  model: {
+    model_id: string;
+    version: string;
+    supports_tta: boolean;
+    used_tta: boolean;
+  } | null;
+  fas: {
+    classes: string[];
+    probabilities: number[];
+    predicted_class: string;
+    predicted_index: number;
+    confidence: number;
+    is_live: boolean;
+    threshold_used: number;
+    top_spoof_class: string | null;
+    spoof_probability: number;
+  } | null;
+  embedding: {
+    extracted: boolean;
+    provider: string;
+    dim: number | null;
+    similarity_score: number | null;
+    similarity_threshold: number | null;
+    match: boolean | null;
+  } | null;
+  timings: {
+    validation_ms: number;
+    fas_inference_ms: number;
+    embedding_extraction_ms: number;
+    matching_ms: number;
+    total_ms: number;
+  };
+  flags: {
+    bypass_fas: boolean;
+    ml_disabled: boolean;
+    detail_mode: boolean;
+  };
+  request: {
+    request_id: string | null;
+    app_id: string;
+    external_user_id: string | null;
+    session_id: string | null;
+    timestamp: string;
+  };
+  reason: string | null;
+}
+
+export interface BenchmarkModelResult {
+  model_id: string;
+  version: string;
+  status: "completed" | "failed" | string;
+  diagnostics: InferenceDiagnostics | null;
+  error: string | null;
+}
+
+export interface BenchmarkApiResponse {
+  request_id: string | null;
+  benchmark_enabled: boolean;
+  participating_models: string[];
+  results: BenchmarkModelResult[];
+  consensus: {
+    is_live_agreement: boolean;
+    predicted_class_agreement: boolean;
+    mean_realperson_prob: number;
+    std_realperson_prob: number;
+    unique_predicted_classes: string[];
+  } | null;
+  timestamp: string;
 }

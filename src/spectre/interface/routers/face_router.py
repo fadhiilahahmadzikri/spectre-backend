@@ -26,6 +26,8 @@ from spectre.interface.dependencies import (
 )
 from spectre.interface.schemas.face_schema import (
     FaceAuthenticateRequest,
+    FaceBenchmarkRequest,
+    FaceBenchmarkResponse,
     FaceRegisterRequest,
     FaceReplaceRequest,
     FaceSessionResponse,
@@ -133,21 +135,27 @@ async def register_face(
     image_bytes = _decode_image(body.image)
     use_case = _build_face_use_case(request, db, app, RegisterFace)
 
-    session = await use_case.execute(
+    request_id = getattr(request.state, "request_id", None)
+    session, diagnostics = await use_case.execute(
         app_id=app.id,
         external_user_id=body.external_user_id,
         image_bytes=image_bytes,
         liveness_threshold=request.app.state.settings.liveness_threshold,
         metadata=body.metadata,
+        detail_mode=body.detail_mode,
+        request_id=request_id,
     )
 
-    # Trigger webhook asynchronously
+    if diagnostics is not None:
+        await _persist_diagnostics(db, session, diagnostics)
+
     _dispatch_webhook(request, app, session)
 
     return {
         "session_id": str(session.id),
         "status": session.status.lower(),
         "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
+        "diagnostics": diagnostics.model_dump() if diagnostics else None,
     }
 
 
@@ -167,14 +175,20 @@ async def authenticate_face(
     image_bytes = _decode_image(body.image)
     use_case = _build_face_use_case(request, db, app, AuthenticateFace)
 
-    session = await use_case.execute(
+    request_id = getattr(request.state, "request_id", None)
+    session, diagnostics = await use_case.execute(
         app_id=app.id,
         external_user_id=body.external_user_id,
         image_bytes=image_bytes,
         liveness_threshold=request.app.state.settings.liveness_threshold,
         similarity_threshold=request.app.state.settings.similarity_threshold,
         metadata=body.metadata,
+        detail_mode=body.detail_mode,
+        request_id=request_id,
     )
+
+    if diagnostics is not None:
+        await _persist_diagnostics(db, session, diagnostics)
 
     _dispatch_webhook(request, app, session)
 
@@ -182,6 +196,7 @@ async def authenticate_face(
         "session_id": str(session.id),
         "status": session.status.lower(),
         "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
+        "diagnostics": diagnostics.model_dump() if diagnostics else None,
     }
 
 
@@ -197,16 +212,23 @@ async def replace_face(
 
     body = await request.json()
     image_b64 = body.get("image_base64") or body.get("image", "")
+    detail_mode = bool(body.get("detail_mode", False))
     image_bytes = _decode_image(image_b64)
 
     use_case = _build_face_use_case(request, db, app, ReplaceFace)
 
-    session = await use_case.execute(
+    request_id = getattr(request.state, "request_id", None)
+    session, diagnostics = await use_case.execute(
         app_id=app.id,
         external_user_id=external_user_id,
         image_bytes=image_bytes,
         liveness_threshold=request.app.state.settings.liveness_threshold,
+        detail_mode=detail_mode,
+        request_id=request_id,
     )
+
+    if diagnostics is not None:
+        await _persist_diagnostics(db, session, diagnostics)
 
     _dispatch_webhook(request, app, session)
 
@@ -214,6 +236,7 @@ async def replace_face(
         "session_id": str(session.id),
         "status": session.status.lower(),
         "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
+        "diagnostics": diagnostics.model_dump() if diagnostics else None,
     }
 
 
@@ -286,6 +309,9 @@ async def get_session(
     if not session or session.app_id != app.id:
         raise HTTPException(status_code=404, detail="Session not found.")
 
+    meta = session.client_metadata or {}
+    diagnostics = meta.get("diagnostics") if isinstance(meta, dict) else None
+
     return {
         "session_id": str(session.id),
         "session_type": session.session_type,
@@ -297,7 +323,74 @@ async def get_session(
         "inference_time_ms": session.inference_time_ms,
         "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
         "completed_at": session.completed_at,
+        "diagnostics": diagnostics,
     }
+
+
+async def _persist_diagnostics(db, session, diagnostics) -> None:
+    session_repo = SQLAuthSessionRepository(db)
+    if session.client_metadata is None:
+        session.client_metadata = {}
+    session.client_metadata["diagnostics"] = diagnostics.model_dump()
+    try:
+        await session_repo.update(session)
+    except Exception:
+        pass
+
+
+@router.post("/faces/benchmark", status_code=200, response_model=FaceBenchmarkResponse)
+async def benchmark_face(
+    request: Request,
+    body: FaceBenchmarkRequest,
+    app: AuthenticatedApp,
+) -> dict:
+    """Run all enabled benchmark FAS models on the same image and return side-by-side comparison."""
+    from spectre.application.benchmark_use_cases import BenchmarkDisabledError, RunBenchmark
+    from spectre.infrastructure.ml.image_preprocessor import ImagePreprocessor
+
+    settings: Settings = request.app.state.settings
+    fas_registry = getattr(request.app.state, "fas_registry", None)
+
+    if fas_registry is None:
+        raise HTTPException(
+            status_code=503,
+            detail={"error_code": "MODEL_UNAVAILABLE", "message": "FAS registry not loaded."},
+        )
+
+    if not settings.benchmark_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error_code": "BENCHMARK_DISABLED",
+                "message": "Benchmark mode is not enabled. Admin must enable benchmark_enabled in config.",
+            },
+        )
+
+    image_bytes = _decode_image(body.image)
+    preprocessor = ImagePreprocessor(settings)
+    use_case = RunBenchmark(fas_registry, settings, preprocessor)
+
+    request_id = getattr(request.state, "request_id", None)
+
+    try:
+        report = use_case.execute(
+            app_id=app.id,
+            image_bytes=image_bytes,
+            external_user_id=body.external_user_id,
+            request_id=request_id,
+        )
+    except BenchmarkDisabledError as exc:
+        raise HTTPException(
+            status_code=403,
+            detail={"error_code": "BENCHMARK_DISABLED", "message": str(exc)},
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error_code": "VALIDATION_ERROR", "message": str(exc)},
+        )
+
+    return report
 
 
 def _dispatch_webhook(request: Request, app, session) -> None:

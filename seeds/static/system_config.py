@@ -10,6 +10,9 @@ DEFAULTS = [
     ("similarity_threshold", "0.40", "anti_spoofing", "float", "Minimum cosine similarity for face match"),
     ("model_use_tta", "false", "anti_spoofing", "bool", "Enable Test-Time Augmentation for FAS inference"),
     ("active_fas_model", "antispoofnet_v4", "anti_spoofing", "string", "Active FAS model provider (switchable at runtime)"),
+    ("benchmark_enabled", "false", "anti_spoofing", "bool", "Enable multi-model benchmark mode (side-by-side comparison)"),
+    ("benchmark_models", "[\"antispoofnet_v4\",\"ilhamcaesar_resnet50\"]", "anti_spoofing", "string", "JSON array of FAS model_ids participating in benchmark"),
+    ("detail_mode_default", "false", "anti_spoofing", "bool", "Default state of detail_mode toggle in the scan config drawer"),
     # Webhook & Delivery
     ("webhook_timeout_seconds", "10", "webhook", "int", "HTTP timeout for webhook delivery requests"),
     ("webhook_max_retries", "4", "webhook", "int", "Maximum retry attempts for failed webhooks"),

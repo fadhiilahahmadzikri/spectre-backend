@@ -27,7 +27,7 @@ interface ConfigPanelProps {
 }
 
 function hasChanged(a: ConfigDraft, b: ConfigDraft): boolean {
-  return a.fas !== b.fas || a.requirePose !== b.requirePose || a.showPreview !== b.showPreview || a.redirectUrl !== b.redirectUrl;
+  return a.fas !== b.fas || a.requirePose !== b.requirePose || a.showPreview !== b.showPreview || a.redirectUrl !== b.redirectUrl || a.detailMode !== b.detailMode || a.benchmarkMode !== b.benchmarkMode;
 }
 
 export function ConfigPanel(props: ConfigPanelProps) {
@@ -130,6 +130,16 @@ function ConfigPanelBody({
               checked={draft.showPreview}
               onChange={(showPreview) => setDraft((d) => ({ ...d, showPreview }))}
             />
+            <SettingRow
+              title="Detail mode"
+              description="Pause final animation and reveal full inference matrix (probabilities, timings, model metadata) before continuing."
+              checked={draft.detailMode}
+              onChange={(detailMode) => setDraft((d) => ({ ...d, detailMode }))}
+            />
+            <BenchmarkModeRow
+              checked={draft.benchmarkMode}
+              onChange={(benchmarkMode) => setDraft((d) => ({ ...d, benchmarkMode }))}
+            />
           </div>
         </Section>
 
@@ -217,15 +227,35 @@ function SettingRow({ title, description, checked, onChange }: SettingRowProps) 
   );
 }
 
-function MLCoreTag() {
+function BenchmarkModeRow({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   const { data } = useQuery({
-    queryKey: ["admin-fas-models"],
-    queryFn: ({ signal }) => api.getFasModels({ signal }),
+    queryKey: ["ml-status"],
+    queryFn: ({ signal }) => api.getMlStatus({ signal }),
     staleTime: 60_000,
     retry: false,
   });
 
-  const active = data?.models.find((m) => m.is_active);
+  if (!data?.benchmark_enabled) return null;
+
+  return (
+    <SettingRow
+      title="Benchmark mode"
+      description={`Run ${data.benchmark_models.length} models side-by-side on the same image for comparison.`}
+      checked={checked}
+      onChange={onChange}
+    />
+  );
+}
+
+function MLCoreTag() {
+  const { data } = useQuery({
+    queryKey: ["ml-status"],
+    queryFn: ({ signal }) => api.getMlStatus({ signal }),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const active = data?.active_model;
 
   return (
     <div className="flex items-center gap-2 mt-2">

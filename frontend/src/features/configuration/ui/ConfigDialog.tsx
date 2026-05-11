@@ -112,7 +112,7 @@ export function ConfigDialog({ open, onClose }: ConfigDialogProps) {
       open={open}
       onOpenChange={(v) => !v && onClose()}
       size="lg"
-      className="max-h-[88vh]"
+      className="h-[88vh]"
     >
       <GlassDialogHeader
         align="left"
@@ -136,15 +136,12 @@ export function ConfigDialog({ open, onClose }: ConfigDialogProps) {
             onValueChange={setActiveTab}
             className="flex-1 min-h-0 flex flex-col"
           >
-            <TabsList
-              variant="line"
-              className="w-full h-auto gap-2 bg-transparent justify-start flex-nowrap overflow-x-auto"
-            >
+            <TabsList className="h-10 gap-1 rounded-xl p-1 justify-start flex-nowrap overflow-x-auto shrink-0">
               {availableCategories.map((cat) => (
                 <TabsTrigger
                   key={cat}
                   value={cat}
-                  className="text-[11px] px-3 py-1.5 inline-flex items-center gap-1.5 shrink-0"
+                  className="text-[11px] px-3 h-7 rounded-lg inline-flex items-center gap-1.5 shrink-0"
                 >
                   <span className="text-[color:var(--label-tertiary)]">
                     {CATEGORY_ICONS[cat]}
@@ -177,17 +174,17 @@ export function ConfigDialog({ open, onClose }: ConfigDialogProps) {
             type="button"
             variant="primary-glass"
             size="inline"
-            className="!px-6 relative"
+            className="gap-2"
             disabled={!hasChanges || mutation.isPending}
             onClick={handleSave}
           >
             {mutation.isPending && (
-              <Spinner size="sm" data-icon="inline-start" />
+              <Spinner size="sm" />
             )}
             {hasChanges && !mutation.isPending && (
               <span
                 aria-hidden
-                className="inline-block size-1.5 rounded-full bg-current opacity-70 mr-2 pulse-dot"
+                className="inline-block size-1.5 rounded-full bg-current opacity-70 pulse-dot"
               />
             )}
             {mutation.isPending ? "Saving…" : "Save changes"}

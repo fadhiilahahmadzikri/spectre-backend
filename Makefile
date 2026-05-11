@@ -76,14 +76,21 @@ test-newman-hf-report: ## Run Newman with HTML report (HF Spaces)
 	newman run tests/postman/spectre-api-v1.postman_collection.json -e tests/postman/env-hf-spaces.json --reporters cli,htmlextra --reporter-htmlextra-export reports/api-report-hf.html --timeout-request 30000
 	@echo "Report saved: reports/api-report-hf.html"
 
+postman-push: ## Push collection to Postman cloud (syncs local → remote)
+	$$key = if ($$env:POSTMAN_API_KEY) { $$env:POSTMAN_API_KEY } else { (Select-String -Path .env -Pattern '^POSTMAN_API_KEY=(.+)$$' | ForEach-Object { $$_.Matches.Groups[1].Value }) }; $$uid = if ($$env:POSTMAN_COLLECTION_UID) { $$env:POSTMAN_COLLECTION_UID } else { (Select-String -Path .env -Pattern '^POSTMAN_COLLECTION_UID=(.+)$$' | ForEach-Object { $$_.Matches.Groups[1].Value }) }; $$body = Get-Content tests/postman/spectre-api-v1.postman_collection.json -Raw; Invoke-RestMethod -Uri "https://api.getpostman.com/collections/$$uid" -Method Put -Headers @{ 'X-Api-Key' = $$key; 'Content-Type' = 'application/json' } -Body "{`"collection`": $$body }"
+	@echo "Collection pushed to Postman cloud."
+
 test-all: test test-newman ## Run full local test suite (pytest + Newman)
 
 # ==============================================================================
 # Database
 # ==============================================================================
 
-migrate: ## Run database migrations to latest
+migrate: ## Run database migrations to latest (local)
 	uv run alembic upgrade head
+
+migrate-supabase: ## Run database migrations against Supabase (production)
+	$$env:DATABASE_URL = (Select-String -Path .env.spaces -Pattern '^DATABASE_URL=(.+)$$' | ForEach-Object { $$_.Matches.Groups[1].Value }); uv run alembic upgrade head
 
 migrate-new: ## Create new migration (usage: make migrate-new MSG="description")
 	uv run alembic revision --autogenerate -m "$(MSG)"

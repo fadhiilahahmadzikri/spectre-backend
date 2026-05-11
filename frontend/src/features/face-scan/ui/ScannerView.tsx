@@ -24,6 +24,8 @@ import { CaptureFlash } from "./overlays/CaptureFlash";
 import { PreviewDialog } from "./dialogs/PreviewDialog";
 import { AnalysisDrawer } from "./dialogs/AnalysisDrawer";
 import { ConfigDrawer, type ConfigDraft } from "./dialogs/ConfigDrawer";
+import { DiagnosticInterceptor } from "./dialogs/DiagnosticInterceptor";
+import { LiveStatusOverlay } from "./overlays/LiveStatusOverlay";
 import { ResultPanel } from "./result/ResultPanel";
 
 interface ScannerViewProps {
@@ -72,6 +74,10 @@ export function ScannerView({
     handleReset,
     setAnalysisOpen,
     executeApiSubmission,
+    pendingDiagnostics,
+    continueFromDiagnostics,
+    pendingBenchmark,
+    dismissBenchmark,
   } = useScanOrchestrator({
     videoRef,
     canvasRef,
@@ -256,6 +262,22 @@ export function ScannerView({
         open={analysisOpen}
         onClose={() => setAnalysisOpen(false)}
         result={result}
+      />
+
+      <DiagnosticInterceptor
+        open={(pendingDiagnostics !== null || pendingBenchmark !== null)}
+        diagnostics={pendingDiagnostics}
+        benchmark={pendingBenchmark}
+        onContinue={() => {
+          if (pendingDiagnostics) continueFromDiagnostics();
+          else dismissBenchmark();
+        }}
+      />
+
+      <LiveStatusOverlay
+        phase={phase}
+        detailMode={config.detailMode}
+        benchmarkMode={config.benchmarkMode}
       />
     </div>
   );

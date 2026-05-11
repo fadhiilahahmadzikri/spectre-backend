@@ -52,6 +52,27 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.redis = redis
     logger.info("redis_initialized")
 
+    # --- Sync persisted config from DB into runtime settings ---
+    try:
+        from sqlalchemy import text
+
+        async with session_factory() as session:
+            result = await session.execute(
+                text("SELECT key, value, data_type FROM system_config")
+            )
+            rows = result.mappings().all()
+
+        from spectre.interface.routers.config_router import _SETTINGS_MAP, _cast_value
+
+        for row in rows:
+            key = row["key"]
+            if key in _SETTINGS_MAP:
+                attr = _SETTINGS_MAP[key]
+                setattr(settings, attr, _cast_value(row["value"], row["data_type"]))
+        logger.info("config_synced_from_db | keys={}", len(rows))
+    except Exception as exc:
+        logger.warning("config_sync_failed | error={}", exc)
+
     # --- ML Model Registry (CPU inference) ---
     from spectre.infrastructure.ml.model_registry import ModelRegistry
 

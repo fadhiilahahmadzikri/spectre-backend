@@ -126,18 +126,19 @@ For immediate testing against the live deployment:
 X-API-Key: spk_d602c7bc949464b18c0fafc1c3c5d4f048bf2a524acad217
 ```
 
-## API Endpoints (27 total)
+## API Endpoints (31 total)
 
 | Group | Endpoints | Auth |
 |---|---|---|
-| Health | `GET /`, `GET /health` | None |
+| Health | `GET /`, `GET /health`, `GET /health/ml-status` | None |
 | Auth | Register, Login, Verify Email, TOTP, OAuth, Refresh, Logout | None / Bearer |
 | Applications | CRUD for tenant apps | Bearer |
 | API Keys | Generate, List, Revoke | Bearer |
-| Face Ops | Register, Authenticate, Replace, Delete, List, Purge | X-API-Key |
+| Face Ops | Register, Authenticate, Replace, Delete, List, Purge, Benchmark | X-API-Key |
 | Sessions | List, Get detail | Bearer / X-API-Key |
 | Webhooks | Test, List deliveries, Retry | Bearer |
 | Telemetry | Client log ingestion | X-API-Key |
+| Admin | Config CRUD, FAS Models list, Stats, Automation | Bearer (admin) |
 
 Full integration reference: [`Docs/API_INTEGRATION_REFERENCE.md`](Docs/API_INTEGRATION_REFERENCE.md)  
 HF Spaces-specific guide: [`Docs/API_HF_SPACES_REFERENCE.md`](Docs/API_HF_SPACES_REFERENCE.md)

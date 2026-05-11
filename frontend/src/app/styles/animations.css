@@ -75,30 +75,30 @@
 @keyframes iqaPulseWarn {
   0% {
     border-color: rgba(255, 170, 0, 0.4);
-    box-shadow: 0 0 0 transparent;
+    filter: drop-shadow(0 0 0 transparent);
   }
   50% {
     border-color: rgba(255, 170, 0, 1);
-    box-shadow: 0 0 16px rgba(255, 170, 0, 0.6), inset 0 0 16px rgba(255, 170, 0, 0.4);
+    filter: drop-shadow(0 0 8px rgba(255, 170, 0, 0.7));
   }
   100% {
     border-color: rgba(255, 170, 0, 0.4);
-    box-shadow: 0 0 0 transparent;
+    filter: drop-shadow(0 0 0 transparent);
   }
 }
 
 @keyframes iqaPulseReady {
   0% {
     border-color: rgba(255, 255, 255, 0.35);
-    box-shadow: 0 0 0 transparent;
+    filter: drop-shadow(0 0 0 transparent);
   }
   30% {
     border-color: rgba(52, 199, 89, 1);
-    box-shadow: 0 0 24px rgba(52, 199, 89, 0.8), inset 0 0 24px rgba(52, 199, 89, 0.5);
+    filter: drop-shadow(0 0 12px rgba(52, 199, 89, 0.8));
   }
   100% {
     border-color: rgba(52, 199, 89, 0.8);
-    box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
+    filter: drop-shadow(0 0 6px rgba(52, 199, 89, 0.5));
   }
 }
 

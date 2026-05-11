@@ -181,6 +181,19 @@ export const api = {
       components: { database: string; redis: string; ml_model: string };
     }>("/health", { signal: opts.signal }),
 
+  getMlStatus: (opts: RequestOpts = {}) =>
+    request<{
+      active_model_id: string;
+      active_model: {
+        model_id: string;
+        version: string;
+        supports_tta: boolean;
+      } | null;
+      benchmark_enabled: boolean;
+      benchmark_models: string[];
+      detail_mode_default: boolean;
+    }>("/health/ml-status", { signal: opts.signal }),
+
   getAdminStats: (opts: RequestOpts = {}) =>
     request<{
       heartbeats: Array<{ id: string; pinged_at: string; source: string }>;
@@ -230,6 +243,8 @@ export const api = {
     request<{
       active_model_id: string;
       loaded_count: number;
+      benchmark_enabled: boolean;
+      benchmark_models: string[];
       models: Array<{
         model_id: string;
         version: string;
@@ -237,6 +252,7 @@ export const api = {
         is_loaded: boolean;
         supports_tta: boolean;
         is_active: boolean;
+        in_benchmark: boolean;
         load_error: string | null;
       }>;
     }>("/admin/fas-models", { signal: opts.signal }),

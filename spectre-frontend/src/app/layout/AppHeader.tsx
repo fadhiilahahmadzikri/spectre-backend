@@ -39,6 +39,14 @@ export function AppHeader() {
                 Health
               </Link>
             )}
+            {user?.role === "admin" && (
+              <Link
+                to="/admin/monitoring"
+                className="text-[13px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors"
+              >
+                Monitoring
+              </Link>
+            )}
           </nav>
         </div>
 

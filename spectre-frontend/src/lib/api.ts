@@ -270,4 +270,109 @@ export const api = {
       body: { updates },
       signal: opts.signal,
     }),
+
+  // ─── Admin Monitoring ──────────────────────────────────────────────
+
+  adminListUsers: (page = 1, pageSize = 20, opts: RequestOpts = {}) =>
+    request<{ data: AdminUser[]; pagination: Pagination }>(`/admin/users?page=${page}&page_size=${pageSize}`, { signal: opts.signal }),
+
+  adminGetUser: (userId: string, opts: RequestOpts = {}) =>
+    request<AdminUser>(`/admin/users/${userId}`, { signal: opts.signal }),
+
+  adminUpdateUser: (userId: string, data: Partial<AdminUser>, opts: RequestOpts = {}) =>
+    request<AdminUser>(`/admin/users/${userId}`, { method: "PATCH", body: data, signal: opts.signal }),
+
+  adminDeleteUser: (userId: string, opts: RequestOpts = {}) =>
+    request<void>(`/admin/users/${userId}`, { method: "DELETE", signal: opts.signal }),
+
+  adminListAllApps: (page = 1, pageSize = 20, opts: RequestOpts = {}) =>
+    request<{ data: AdminApplication[]; pagination: Pagination }>(`/admin/applications?page=${page}&page_size=${pageSize}`, { signal: opts.signal }),
+
+  adminUpdateApp: (appId: string, data: Record<string, unknown>, opts: RequestOpts = {}) =>
+    request<Record<string, unknown>>(`/admin/applications/${appId}`, { method: "PATCH", body: data, signal: opts.signal }),
+
+  adminDeleteApp: (appId: string, opts: RequestOpts = {}) =>
+    request<void>(`/admin/applications/${appId}`, { method: "DELETE", signal: opts.signal }),
+
+  adminListAllApiKeys: (page = 1, pageSize = 20, opts: RequestOpts = {}) =>
+    request<{ data: AdminApiKey[]; pagination: Pagination }>(`/admin/api-keys?page=${page}&page_size=${pageSize}`, { signal: opts.signal }),
+
+  adminRevokeApiKey: (keyId: string, opts: RequestOpts = {}) =>
+    request<void>(`/admin/api-keys/${keyId}/revoke`, { method: "POST", signal: opts.signal }),
+
+  adminDeleteApiKey: (keyId: string, opts: RequestOpts = {}) =>
+    request<void>(`/admin/api-keys/${keyId}`, { method: "DELETE", signal: opts.signal }),
+
+  adminListFaceProfiles: (page = 1, pageSize = 20, appId?: string, opts: RequestOpts = {}) =>
+    request<{ data: AdminFaceProfile[]; pagination: Pagination }>(
+      `/admin/face-profiles?page=${page}&page_size=${pageSize}${appId ? `&app_id=${appId}` : ""}`,
+      { signal: opts.signal },
+    ),
+
+  adminDeleteFaceProfile: (profileId: string, opts: RequestOpts = {}) =>
+    request<void>(`/admin/face-profiles/${profileId}`, { method: "DELETE", signal: opts.signal }),
+
+  adminListSessions: (page = 1, pageSize = 20, opts: RequestOpts = {}) =>
+    request<{ data: AdminSession[]; pagination: Pagination }>(`/admin/sessions?page=${page}&page_size=${pageSize}`, { signal: opts.signal }),
 };
+
+// ─── Admin Types ──────────────────────────────────────────────
+export interface AdminUser {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: string;
+  is_active: boolean;
+  totp_enabled: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminApplication {
+  id: string;
+  owner_id: string;
+  name: string;
+  status: string;
+  webhook_url: string | null;
+  liveness_threshold: number;
+  similarity_threshold: number;
+  allowed_ips: string[];
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminApiKey {
+  id: string;
+  app_id: string;
+  key_prefix: string;
+  label: string | null;
+  status: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface AdminFaceProfile {
+  id: string;
+  app_id: string;
+  external_user_id: string;
+  model_version: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminSession {
+  id: string;
+  app_id: string;
+  session_type: string;
+  status: string;
+  external_user_id: string;
+  liveness_class: string | null;
+  liveness_confidence: number | null;
+  similarity_score: number | null;
+  inference_time_ms: number | null;
+  created_at: string | null;
+  completed_at: string | null;
+}

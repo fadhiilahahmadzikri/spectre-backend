@@ -8,6 +8,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Applications } from "./pages/Applications";
 import { ApiKeys } from "./pages/ApiKeys";
 import { AdminHealth } from "./pages/AdminHealth";
+import { AdminMonitoring } from "./pages/AdminMonitoring";
 import { Layout } from "./components/Layout";
 import { OAuthCallback } from "./pages/OAuthCallback";
 import { ProtectedRoute } from "./app/guards/ProtectedRoute";
@@ -52,6 +53,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="admin/health" element={<AdminHealth />} />
               <Route path="applications" element={<Applications />} />
               <Route path="applications/:appId/keys" element={<ApiKeys />} />
+              <Route path="admin/monitoring" element={<AdminMonitoring />} />
               <Route
                 path="scan"
                 element={

@@ -61,7 +61,7 @@ COPY artifact/ artifact/
 # ---- Copy orchestration files ----
 COPY supervisord.conf.tmpl /etc/supervisor/conf.d/spectre.conf.tmpl
 COPY start.sh /app/start.sh
-COPY .env.spaces /app/.env
+
 
 # ---- Directory setup ----
 RUN chmod +x /app/start.sh \

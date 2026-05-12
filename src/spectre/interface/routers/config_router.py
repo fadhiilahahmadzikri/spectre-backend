@@ -10,9 +10,8 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from spectre.config import Settings, get_settings
-from spectre.domain.entities.user import User
-from spectre.interface.dependencies import DBSession, get_current_user
+from spectre.config import Settings
+from spectre.interface.dependencies import DBSession, get_current_user, get_settings
 from spectre.interface.schemas.config_schema import (
     ConfigItem,
     ConfigResponse,

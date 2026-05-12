@@ -110,7 +110,6 @@ hf_sec.py
 conductor/
 kaggle/
 scripts/
-artifact/
 multimodel/
 .kiro/
 .github/

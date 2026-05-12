@@ -209,6 +209,10 @@ def run_upload(
     sdk: str = "docker",
     mode: str = "sync",
 ):
+    import subprocess
+    import shutil
+    import tempfile
+    
     console.print(Rule(f"[bold cyan]PRE-FLIGHT CHECK — mode=[yellow]{mode.upper()}[/][/]"))
 
     with console.status(f"[cyan]Verifikasi Space {repo_id}...[/]"):
@@ -223,137 +227,76 @@ def run_upload(
                 console.print(f"  [red]FAIL:[/] {e}")
                 sys.exit(1)
 
-    console.print(f"  [green]OK[/] Mode: [bold yellow]{mode.upper()}[/]")
+    console.print(f"  [green]OK[/] Mode: [bold yellow]GIT LFS SYNC[/]")
     console.print(f"  [green]OK[/] Ignore patterns: [bold]{len(patterns)}[/] rules")
-    console.print(f"  [green]OK[/] Workers: [bold]{workers}[/]")
-    console.print(f"  [green]OK[/] Folder: [bold]{folder.resolve()}[/]")
     console.print()
 
-    deleted: list[str] = []
+    console.print(Rule("[bold red]GIT LFS UPLOAD (Bypassing HTTP Rate Limit)[/]"))
 
-    if mode == "sync":
-        # ── SYNC PRE-FLIGHT ────────────────────────────────────────────────────
-        # Hitung 3 hal:
-        #   to_add    = ada di lokal, belum ada di remote  → akan di-UPLOAD
-        #   to_delete = ada di remote, sudah tidak ada di lokal → akan di-HAPUS
-        #   in_sync   = ada di kedua tempat (mungkin berubah isinya, upload_large_folder
-        #               yang akan deteksi lewat hash)
-        # ──────────────────────────────────────────────────────────────────────
-        console.print(Rule("[bold red]SYNC — Delta Analysis[/]"))
-
-        with console.status("[cyan]Scanning local files...[/]"):
-            local_files = _collect_local_files(folder, patterns)
-        with console.status("[cyan]Scanning remote files...[/]"):
-            remote_files = _collect_remote_files(api, repo_id)
-
-        protected = {".gitattributes", "README.md"}
-
-        # File yang perlu diupload (belum ada di remote)
-        to_add = local_files - remote_files
-
-        # File remote yang stale (tidak ada di lokal), kecuali yang dilindungi
-        stale = {f for f in (remote_files - local_files) if f not in protected}
-
-        # File yang sudah sama-sama ada (mungkin perlu update isi)
-        in_both = local_files & remote_files
-
-        console.print(f"  Local   : [bold]{len(local_files)}[/] files")
-        console.print(f"  Remote  : [bold]{len(remote_files)}[/] files")
-        console.print()
-        console.print(f"  [green]To Add[/]    : [bold green]{len(to_add)}[/] files   (lokal → remote, akan diupload)")
-        console.print(f"  [cyan]In Sync[/]   : [bold cyan]{len(in_both)}[/] files   (sudah ada, upload_large_folder cek hash)")
-        console.print(f"  [red]To Delete[/] : [bold red]{len(stale)}[/] files   (remote stale, akan dihapus)")
-        console.print()
-
-        # Tampilkan preview file yang akan ditambah (max 20 baris agar tidak flood)
-        if to_add:
-            preview_add = sorted(to_add)[:20]
-            for f in preview_add:
-                console.print(f"  [green]+ ADD[/] {f}")
-            if len(to_add) > 20:
-                console.print(f"  [dim]... dan {len(to_add) - 20} file lainnya[/]")
-            console.print()
-
-        # Hapus file stale dulu sebelum upload
-        if stale:
-            for f in sorted(stale):
-                console.print(f"  [red]→ DEL[/] {f}")
-            console.print()
-            deleted = _delete_stale_remote_files(api, repo_id, local_files, remote_files)
-            console.print(f"\n  [green]✓ Deleted {len(deleted)} stale files.[/]\n")
-        else:
-            console.print("  [green]✓ Tidak ada file stale di remote.[/]\n")
-
-    # ── UPLOAD ────────────────────────────────────────────────────────────────
-    # upload_large_folder handles:
-    #   - file baru (to_add)    → diupload
-    #   - file berubah isi      → diupload ulang (lewat SHA comparison)
-    #   - file tidak berubah    → diskip
-    # ─────────────────────────────────────────────────────────────────────────
-    console.print(Rule("[bold cyan]UPLOADING[/]"))
-    console.print(f"[dim]Target: https://huggingface.co/spaces/{repo_id}[/]\n")
-
-    start         = time.time()
-    result_holder = {}
-    error_holder  = {}
-
-    original_create_repo = _patch_create_repo(api, sdk)
-
-    def do_upload():
-        try:
-            result_holder["url"] = api.upload_large_folder(
-                repo_id=repo_id,
-                repo_type="space",
-                folder_path=str(folder),
-                ignore_patterns=patterns if patterns else None,
-                num_workers=workers,
-            )
-        except Exception as exc:
-            error_holder["err"] = exc
-        finally:
-            api.create_repo = original_create_repo
+    temp_dir = folder / ".hf_deploy_temp"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Uploading...", total=None)
-            t = threading.Thread(target=do_upload, daemon=True)
-            t.start()
-            while t.is_alive():
-                t.join(timeout=0.5)
-                progress.advance(task, 0)
-            progress.update(task, completed=1, total=1)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Upload diinterrupt.[/]")
-        sys.exit(0)
+        # Clone repo
+        with console.status("[cyan]Cloning remote repository (LFS enabled)...[/]"):
+            subprocess.run(["git", "clone", f"https://huggingface.co/spaces/{repo_id}", str(temp_dir)], check=True, capture_output=True)
 
-    elapsed = time.time() - start
+        # Clear existing non-git files
+        for item in temp_dir.iterdir():
+            if item.name not in (".git", ".gitattributes", "README.md"):
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
 
-    if "err" in error_holder:
-        console.print(Panel(
-            f"[red]Upload gagal:[/]\n{error_holder['err']}",
-            border_style="red",
-            title="Error",
-        ))
+        # Collect & Copy
+        with console.status(f"[cyan]Filtering and copying backend files (using {len(patterns)} ignore rules)...[/]"):
+            local_files = _collect_local_files(folder, patterns)
+            for f in local_files:
+                src_file = folder / f
+                dest_file = temp_dir / f
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_file, dest_file)
+        
+        console.print(f"  [green]OK[/] Copied {len(local_files)} files to temp git repo.")
+
+        # Setup LFS and commit
+        with console.status("[cyan]Committing and pushing via Git LFS...[/]"):
+            subprocess.run(["git", "lfs", "install"], cwd=str(temp_dir), check=True, capture_output=True)
+            subprocess.run(["git", "lfs", "track", "*.keras"], cwd=str(temp_dir), check=True, capture_output=True)
+            subprocess.run(["git", "add", ".gitattributes"], cwd=str(temp_dir), check=True, capture_output=True)
+            subprocess.run(["git", "add", "-A"], cwd=str(temp_dir), check=True, capture_output=True)
+            
+            # Check if there are changes
+            status = subprocess.run(["git", "status", "--porcelain"], cwd=str(temp_dir), capture_output=True, text=True)
+            if not status.stdout.strip():
+                console.print("  [yellow]No changes detected. Repository is up-to-date.[/]")
+            else:
+                subprocess.run(["git", "commit", "-m", "Deploy update from deploy.py (Git LFS)"], cwd=str(temp_dir), check=True, capture_output=True)
+                # Configure HTTP buffer for large pushes
+                subprocess.run(["git", "config", "http.postBuffer", "524288000"], cwd=str(temp_dir))
+                subprocess.run(["git", "config", "http.version", "HTTP/1.1"], cwd=str(temp_dir))
+                
+                push_result = subprocess.run(["git", "push", "origin", "main"], cwd=str(temp_dir), capture_output=True, text=True)
+                if push_result.returncode != 0:
+                    raise Exception(push_result.stderr)
+                console.print("  [green]OK[/] Pushed successfully via Git.")
+
+    except Exception as e:
+        console.print(Panel(f"[red]Upload gagal:[/]
+{e}", border_style="red", title="Error"))
         sys.exit(1)
+    finally:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
-    summary_lines = [
-        f"[bold green]Upload selesai![/]",
-        f"",
-        f"  Mode    : [yellow]{mode.upper()}[/]",
-        f"  Durasi  : [bold]{elapsed:.1f}s[/]",
-        f"  Deleted : [red]{len(deleted)} stale files[/]",
-        f"  URL     : https://huggingface.co/spaces/{repo_id}",
-    ]
     console.print()
     console.print(Panel(
-        "\n".join(summary_lines),
+        f"[bold green]Upload selesai![/]
+
+  Mode    : [yellow]GIT LFS SYNC[/]
+  URL     : https://huggingface.co/spaces/{repo_id}",
         border_style="green",
         title="SUCCESS",
         padding=(1, 3),
@@ -756,7 +699,7 @@ def flow_secrets(api: HfApi, username: str):
             with console.status("[cyan]Pushing secrets...[/]"):
                 for key, value in secrets.items():
                     api.add_space_secret(repo_id=repo_id, key=key, value=value)
-            console.print(f"[green]✓ {len(secrets)} secrets pushed.[/] Space will rebuild.")
+            console.print(f"[green][OK] {len(secrets)} secrets pushed.[/] Space will rebuild.")
             Prompt.ask("[dim]Enter[/]", default="")
 
         elif action == 1:
@@ -769,7 +712,7 @@ def flow_secrets(api: HfApi, username: str):
                 continue
             with console.status(f"[cyan]Setting {key}...[/]"):
                 api.add_space_secret(repo_id=repo_id, key=key, value=value)
-            console.print(f"[green]✓ {key} set.[/] Space will rebuild.")
+            console.print(f"[green][OK] {key} set.[/] Space will rebuild.")
             Prompt.ask("[dim]Enter[/]", default="")
 
         elif action == 2:
@@ -780,7 +723,7 @@ def flow_secrets(api: HfApi, username: str):
             if Confirm.ask(f"Delete [red]{key}[/] from {repo_id}?", default=False):
                 with console.status(f"[cyan]Deleting {key}...[/]"):
                     api.delete_space_secret(repo_id=repo_id, key=key)
-                console.print(f"[green]✓ {key} deleted.[/]")
+                console.print(f"[green][OK] {key} deleted.[/]")
             Prompt.ask("[dim]Enter[/]", default="")
 
 
@@ -1015,7 +958,7 @@ def main():
                             api.add_space_secret(repo_id=repo_id, key=key, value=value)
                         except Exception as e:
                             console.print(f"  [yellow]Skipped {key}:[/] {str(e)[:50]}...")
-                console.print("[green]✓ Secrets sync completed.[/]")
+                console.print("[green][OK] Secrets sync completed.[/]")
             else:
                 console.print("[yellow]No valid secrets found in file.[/]")
             if not args.folder:

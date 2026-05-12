@@ -15,7 +15,7 @@ import "@thewhitenigs/spectre-snap/style.css";
 // ---------------------------------------------------------------------------
 // Configuration — a real client would source these from their own env/config
 // ---------------------------------------------------------------------------
-const SPECTRE_API_KEY = "spk_d602c7bc3c25e1bc12345678abcdef1234567890abcdef1234567890abcdef12";
+const SPECTRE_API_KEY = "spk_af71c0e67a3bf274a328dd5a60f48e4bb823801f4cae2561";
 const EXTERNAL_USER_ID = "acme-user-001";
 
 // ---------------------------------------------------------------------------

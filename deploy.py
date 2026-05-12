@@ -96,15 +96,11 @@ def load_ignore_patterns(folder: Path) -> tuple[list[str], dict[str, int]]:
     """Load ignore patterns from .huggingfaceignore ONLY.
 
     This is the single source of truth for what gets deployed.
-    .gitignore is intentionally NOT merged — it serves a different purpose
+    .gitignore is intentionally NOT read — it serves a different purpose
     (local dev vs. HF Spaces deployment).
     """
     patterns = parse_ignore_file(folder / ".huggingfaceignore")
-    return patterns, {
-        ".huggingfaceignore": len(patterns),
-        ".gitignore":         0,
-        "total_unique":       len(patterns),
-    }
+    return patterns, {"rule_count": len(patterns)}
 
 
 def _is_ignored(rel_path: str, patterns: list[str]) -> bool:
@@ -586,9 +582,7 @@ def flow_preview_ignore(username: str):
         table.add_row(str(i), p)
     console.print(table)
     console.print()
-    console.print(f"  [cyan].huggingfaceignore[/]  {counts['.huggingfaceignore']} patterns")
-    console.print(f"  [cyan].gitignore[/]          {counts['.gitignore']} patterns")
-    console.print(f"  [bold]Total unique[/]         {counts['total_unique']} patterns")
+    console.print(f"  [cyan].huggingfaceignore[/]  {counts['rule_count']} patterns")
     Prompt.ask("\n[dim]Enter untuk kembali[/]", default="")
 
 
@@ -662,9 +656,7 @@ def flow_upload(api: HfApi, username: str):
     summary.add_row("Mode",                 f"[yellow]{mode.upper()}[/]")
     summary.add_row("Folder",               str(folder))
     summary.add_row("Workers",              str(workers))
-    summary.add_row("Ignore patterns",      f"{counts['total_unique']} rules")
-    summary.add_row("  .huggingfaceignore", str(counts[".huggingfaceignore"]))
-    summary.add_row("  .gitignore",         str(counts[".gitignore"]))
+    summary.add_row("Ignore patterns",      f"{counts['rule_count']} rules")
     console.print(Panel(summary, title="[bold]Upload Summary[/]", border_style="cyan"))
     console.print()
 
@@ -1051,9 +1043,7 @@ def main():
         summary.add_row("Mode",                 f"[yellow]{args.mode.upper()}[/]")
         summary.add_row("Folder",               str(folder))
         summary.add_row("Workers",              str(args.workers))
-        summary.add_row("Ignore patterns",      f"{counts['total_unique']} rules")
-        summary.add_row("  .huggingfaceignore", str(counts[".huggingfaceignore"]))
-        summary.add_row("  .gitignore",         str(counts[".gitignore"]))
+        summary.add_row("Ignore patterns",      f"{counts['rule_count']} rules")
         console.print(Panel(summary, title="[bold]Non-Interactive Upload[/]", border_style="cyan"))
         console.print()
         run_upload(api, args.repo, folder, patterns, args.workers, sdk, mode=args.mode)

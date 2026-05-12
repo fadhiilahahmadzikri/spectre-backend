@@ -1,1 +1,0 @@
-{"nodes": [{"id": "src_spectre_application_api_key_use_cases_py_generateapikey", "label": "Generate API Key Use Case", "file_type": "code", "source_file": "src/spectre/application/api_key_use_cases.py", "source_location": {"line": 23}, "captured_at": "2024-05-15T10:00:00Z"}], "edges": [], "hyperedges": []}

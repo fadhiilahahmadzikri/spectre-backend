@@ -1,1 +1,0 @@
-{"nodes": [{"id": "health_router_health_check", "label": "health_check", "file_type": "code", "source_file": "src/spectre/interface/routers/health_router.py", "source_location": 18}], "edges": [], "hyperedges": []}

@@ -65,7 +65,6 @@ class GoogleOAuthUseCase:
                 id=uuid.uuid4(),
                 email=email.lower(),
                 display_name=display_name,
-                is_verified=False, # Google accounts now also need activation OTP
                 is_active=True,
             )
             user = await self._user_repo.create(user)

@@ -42,7 +42,6 @@ class AdminUserSeeder(BaseSeeder):
                 email=self.ADMIN_EMAIL,
                 display_name=self.ADMIN_DISPLAY_NAME,
                 role="admin",
-                is_verified=True,
                 is_active=True,
             )
             self._session.add(sys_user)

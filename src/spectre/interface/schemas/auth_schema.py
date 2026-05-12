@@ -14,7 +14,7 @@ class RegisterRequest(BaseModel):
 class RegisterResponse(BaseModel):
     user_id: str
     email: str
-    message: str = "Verification email sent."
+    message: str = "Registration successful."
 
 
 class LoginRequest(BaseModel):
@@ -27,16 +27,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     user_id: str
     display_name: str | None = None
-    is_verified: bool
-
-
-class VerifyEmailRequest(BaseModel):
-    email: EmailStr
-    otp_code: str = Field(..., min_length=6, max_length=6)
-
-
-class ResendOTPRequest(BaseModel):
-    email: EmailStr
+    totp_required: bool = False
 
 
 class TOTPSetupResponse(BaseModel):

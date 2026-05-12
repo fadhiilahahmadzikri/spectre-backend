@@ -23,8 +23,6 @@ DEFAULTS = [
     # Session & Auth
     ("jwt_access_token_expire_minutes", "30", "session_auth", "int", "JWT access token lifetime in minutes"),
     ("jwt_refresh_token_expire_days", "7", "session_auth", "int", "JWT refresh token lifetime in days"),
-    ("otp_expire_minutes", "15", "session_auth", "int", "OTP code expiration in minutes"),
-    ("otp_length", "6", "session_auth", "int", "Number of digits in OTP codes"),
     # Scan UX
     ("redirect_url", "https://www.youtube.com", "scan_ux", "string", "Default redirect URL after successful verification"),
     ("redirect_delay", "5", "scan_ux", "int", "Seconds to wait before redirecting after scan"),

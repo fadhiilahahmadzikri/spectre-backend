@@ -177,15 +177,6 @@ export const admin = {
     signingInAria: "Signing in",
     creatingAccountAria: "Creating account",
   },
-  verifyEmail: {
-    title: "Verify your email",
-    subtitle: (email: string) => `Enter the OTP sent to ${email}`,
-    verifying: "Verifying...",
-    verify: "Verify",
-    verifiedRedirecting: "Email verified. Redirecting to sign-in...",
-    otpResent: (email: string) => `OTP resent to ${email}`,
-    resend: "Resend OTP",
-  },
   oauth: {
     completing: "Completing sign-in...",
     failedTitle: "Sign-in failed",

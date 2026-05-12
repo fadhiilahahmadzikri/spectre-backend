@@ -105,16 +105,6 @@
           "event": [{"listen":"test","script":{"exec":["pm.test('401', () => pm.response.to.have.status(401));"]}}]
         },
         {
-          "name": "POST /auth/resend-otp — Missing email (422)",
-          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/resend-otp", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{}"} },
-          "event": [{"listen":"test","script":{"exec":["pm.test('422', () => pm.response.to.have.status(422));"]}}]
-        },
-        {
-          "name": "POST /auth/verify-email — Invalid OTP (400)",
-          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/verify-email", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"email\":\"test@x.com\",\"otp_code\":\"000000\"}"} },
-          "event": [{"listen":"test","script":{"exec":["pm.test('400 or 404', () => pm.expect([400,404]).to.include(pm.response.code));"]}}]
-        },
-        {
           "name": "POST /auth/refresh — Invalid token (401)",
           "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/refresh", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\"refresh_token\":\"invalid\"}"} },
           "event": [{"listen":"test","script":{"exec":["pm.test('401', () => pm.response.to.have.status(401));"]}}]

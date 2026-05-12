@@ -31,7 +31,6 @@ export function OAuthCallback() {
         email: params.get("email") ?? "",
         display_name: params.get("display_name") ?? "",
         role: params.get("role") ?? "user",
-        is_verified: params.get("status") !== "pending_verification",
       },
     });
     navigate("/", { replace: true });

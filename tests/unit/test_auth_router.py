@@ -1,6 +1,6 @@
 """Tests — Auth Router.
 
-Covers: POST /api/v1/auth/register, /login, /verify-email, /resend-otp,
+Covers: POST /api/v1/auth/register, /login,
         /refresh, /logout, /totp/setup, /totp/confirm, /totp/verify
 """
 

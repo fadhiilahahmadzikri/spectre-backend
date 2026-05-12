@@ -16,9 +16,6 @@ describe("copy catalog", () => {
   it("supports typed interpolation functions", () => {
     expect(scan.result.redirecting(3)).toBe("Mengalihkan 3s");
     expect(admin.applications.created("Foo")).toBe('Application "Foo" created');
-    expect(admin.verifyEmail.subtitle("a@b.com")).toBe(
-      "Enter the OTP sent to a@b.com",
-    );
   });
 
   it("catalogs are typed via exported interfaces", () => {

@@ -167,7 +167,7 @@ docs-hf-redoc: ## Open ReDoc on Hugging Face Spaces
 	Start-Process "https://thewhitenigs-spectre-backend.hf.space/redoc"
 
 openapi-export: ## Export live OpenAPI schema to Docs/openapi.json
-	$(PYPATH) uv run python -c "import json; from spectre.config import Settings; from spectre.main import create_app; app = create_app(settings=Settings(app_env='development', debug=True, database_url='sqlite+aiosqlite:///', redis_url='redis://localhost:6379/15', jwt_secret_key='x'*64, encryption_key='dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleTE=', model_path='artifact/best_model.keras', smtp_host='localhost')); open('Docs/openapi.json','w').write(json.dumps(app.openapi(), indent=2, default=str))"
+	$(PYPATH) uv run python -c "import json; from spectre.config import Settings; from spectre.main import create_app; app = create_app(settings=Settings(app_env='development', debug=True, database_url='sqlite+aiosqlite:///', redis_url='redis://localhost:6379/15', jwt_secret_key='x'*64, encryption_key='dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleTE=', model_path='artifact/best_model.keras')); open('Docs/openapi.json','w').write(json.dumps(app.openapi(), indent=2, default=str))"
 	@echo "Exported: Docs/openapi.json"
 
 # ==============================================================================

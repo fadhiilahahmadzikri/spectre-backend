@@ -59,9 +59,9 @@ export function SignUpForm() {
     try {
       await api.register({ email, password, display_name: name || undefined });
       notify.success("Account created", {
-        description: "Check your inbox for the OTP.",
+        description: "You can now log in with your credentials.",
       });
-      navigate("/verify-email", { state: { email } });
+      setMode("login");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

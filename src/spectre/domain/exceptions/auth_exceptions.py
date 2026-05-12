@@ -13,35 +13,11 @@ class InvalidCredentialsError(SpectreError):
         super().__init__(message)
 
 
-class EmailNotVerifiedError(SpectreError):
-    error_code = "EMAIL_NOT_VERIFIED"
-    http_status = 403
-
-    def __init__(self, message: str = "Email address has not been verified.") -> None:
-        super().__init__(message)
-
-
 class EmailAlreadyRegisteredError(SpectreError):
     error_code = "EMAIL_ALREADY_REGISTERED"
     http_status = 409
 
     def __init__(self, message: str = "An account with this email already exists.") -> None:
-        super().__init__(message)
-
-
-class InvalidOTPError(SpectreError):
-    error_code = "INVALID_OTP"
-    http_status = 400
-
-    def __init__(self, message: str = "Invalid or expired verification code.") -> None:
-        super().__init__(message)
-
-
-class OTPExpiredError(SpectreError):
-    error_code = "OTP_EXPIRED"
-    http_status = 410
-
-    def __init__(self, message: str = "Verification code has expired.") -> None:
         super().__init__(message)
 
 

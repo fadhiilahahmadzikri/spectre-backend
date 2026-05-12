@@ -13,12 +13,9 @@ from spectre.domain.entities.user import User
 from spectre.domain.exceptions.auth_exceptions import (
     AccountDisabledError,
     EmailAlreadyRegisteredError,
-    EmailNotVerifiedError,
     InvalidCredentialsError,
-    InvalidOTPError,
     InvalidRefreshTokenError,
     InvalidTOTPError,
-    OTPExpiredError,
     TOTPRequiredError,
 )
 from spectre.domain.ports.repositories import AbstractUserRepository
@@ -45,11 +42,11 @@ class RegisterUser:
 
     async def execute(
         self, email: str, password: str, display_name: str | None = None
-    ) -> tuple[User, str]:
-        """Create a new user and generate OTP for email verification.
+    ) -> User:
+        """Create a new user.
 
         Returns:
-            Tuple of (user, otp_code) — otp_code is sent via email.
+            The created User.
         """
         existing = await self._user_repo.get_by_email(email.lower())
         if existing:
@@ -59,7 +56,6 @@ class RegisterUser:
             id=uuid.uuid4(),
             email=email.lower(),
             display_name=display_name,
-            is_verified=False,
             is_active=True,
         )
         user = await self._user_repo.create(user)
@@ -73,30 +69,8 @@ class RegisterUser:
         )
         await self._user_repo.create_identity(identity)
 
-        otp_code = "".join(
-            secrets.choice("0123456789")
-            for _ in range(self._settings.otp_length)
-        )
-
         logger.info("user_registered", user_id=str(user.id), email=user.email)
-        return user, otp_code
-
-
-class VerifyEmail:
-    """Verify a user's email address via OTP."""
-
-    def __init__(self, user_repo: AbstractUserRepository) -> None:
-        self._user_repo = user_repo
-
-    async def execute(self, user_id: uuid.UUID) -> User:
-        """Mark user as verified."""
-        user = await self._user_repo.get_by_id(user_id)
-        if not user:
-            raise InvalidOTPError("User not found.")
-
-        user.is_verified = True
-        user.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        return await self._user_repo.update(user)
+        return user
 
 
 class LoginUser:
@@ -121,7 +95,7 @@ class LoginUser:
             Dict with access_token, refresh_token, user_id, requires_totp.
 
         Raises:
-            InvalidCredentialsError, EmailNotVerifiedError, AccountDisabledError,
+            InvalidCredentialsError, AccountDisabledError,
             TOTPRequiredError (if TOTP is enabled — token is partial).
         """
         user = await self._user_repo.get_by_email(email.lower())
@@ -137,9 +111,6 @@ class LoginUser:
 
         if not user.is_active:
             raise AccountDisabledError()
-
-        if not user.is_verified:
-            raise EmailNotVerifiedError()
 
         if user.requires_totp:
             # Return partial token — requires TOTP step
@@ -258,6 +229,4 @@ class VerifyTOTP:
             "access_token": access_token,
             "token_type": "bearer",
             "user_id": str(user.id),
-        }
-      "user_id": str(user.id),
         }

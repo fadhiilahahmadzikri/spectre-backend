@@ -13,19 +13,14 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from spectre.config import Settings, get_settings
-from spectre.domain.entities.email_verification import EmailVerification
 from spectre.domain.entities.refresh_token import RefreshToken
 from spectre.domain.exceptions.auth_exceptions import (
     EmailAlreadyRegisteredError,
-    EmailNotVerifiedError,
     InvalidCredentialsError,
-    InvalidOTPError,
     InvalidRefreshTokenError,
     InvalidTOTPError,
-    OTPExpiredError,
 )
 from spectre.infrastructure.repositories.sql_repositories import (
-    SQLEmailVerificationRepository,
     SQLRefreshTokenRepository,
     SQLUserRepository,
 )
@@ -36,10 +31,8 @@ from spectre.interface.dependencies import CurrentUser, DBSession
 from spectre.interface.schemas.auth_schema import (
     LoginRequest,
     RegisterRequest,
-    ResendOTPRequest,
     TOTPConfirmRequest,
     TOTPVerifyRequest,
-    VerifyEmailRequest,
 )
 from spectre.infrastructure.security.aes_encryption import AESEncryption
 
@@ -68,7 +61,6 @@ async def register(
             id=uuid.uuid4(),
             email=body.email.lower(),
             display_name=body.display_name,
-            is_verified=False,
             is_active=True,
         )
     )
@@ -83,145 +75,13 @@ async def register(
         )
     )
 
-    # Generate and store OTP
-    otp_code = "".join(secrets.choice("0123456789") for _ in range(settings.otp_length))
-    otp_hash = pw_handler.hash(otp_code)
-
-    verif_repo = SQLEmailVerificationRepository(db)
-    await verif_repo.create(
-        EmailVerification(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            otp_hash=otp_hash,
-            expires_at=datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(minutes=settings.otp_expire_minutes),
-        )
-    )
-
-    # Send verification email (fire and forget)
-    try:
-        from spectre.infrastructure.email.smtp_mailer import SMTPMailer
-
-        mailer = SMTPMailer(settings)
-        await mailer.send_verification_email(user.email, otp_code, user.display_name)
-    except Exception as e:
-        from spectre.core.logger import get_logger
-        get_logger(__name__).error("registration_otp_send_failed", user_id=str(user.id), error=str(e))
-        pass  # Email failure doesn't block registration
-
     return {
         "user_id": str(user.id),
         "email": user.email,
-        "status": "pending_verification",
-        "message": f"OTP sent to {user.email}. Valid for {settings.otp_expire_minutes} minutes.",
+        "status": "active",
+        "message": "Registration successful.",
     }
 
-
-@router.post("/verify-email")
-async def verify_email(
-    request: Request,
-    body: VerifyEmailRequest,
-    db: DBSession,
-    settings: Settings = Depends(get_settings),
-) -> dict:
-    """Verify email address with OTP code."""
-    user_repo = SQLUserRepository(db)
-    verif_repo = SQLEmailVerificationRepository(db)
-    pw_handler = PasswordHandler(settings)
-    jwt_handler = JWTHandler(settings)
-
-    user = await user_repo.get_by_email(body.email.lower())
-    if not user:
-        raise InvalidOTPError("User not found.")
-
-    verification = await verif_repo.get_latest_by_user(user.id)
-    if not verification:
-        raise InvalidOTPError("No pending verification found.")
-
-    if verification.is_expired:
-        raise OTPExpiredError()
-
-    if not pw_handler.verify(body.otp_code, verification.otp_hash):
-        raise InvalidOTPError()
-
-    # Mark used and verify user
-    await verif_repo.mark_used(verification.id)
-    user.is_verified = True
-    user.updated_at = datetime.datetime.now(datetime.timezone.utc)
-    await user_repo.update(user)
-
-    # Issue tokens
-    access_token = jwt_handler.create_access_token(user.id, is_verified=True)
-    refresh_raw = secrets.token_urlsafe(48)
-    refresh_hash = hashlib.sha256(refresh_raw.encode()).hexdigest()
-
-    refresh_repo = SQLRefreshTokenRepository(db)
-    await refresh_repo.create(
-        RefreshToken(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            token_hash=refresh_hash,
-            expires_at=datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(days=settings.jwt_refresh_token_expire_days),
-        )
-    )
-
-    return {
-        "message": "Email verified successfully.",
-        "access_token": access_token,
-        "refresh_token": refresh_raw,
-        "token_type": "Bearer",
-        "expires_in": settings.jwt_access_token_expire_minutes * 60,
-        "user_id": str(user.id),
-        "is_verified": True,
-    }
-
-
-@router.post("/resend-otp")
-async def resend_otp(
-    request: Request,
-    body: ResendOTPRequest,
-    db: DBSession,
-    settings: Settings = Depends(get_settings),
-) -> dict:
-    """Resend verification OTP. Rate-limited to 3 per 10 minutes."""
-    user_repo = SQLUserRepository(db)
-    verif_repo = SQLEmailVerificationRepository(db)
-    pw_handler = PasswordHandler(settings)
-
-    user = await user_repo.get_by_email(body.email.lower())
-    if not user:
-        return {"message": f"OTP resent to {body.email}."}  # Don't reveal non-existence
-
-    recent = await verif_repo.count_recent(user.id, since_minutes=10)
-    if recent >= 3:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=429,
-            detail={"error_code": "RATE_LIMIT_EXCEEDED", "message": "Max 3 OTPs per 10 minutes."},
-        )
-
-    otp_code = "".join(secrets.choice("0123456789") for _ in range(settings.otp_length))
-    otp_hash = pw_handler.hash(otp_code)
-
-    await verif_repo.create(
-        EmailVerification(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            otp_hash=otp_hash,
-            expires_at=datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(minutes=settings.otp_expire_minutes),
-        )
-    )
-
-    try:
-        from spectre.infrastructure.email.smtp_mailer import SMTPMailer
-        mailer = SMTPMailer(settings)
-        await mailer.send_verification_email(body.email, otp_code, user.display_name)
-    except Exception:
-        pass
-
-    return {"message": f"OTP resent to {body.email}."}
 
 @router.post("/login")
 async def login(
@@ -250,9 +110,6 @@ async def login(
         from spectre.domain.exceptions.auth_exceptions import AccountDisabledError
         raise AccountDisabledError()
 
-    if not user.is_verified:
-        raise EmailNotVerifiedError()
-
     if user.requires_totp:
         # Return partial auth — requires TOTP step
         challenge = jwt_handler.create_access_token(
@@ -266,7 +123,7 @@ async def login(
 
     # Full auth
     access_token = jwt_handler.create_access_token(
-        user.id, is_verified=user.is_verified, extra_claims={"role": user.role}
+        user.id, extra_claims={"role": user.role}
     )
     refresh_raw = secrets.token_urlsafe(48)
     refresh_hash = hashlib.sha256(refresh_raw.encode()).hexdigest()
@@ -289,7 +146,6 @@ async def login(
         "expires_in": settings.jwt_access_token_expire_minutes * 60,
         "user_id": str(user.id),
         "display_name": user.display_name,
-        "is_verified": user.is_verified,
         "totp_required": False,
     }
 
@@ -319,10 +175,8 @@ async def refresh_token(
 
     # Issue new pair
     user_repo = SQLUserRepository(db)
-    user = await user_repo.get_by_id(stored.user_id)
-    is_verified = user.is_verified if user else False
     
-    access_token = jwt_handler.create_access_token(stored.user_id, is_verified=is_verified)
+    access_token = jwt_handler.create_access_token(stored.user_id)
     new_raw = secrets.token_urlsafe(48)
     new_hash = hashlib.sha256(new_raw.encode()).hexdigest()
 
@@ -517,33 +371,6 @@ async def google_callback(
     use_case = GoogleOAuthUseCase(user_repo)
     user, created = await use_case.execute(user_info)
 
-    # If new user, send OTP
-    if created:
-        otp_code = "".join(secrets.choice("0123456789") for _ in range(settings.otp_length))
-        pw_handler = PasswordHandler(settings)
-        otp_hash = pw_handler.hash(otp_code)
-
-        verif_repo = SQLEmailVerificationRepository(db)
-        await verif_repo.create(
-            EmailVerification(
-                id=uuid.uuid4(),
-                user_id=user.id,
-                otp_hash=otp_hash,
-                expires_at=datetime.datetime.now(datetime.timezone.utc)
-                + datetime.timedelta(minutes=settings.otp_expire_minutes),
-            )
-        )
-
-        try:
-            from spectre.infrastructure.email.smtp_mailer import SMTPMailer
-            mailer = SMTPMailer(settings)
-            await mailer.send_verification_email(user.email, otp_code, user.display_name)
-        except Exception as e:
-            # We don't want to fail the whole OAuth flow if email fails, 
-            # but we should log it.
-            from spectre.core.logger import get_logger
-            get_logger(__name__).error("oauth_otp_send_failed", user_id=str(user.id), error=str(e))
-
     # Issue tokens
     jwt_handler = JWTHandler(settings)
     access_token = jwt_handler.create_access_token(
@@ -578,8 +405,5 @@ async def google_callback(
         "display_name": user.display_name or "",
         "role": user.role,
     }
-    if not user.is_verified:
-        params_dict["status"] = "pending_verification"
-        
     params = urlencode(params_dict)
     return RedirectResponse(url=f"{frontend_url}/oauth/callback?{params}")

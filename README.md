@@ -63,11 +63,10 @@ cd spectre
 make docker-dev
 ```
 
-This starts the entire stack — API, database, Redis, Celery worker, MailHog — in Docker. No Python, no Node, no local installs needed.
+This starts the entire stack — API, database, Redis, Celery worker, — in Docker. No Python, no Node, no local installs needed.
 
 - **API:** http://localhost:8000
 - **Swagger:** http://localhost:8000/docs
-- **MailHog:** http://localhost:8025 (catches all emails)
 
 ### Option B: Local Python + Docker infra
 

@@ -41,8 +41,6 @@ _SETTINGS_MAP: dict[str, str] = {
     "rate_limit_face_operations": "rate_limit_face_operations",
     "jwt_access_token_expire_minutes": "jwt_access_token_expire_minutes",
     "jwt_refresh_token_expire_days": "jwt_refresh_token_expire_days",
-    "otp_expire_minutes": "otp_expire_minutes",
-    "otp_length": "otp_length",
 }
 
 

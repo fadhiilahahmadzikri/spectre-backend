@@ -42,7 +42,6 @@ def test_settings() -> Settings:
         jwt_secret_key="test_jwt_secret_64_chars_long_enough_for_hmac_hs256_signing_key",
         encryption_key="dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleTE=",
         model_path="artifact/best_model.keras",
-        smtp_host="localhost",
     )
 
 
@@ -170,7 +169,6 @@ def test_user() -> User:
         password_hash="$2b$12$fakehashfakehashfakehashfakehashfakehashfakehashfake",
         display_name="Test User",
         auth_provider="local",
-        is_verified=True,
         is_active=True,
         totp_enabled=False,
         totp_secret_encrypted=None,

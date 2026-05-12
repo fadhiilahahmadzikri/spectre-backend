@@ -108,20 +108,6 @@ export const api = {
       { method: "POST", body: data, signal: opts.signal },
     ),
 
-  verifyEmail: (data: { email: string; otp_code: string }, opts: RequestOpts = {}) =>
-    request<{ message: string }>("/api/v1/auth/verify-email", {
-      method: "POST",
-      body: data,
-      signal: opts.signal,
-    }),
-
-  resendOtp: (data: { email: string }, opts: RequestOpts = {}) =>
-    request<{ message: string }>("/api/v1/auth/resend-otp", {
-      method: "POST",
-      body: data,
-      signal: opts.signal,
-    }),
-
   googleLogin: () => `${getBaseUrl()}/api/v1/auth/oauth/google`,
 
   listApps: (opts: RequestOpts = {}) =>

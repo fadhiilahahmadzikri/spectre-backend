@@ -244,10 +244,10 @@ async def get_admin_env(
 
     keys_to_audit = [
         "APP_NAME", "APP_ENV", "DATABASE_URL", "REDIS_URL", 
-        "API_PORT", "MODEL_PATH", "HF_SPACE_ID", "SMTP_HOST"
+        "API_PORT", "MODEL_PATH", "HF_SPACE_ID"
     ]
     
-    sensitive_patterns = ["DATABASE", "JWT", "SECRET", "KEY", "URL", "SMTP", "TOKEN", "PASSWORD"]
+    sensitive_patterns = ["DATABASE", "JWT", "SECRET", "KEY", "URL", "TOKEN", "PASSWORD"]
     
     audit_data = {}
     for k, v in os.environ.items():

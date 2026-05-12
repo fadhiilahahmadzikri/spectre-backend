@@ -8,7 +8,6 @@
 #   - Redis 7 (cache + broker)
 #   - Spectre API (FastAPI, hot-reload via volume mount)
 #   - Celery Worker (async webhook delivery)
-#   - MailHog (email testing — catches all SMTP)
 #   - Newman (API contract tests — run on demand)
 #
 # Zero local dependencies required. Clone → docker compose up → working.
@@ -50,15 +49,7 @@ services:
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     restart: unless-stopped
 
-  # ─── MailHog (email catcher) ────────────────────────────────────────────────
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: spectre-mailhog
-    ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI (view caught emails)
-    restart: unless-stopped
-
+ 
   # ─── Spectre API ────────────────────────────────────────────────────────────
   api:
     build:

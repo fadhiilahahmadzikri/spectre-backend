@@ -6,7 +6,6 @@ export interface AuthUser {
   email: string;
   display_name?: string;
   role: string;
-  is_verified?: boolean;
 }
 
 interface AuthState {

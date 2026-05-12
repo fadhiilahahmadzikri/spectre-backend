@@ -36,7 +36,6 @@ class UserSeeder(BaseSeeder):
                 password_hash=default_hash,
                 display_name=_faker.name(),
                 auth_provider="local",
-                is_verified=True,
                 is_active=_faker.boolean(chance_of_getting_true=90),
             )
             self._session.add(user)

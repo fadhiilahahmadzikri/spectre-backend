@@ -1,1 +1,0 @@
-{"nodes": [{"id": "seeds_registry_py_seedregistry", "label": "Seeder Idempotency Registry", "file_type": "code", "source_file": "seeds/registry.py", "source_location": {"line": 31}, "captured_at": "2024-05-15T10:00:00Z", "rationale": "Uses source code checksums to track execution state, preventing redundant seeding even if logic is updated."}], "edges": [], "hyperedges": []}

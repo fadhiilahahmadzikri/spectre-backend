@@ -17,7 +17,6 @@ class User:
     totp_secret_encrypted: str | None = None
     totp_enabled: bool = False
     role: str = "user"
-    is_verified: bool = False
     is_active: bool = True
     created_at: datetime.datetime = field(default_factory=datetime.datetime.utcnow)
     updated_at: datetime.datetime = field(default_factory=datetime.datetime.utcnow)

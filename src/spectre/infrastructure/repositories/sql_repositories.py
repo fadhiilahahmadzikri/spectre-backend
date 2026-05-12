@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from spectre.domain.entities.api_key import ApiKey
 from spectre.domain.entities.auth_session import AuthSession
-from spectre.domain.entities.email_verification import EmailVerification
 from spectre.domain.entities.face_profile import FaceProfile
 from spectre.domain.entities.refresh_token import RefreshToken
 from spectre.domain.entities.tenant_application import TenantApplication
@@ -26,7 +25,6 @@ from spectre.domain.ports.repositories import (
     AbstractAuditLogRepository,
     AbstractAuthSessionRepository,
     AbstractConfigRepository,
-    AbstractEmailVerificationRepository,
     AbstractFaceProfileRepository,
     AbstractRefreshTokenRepository,
     AbstractTenantApplicationRepository,
@@ -37,7 +35,6 @@ from spectre.infrastructure.database.models.tables import (
     ApiKeyModel,
     AuditLogModel,
     AuthSessionModel,
-    EmailVerificationModel,
     FaceProfileModel,
     RefreshTokenModel,
     TenantApplicationModel,
@@ -61,7 +58,6 @@ def _user_to_entity(m: UserModel) -> User:
         totp_secret_encrypted=m.totp_secret_encrypted,
         totp_enabled=m.totp_enabled,
         role=m.role,
-        is_verified=m.is_verified,
         is_active=m.is_active,
         created_at=m.created_at,
         updated_at=m.updated_at,
@@ -161,17 +157,6 @@ def _delivery_to_entity(m: WebhookDeliveryModel) -> WebhookDelivery:
     )
 
 
-def _email_verif_to_entity(m: EmailVerificationModel) -> EmailVerification:
-    return EmailVerification(
-        id=m.id,
-        user_id=m.user_id,
-        otp_hash=m.otp_hash,
-        is_used=m.is_used,
-        expires_at=m.expires_at,
-        created_at=m.created_at,
-    )
-
-
 def _refresh_token_to_entity(m: RefreshTokenModel) -> RefreshToken:
     return RefreshToken(
         id=m.id,
@@ -200,7 +185,6 @@ class SQLUserRepository(AbstractUserRepository):
             totp_secret_encrypted=user.totp_secret_encrypted,
             totp_enabled=user.totp_enabled,
             role=user.role,
-            is_verified=user.is_verified,
             is_active=user.is_active,
         )
         self._session.add(model)
@@ -227,7 +211,6 @@ class SQLUserRepository(AbstractUserRepository):
                 totp_secret_encrypted=user.totp_secret_encrypted,
                 totp_enabled=user.totp_enabled,
                 role=user.role,
-                is_verified=user.is_verified,
                 is_active=user.is_active,
                 updated_at=datetime.datetime.now(datetime.timezone.utc),
             )
@@ -619,60 +602,6 @@ class SQLWebhookDeliveryRepository(AbstractWebhookDeliveryRepository):
         )
         result = await self._session.execute(stmt)
         return [_delivery_to_entity(m) for m in result.scalars().all()]
-
-
-class SQLEmailVerificationRepository(AbstractEmailVerificationRepository):
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def create(self, verification: EmailVerification) -> EmailVerification:
-        model = EmailVerificationModel(
-            id=verification.id,
-            user_id=verification.user_id,
-            otp_hash=verification.otp_hash,
-            is_used=verification.is_used,
-            expires_at=verification.expires_at,
-        )
-        self._session.add(model)
-        await self._session.flush()
-        return _email_verif_to_entity(model)
-
-    async def get_latest_by_user(self, user_id: UUID) -> EmailVerification | None:
-        stmt = (
-            select(EmailVerificationModel)
-            .where(
-                and_(
-                    EmailVerificationModel.user_id == user_id,
-                    EmailVerificationModel.is_used.is_(False),
-                )
-            )
-            .order_by(EmailVerificationModel.created_at.desc())
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        model = result.scalar_one_or_none()
-        return _email_verif_to_entity(model) if model else None
-
-    async def mark_used(self, verification_id: UUID) -> None:
-        stmt = (
-            update(EmailVerificationModel)
-            .where(EmailVerificationModel.id == verification_id)
-            .values(is_used=True)
-        )
-        await self._session.execute(stmt)
-
-    async def count_recent(self, user_id: UUID, *, since_minutes: int = 10) -> int:
-        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
-            minutes=since_minutes
-        )
-        stmt = select(EmailVerificationModel).where(
-            and_(
-                EmailVerificationModel.user_id == user_id,
-                EmailVerificationModel.created_at >= cutoff,
-            )
-        )
-        result = await self._session.execute(stmt)
-        return len(result.scalars().all())
 
 
 class SQLRefreshTokenRepository(AbstractRefreshTokenRepository):

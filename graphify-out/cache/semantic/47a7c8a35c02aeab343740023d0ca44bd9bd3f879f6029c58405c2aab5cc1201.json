@@ -1,1 +1,0 @@
-{"nodes": [{"id": "logger_setup_logging", "label": "Setup Logging", "file_type": "rationale", "source_file": "src/spectre/core/logger.py", "rationale": "Centralized initialization of the Loguru logging system with support for JSON and file sinks."}], "edges": [], "hyperedges": []}

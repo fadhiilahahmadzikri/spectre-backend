@@ -65,15 +65,6 @@ class Settings(BaseSettings):
     api_key_length: int = 48
     static_api_key: str | None = None
 
-    # --- SMTP ---
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_use_tls: bool = True
-    smtp_from_email: str = "noreply@example.com"
-    smtp_from_name: str = "Spectre Auth"
-
     # --- Google OAuth ---
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -115,10 +106,6 @@ class Settings(BaseSettings):
     # --- CORS ---
     cors_origins: list[str] | str = "http://localhost:3000,http://localhost:5173"
     cors_allow_credentials: bool = True
-
-    # --- OTP ---
-    otp_length: int = 6
-    otp_expire_minutes: int = 15
 
     # --- Face Matching ---
     similarity_threshold: float = 0.40

@@ -13,7 +13,6 @@ from uuid import UUID
 
 from spectre.domain.entities.api_key import ApiKey
 from spectre.domain.entities.auth_session import AuthSession
-from spectre.domain.entities.email_verification import EmailVerification
 from spectre.domain.entities.face_profile import FaceProfile
 from spectre.domain.entities.refresh_token import RefreshToken
 from spectre.domain.entities.tenant_application import TenantApplication
@@ -170,22 +169,6 @@ class AbstractWebhookDeliveryRepository(ABC):
     async def get_pending_retries(
         self, before: datetime.datetime
     ) -> list[WebhookDelivery]: ...
-
-
-class AbstractEmailVerificationRepository(ABC):
-    """Data access contract for EmailVerification entities."""
-
-    @abstractmethod
-    async def create(self, verification: EmailVerification) -> EmailVerification: ...
-
-    @abstractmethod
-    async def get_latest_by_user(self, user_id: UUID) -> EmailVerification | None: ...
-
-    @abstractmethod
-    async def mark_used(self, verification_id: UUID) -> None: ...
-
-    @abstractmethod
-    async def count_recent(self, user_id: UUID, *, since_minutes: int = 10) -> int: ...
 
 
 class AbstractRefreshTokenRepository(ABC):

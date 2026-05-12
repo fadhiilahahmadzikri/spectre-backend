@@ -42,12 +42,8 @@ const RECENT_EVENTS = [
 ];
 
 /* ── helpers ── */
-function genUserId() {
-  const stored = localStorage.getItem("kyc_user_id");
-  if (stored) return stored;
-  const id = `cust_${crypto.randomUUID().slice(0, 8)}`;
-  localStorage.setItem("kyc_user_id", id);
-  return id;
+function getStoredUserId() {
+  return localStorage.getItem("kyc_user_id") || "fadhiilah@amikom.ac.id";
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -59,7 +55,13 @@ export default function App() {
   const [view, setView] = useState<View>("kyc");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [result, setResult] = useState<SpectreAuthResult | null>(null);
-  const [userId] = useState(genUserId);
+  const [userId, setUserId] = useState(getStoredUserId);
+
+  // Persist userId changes
+  const updateUserId = useCallback((id: string) => {
+    setUserId(id);
+    localStorage.setItem("kyc_user_id", id);
+  }, []);
 
   const handleSuccess = useCallback((r: SpectreAuthResult) => {
     setResult(r);
@@ -78,6 +80,8 @@ export default function App() {
         <KycPage
           onStart={() => setScannerOpen(true)}
           verified={!!result}
+          userId={userId}
+          onUserIdChange={updateUserId}
         />
       ) : (
         <Dashboard
@@ -103,7 +107,9 @@ export default function App() {
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  KYC VERIFICATION PAGE                                                    */
 /* ────────────────────────────────────────────────────────────────────────── */
-function KycPage({ onStart, verified }: { onStart: () => void; verified: boolean }) {
+function KycPage({ onStart, verified, userId, onUserIdChange }: {
+  onStart: () => void; verified: boolean; userId: string; onUserIdChange: (id: string) => void;
+}) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       {/* Brand */}
@@ -129,6 +135,20 @@ function KycPage({ onStart, verified }: { onStart: () => void; verified: boolean
           </p>
         </div>
 
+        {/* User ID input */}
+        <div className="px-6 pb-4">
+          <label className="text-xs text-fg-muted font-medium block mb-1.5">Customer ID / Email</label>
+          <input
+            type="text"
+            value={userId}
+            onChange={(e) => onUserIdChange(e.target.value)}
+            placeholder="your@email.com"
+            className="w-full h-9 px-3 rounded-md bg-surface-2 border border-border text-sm text-fg
+                       placeholder:text-fg-dim focus:outline-none focus:border-brand/50 transition"
+          />
+          <p className="text-[10px] text-fg-dim mt-1">Used to identify your face profile in this application.</p>
+        </div>
+
         {/* Steps */}
         <div className="px-6 pb-6 space-y-3">
           <Step num={1} title="Face Capture" desc="Camera will capture your face in real-time" done={verified} />
@@ -143,9 +163,11 @@ function KycPage({ onStart, verified }: { onStart: () => void; verified: boolean
         <div className="px-6 py-5">
           <button
             onClick={onStart}
+            disabled={!userId.trim()}
             className="w-full h-10 rounded-md bg-brand text-bg font-medium text-sm
                        hover:bg-brand-strong active:scale-[0.98] transition-all
-                       flex items-center justify-center gap-2 cursor-pointer"
+                       flex items-center justify-center gap-2 cursor-pointer
+                       disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ScanFace className="w-4 h-4" />
             Begin Verification

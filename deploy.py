@@ -93,17 +93,17 @@ def parse_ignore_file(filepath: Path) -> list[str]:
 
 
 def load_ignore_patterns(folder: Path) -> tuple[list[str], dict[str, int]]:
-    hf_patterns  = parse_ignore_file(folder / ".huggingfaceignore")
-    git_patterns = parse_ignore_file(folder / ".gitignore")
-    seen, combined = set(), []
-    for p in hf_patterns + git_patterns:
-        if p not in seen:
-            seen.add(p)
-            combined.append(p)
-    return combined, {
-        ".huggingfaceignore": len(hf_patterns),
-        ".gitignore":         len(git_patterns),
-        "total_unique":       len(combined),
+    """Load ignore patterns from .huggingfaceignore ONLY.
+
+    This is the single source of truth for what gets deployed.
+    .gitignore is intentionally NOT merged — it serves a different purpose
+    (local dev vs. HF Spaces deployment).
+    """
+    patterns = parse_ignore_file(folder / ".huggingfaceignore")
+    return patterns, {
+        ".huggingfaceignore": len(patterns),
+        ".gitignore":         0,
+        "total_unique":       len(patterns),
     }
 
 

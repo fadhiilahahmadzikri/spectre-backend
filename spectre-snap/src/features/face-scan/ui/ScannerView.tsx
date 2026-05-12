@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { SpectreAuthCallbacks, SpectreAuthResult, SpectreFailureReason } from "../../snap/types";
 import {
   CANVAS_PHASES,
   VIGNETTE_PHASES,
@@ -29,12 +30,21 @@ import { DiagnosticInterceptor } from "./dialogs/DiagnosticInterceptor";
 import { LiveStatusOverlay } from "./overlays/LiveStatusOverlay";
 import { ResultPanel } from "./result/ResultPanel";
 
+/** @internal Snap SDK callback bridge — only set when mounted via SpectreAuth. */
+export interface SnapCallbackBridge {
+  onSuccess?: SpectreAuthCallbacks["onSuccess"];
+  onFailed?: SpectreAuthCallbacks["onFailed"];
+  onReady?: SpectreAuthCallbacks["onReady"];
+}
+
 interface ScannerViewProps {
   apiKey: string;
   externalUserId: string;
   initialMode: ScanMode;
   onClose?: () => void;
   redirectUrl?: string | null;
+  /** @internal Injected by SpectreAuth — do not use directly. */
+  _snapCallbacks?: SnapCallbackBridge;
 }
 
 const { VIDEO_DISPLAY_SIZE } = SCAN_GEOMETRY;
@@ -51,6 +61,7 @@ export function ScannerView({
   initialMode,
   onClose,
   redirectUrl = null,
+  _snapCallbacks,
 }: ScannerViewProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -109,6 +120,63 @@ export function ScannerView({
   const headerOpacity = isBusy || phase === PHASES.PREVIEW ? 0.55 : 1;
   const showAuraMascot =
     phase === PHASES.ANALYZING || phase === PHASES.COMPLETE || phase === PHASES.FAILED;
+
+  // --- Snap SDK callback bridge ---
+  const snapFiredRef = useRef({ success: false, failed: false, ready: false });
+  const snapCbRef = useRef(_snapCallbacks);
+  snapCbRef.current = _snapCallbacks;
+
+  // Reset fired flags on scan reset
+  useEffect(() => {
+    if (phase === PHASES.LOADING || phase === PHASES.SEARCHING) {
+      snapFiredRef.current = { success: false, failed: false, ready: false };
+    }
+  }, [phase]);
+
+  // Fire onReady
+  useEffect(() => {
+    if (cameraReady && !snapFiredRef.current.ready && snapCbRef.current) {
+      snapFiredRef.current.ready = true;
+      snapCbRef.current.onReady?.();
+    }
+  }, [cameraReady]);
+
+  // Fire onSuccess / onFailed
+  useEffect(() => {
+    if (!snapCbRef.current || !result) return;
+    if (phase === PHASES.COMPLETE && result.verdict === "ok" && !snapFiredRef.current.success) {
+      snapFiredRef.current.success = true;
+      const mapped: SpectreAuthResult = {
+        verdict: result.verdict,
+        label: result.label,
+        sessionId: result.session_id,
+        similarityScore: result.similarity_score,
+        inferenceTimeMs: result.inference_time_ms,
+        summary: result.summary,
+        detail: result.detail,
+      };
+      snapCbRef.current.onSuccess?.(mapped);
+    } else if (
+      (phase === PHASES.FAILED || (phase === PHASES.COMPLETE && result.verdict !== "ok")) &&
+      !snapFiredRef.current.failed
+    ) {
+      snapFiredRef.current.failed = true;
+      let reason: SpectreFailureReason = "system_error";
+      if (result.verdict === "spoof") reason = "liveness_failed";
+      else if (result.label.toLowerCase().includes("mismatch")) reason = "face_mismatch";
+
+      const mapped: SpectreAuthResult = {
+        verdict: result.verdict,
+        label: result.label,
+        sessionId: result.session_id,
+        similarityScore: result.similarity_score,
+        inferenceTimeMs: result.inference_time_ms,
+        summary: result.summary,
+        detail: result.detail,
+      };
+      snapCbRef.current.onFailed?.(reason, mapped);
+    }
+  }, [phase, result]);
 
   // --- Styles ---
   const videoStyle: CSSProperties = useMemo(

@@ -96,6 +96,12 @@ async def get_current_user(
             detail={"error_code": "INVALID_TOKEN", "message": "User not found or disabled."},
         )
 
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error_code": "EMAIL_NOT_VERIFIED", "message": "Email address not verified."},
+        )
+
     return user
 
 

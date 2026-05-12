@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Literal
 
+from spectre.config import Settings, get_settings
 from spectre.interface.dependencies import get_current_user
 from spectre.domain.entities.user import User
 
@@ -65,7 +66,10 @@ async def root():
 
 
 @router.get("/health", response_model=None)
-async def health_check(request: Request) -> dict:
+async def health_check(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> dict:
     """Application health check endpoint with component status."""
     components = {}
 
@@ -115,9 +119,11 @@ async def health_check(request: Request) -> dict:
 
 
 @router.get("/health/ml-status")
-async def ml_status(request: Request) -> dict:
+async def ml_status(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> dict:
     fas_registry = getattr(request.app.state, "fas_registry", None)
-    settings = request.app.state.settings
     active_id = settings.active_fas_model
 
     import json as _json
@@ -159,6 +165,7 @@ class DBConfigRequest(BaseModel):
 async def get_admin_stats(
     request: Request,
     current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     """Protected endpoint for admin to view infrastructure stats."""
     if current_user.role != "admin":
@@ -187,7 +194,7 @@ async def get_admin_stats(
         pass
 
     # Extract active db string from configuration
-    db_url = str(getattr(request.app.state.settings, "database_url", ""))
+    db_url = str(settings.database_url)
     if "supabase" in db_url:
         active_db = "supabase"
     else:
@@ -204,7 +211,8 @@ async def get_admin_stats(
 async def switch_db(
     request: Request,
     body: DBConfigRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     """Dynamically switch database connection environment."""
     if current_user.role != "admin":
@@ -214,9 +222,14 @@ async def switch_db(
     await asyncio.sleep(2)
     
     if body.target == "supabase":
-        request.app.state.settings.database_url = "postgresql+asyncpg://postgres:xxx@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+        # Should use settings from environment instead of hardcoded strings
+        url = os.environ.get("SUPABASE_DATABASE_URL")
+        if not url:
+            raise HTTPException(status_code=400, detail="SUPABASE_DATABASE_URL not set")
+        settings.database_url = url
     else:
-        request.app.state.settings.database_url = "postgresql+asyncpg://spectre:spectre@localhost:5432/spectre"
+        url = os.environ.get("LOCAL_DATABASE_URL") or "postgresql+asyncpg://spectre:spectre@localhost:5432/spectre"
+        settings.database_url = url
     
     return {"status": "success", "message": f"Database switched to {body.target}"}
 
@@ -234,11 +247,18 @@ async def get_admin_env(
         "API_PORT", "MODEL_PATH", "HF_SPACE_ID", "SMTP_HOST"
     ]
     
-    audit_data = {k: os.environ.get(k, "NOT SET") for k in os.environ.keys() if any(x in k for x in ["DATABASE", "JWT", "SECRET", "KEY", "URL", "SMTP"])}
+    sensitive_patterns = ["DATABASE", "JWT", "SECRET", "KEY", "URL", "SMTP", "TOKEN", "PASSWORD"]
     
-    for k in keys_to_audit:
-        if k not in audit_data:
-            audit_data[k] = os.environ.get(k, "NOT SET")
+    audit_data = {}
+    for k, v in os.environ.items():
+        if any(p in k.upper() for p in sensitive_patterns):
+            # Redact sensitive values
+            if len(v) > 8:
+                audit_data[k] = f"{v[:4]}...{v[-4:]}"
+            else:
+                audit_data[k] = "********"
+        elif k in keys_to_audit:
+            audit_data[k] = v
 
     return audit_data
 

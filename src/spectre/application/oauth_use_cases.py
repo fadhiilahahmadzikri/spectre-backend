@@ -19,8 +19,12 @@ class GoogleOAuthUseCase:
     def __init__(self, user_repo: AbstractUserRepository) -> None:
         self._user_repo = user_repo
 
-    async def execute(self, profile: dict[str, Any]) -> User:
-        """Create or retrieve a user based on Google profile data."""
+    async def execute(self, profile: dict[str, Any]) -> tuple[User, bool]:
+        """Create or retrieve a user based on Google profile data.
+        
+        Returns:
+            Tuple of (user, created_flag)
+        """
         google_id = profile.get("sub")
         email = profile.get("email")
         display_name = profile.get("name")
@@ -45,15 +49,15 @@ class GoogleOAuthUseCase:
             if not user:
                  raise Exception("Integrity Error: User identity exists but user does not.")
             logger.info("google_oauth_login_existing_id", user_id=str(user.id), email=email)
-            return user
+            return user, False
 
         # 2. Identity is new. Check if the email is already registered in users
         user = await self._user_repo.get_by_email(email.lower())
+        created = False
         
         if user:
             # Email exists -> Link the new Google identity to the existing user
-            user.is_verified = True
-            await self._user_repo.update(user)
+            # We don't force re-verification if they are already verified
             logger.info("google_oauth_linked_account", user_id=str(user.id), email=email)
         else:
             # Completely new user -> Create user
@@ -61,10 +65,11 @@ class GoogleOAuthUseCase:
                 id=uuid.uuid4(),
                 email=email.lower(),
                 display_name=display_name,
-                is_verified=True, # Google accounts are trusted/verified
+                is_verified=False, # Google accounts now also need activation OTP
                 is_active=True,
             )
             user = await self._user_repo.create(user)
+            created = True
             logger.info("google_oauth_new_user", user_id=str(user.id), email=email)
 
         # Create the new identity record (Google)
@@ -76,4 +81,4 @@ class GoogleOAuthUseCase:
         )
         await self._user_repo.create_identity(new_identity)
         
-        return user
+        return user, created

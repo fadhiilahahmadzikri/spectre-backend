@@ -10,6 +10,7 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from spectre.config import Settings, get_settings
 from spectre.domain.entities.user import User
 from spectre.interface.dependencies import DBSession, get_current_user
 from spectre.interface.schemas.config_schema import (
@@ -81,6 +82,7 @@ async def update_config(
     body: ConfigUpdateRequest,
     db: DBSession,
     current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     """Bulk update configuration values with immediate hot-reload.
 
@@ -95,7 +97,6 @@ async def update_config(
 
     repo = SQLConfigRepository(db)
     audit_repo = SQLAuditLogRepository(db)
-    settings = request.app.state.settings
 
     for key, new_value in body.updates.items():
         existing = await repo.get_by_key(key)
@@ -170,12 +171,12 @@ async def update_config(
 async def list_fas_models(
     request: Request,
     current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     fas_registry = getattr(request.app.state, "fas_registry", None)
-    settings = request.app.state.settings
 
     if fas_registry is None:
         return {

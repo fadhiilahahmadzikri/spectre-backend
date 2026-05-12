@@ -45,8 +45,7 @@ router = APIRouter(
 )
 
 
-def _build_face_use_case(request: Request, db, app, use_case_class):
-    settings: Settings = request.app.state.settings
+def _build_face_use_case(request: Request, db, app, use_case_class, settings: Settings):
     fas_registry = getattr(request.app.state, "fas_registry", None)
 
     if fas_registry is None or fas_registry.loaded_count == 0:
@@ -125,6 +124,7 @@ async def register_face(
     body: FaceRegisterRequest,
     db: DBSession,
     app: AuthenticatedApp,
+    settings: Settings = Depends(get_settings),
 ) -> dict:
     """Submit a face image for liveness detection and enrollment.
 
@@ -133,14 +133,14 @@ async def register_face(
     from spectre.application.face_use_cases import RegisterFace
 
     image_bytes = _decode_image(body.image)
-    use_case = _build_face_use_case(request, db, app, RegisterFace)
+    use_case = _build_face_use_case(request, db, app, RegisterFace, settings)
 
     request_id = getattr(request.state, "request_id", None)
     session, diagnostics = await use_case.execute(
         app_id=app.id,
         external_user_id=body.external_user_id,
         image_bytes=image_bytes,
-        liveness_threshold=request.app.state.settings.liveness_threshold,
+        liveness_threshold=settings.liveness_threshold,
         metadata=body.metadata,
         detail_mode=body.detail_mode,
         request_id=request_id,
@@ -165,6 +165,7 @@ async def authenticate_face(
     body: FaceAuthenticateRequest,
     db: DBSession,
     app: AuthenticatedApp,
+    settings: Settings = Depends(get_settings),
 ) -> dict:
     """Submit a face image for liveness + identity verification.
 
@@ -173,15 +174,15 @@ async def authenticate_face(
     from spectre.application.face_use_cases import AuthenticateFace
 
     image_bytes = _decode_image(body.image)
-    use_case = _build_face_use_case(request, db, app, AuthenticateFace)
+    use_case = _build_face_use_case(request, db, app, AuthenticateFace, settings)
 
     request_id = getattr(request.state, "request_id", None)
     session, diagnostics = await use_case.execute(
         app_id=app.id,
         external_user_id=body.external_user_id,
         image_bytes=image_bytes,
-        liveness_threshold=request.app.state.settings.liveness_threshold,
-        similarity_threshold=request.app.state.settings.similarity_threshold,
+        liveness_threshold=settings.liveness_threshold,
+        similarity_threshold=settings.similarity_threshold,
         metadata=body.metadata,
         detail_mode=body.detail_mode,
         request_id=request_id,
@@ -206,6 +207,7 @@ async def replace_face(
     external_user_id: str,
     db: DBSession,
     app: AuthenticatedApp,
+    settings: Settings = Depends(get_settings),
 ) -> dict:
     """Replace an existing face profile with a new biometric template."""
     from spectre.application.face_use_cases import ReplaceFace
@@ -215,14 +217,14 @@ async def replace_face(
     detail_mode = bool(body.get("detail_mode", False))
     image_bytes = _decode_image(image_b64)
 
-    use_case = _build_face_use_case(request, db, app, ReplaceFace)
+    use_case = _build_face_use_case(request, db, app, ReplaceFace, settings)
 
     request_id = getattr(request.state, "request_id", None)
     session, diagnostics = await use_case.execute(
         app_id=app.id,
         external_user_id=external_user_id,
         image_bytes=image_bytes,
-        liveness_threshold=request.app.state.settings.liveness_threshold,
+        liveness_threshold=settings.liveness_threshold,
         detail_mode=detail_mode,
         request_id=request_id,
     )
@@ -238,6 +240,7 @@ async def replace_face(
         "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
         "diagnostics": diagnostics.model_dump() if diagnostics else None,
     }
+
 
 
 @router.get("/faces", status_code=200, response_model=dict)
@@ -361,12 +364,12 @@ async def benchmark_face(
     request: Request,
     body: FaceBenchmarkRequest,
     app: AuthenticatedApp,
+    settings: Settings = Depends(get_settings),
 ) -> dict:
     """Run all enabled benchmark FAS models on the same image and return side-by-side comparison."""
     from spectre.application.benchmark_use_cases import BenchmarkDisabledError, RunBenchmark
     from spectre.infrastructure.ml.image_preprocessor import ImagePreprocessor
 
-    settings: Settings = request.app.state.settings
     fas_registry = getattr(request.app.state, "fas_registry", None)
 
     if fas_registry is None:

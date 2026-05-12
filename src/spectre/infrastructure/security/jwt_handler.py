@@ -26,6 +26,7 @@ class JWTHandler:
     def create_access_token(
         self,
         user_id: UUID,
+        is_verified: bool = False,
         *,
         extra_claims: dict[str, Any] | None = None,
     ) -> str:
@@ -38,6 +39,7 @@ class JWTHandler:
             "iat": now,
             "exp": expire,
             "type": "access",
+            "is_verified": is_verified,
         }
         if extra_claims:
             payload.update(extra_claims)

@@ -61,17 +61,25 @@ async def register(
     if existing:
         raise EmailAlreadyRegisteredError()
 
-    from spectre.domain.entities.user import User
+    from spectre.domain.entities.user import User, UserIdentity
 
     user = await user_repo.create(
         User(
             id=uuid.uuid4(),
             email=body.email.lower(),
-            password_hash=pw_handler.hash(body.password),
             display_name=body.display_name,
-            auth_provider="local",
             is_verified=False,
             is_active=True,
+        )
+    )
+
+    await user_repo.create_identity(
+        UserIdentity(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            provider="local",
+            provider_user_id=body.email.lower(),
+            password_hash=pw_handler.hash(body.password),
         )
     )
 
@@ -96,7 +104,9 @@ async def register(
 
         mailer = SMTPMailer(settings)
         await mailer.send_verification_email(user.email, otp_code, user.display_name)
-    except Exception:
+    except Exception as e:
+        from spectre.core.logger import get_logger
+        get_logger(__name__).error("registration_otp_send_failed", user_id=str(user.id), error=str(e))
         pass  # Email failure doesn't block registration
 
     return {
@@ -141,7 +151,7 @@ async def verify_email(
     await user_repo.update(user)
 
     # Issue tokens
-    access_token = jwt_handler.create_access_token(user.id)
+    access_token = jwt_handler.create_access_token(user.id, is_verified=True)
     refresh_raw = secrets.token_urlsafe(48)
     refresh_hash = hashlib.sha256(refresh_raw.encode()).hexdigest()
 
@@ -162,6 +172,8 @@ async def verify_email(
         "refresh_token": refresh_raw,
         "token_type": "Bearer",
         "expires_in": settings.jwt_access_token_expire_minutes * 60,
+        "user_id": str(user.id),
+        "is_verified": True,
     }
 
 
@@ -254,7 +266,7 @@ async def login(
 
     # Full auth
     access_token = jwt_handler.create_access_token(
-        user.id, extra_claims={"role": user.role}
+        user.id, is_verified=user.is_verified, extra_claims={"role": user.role}
     )
     refresh_raw = secrets.token_urlsafe(48)
     refresh_hash = hashlib.sha256(refresh_raw.encode()).hexdigest()
@@ -275,6 +287,9 @@ async def login(
         "refresh_token": refresh_raw,
         "token_type": "Bearer",
         "expires_in": settings.jwt_access_token_expire_minutes * 60,
+        "user_id": str(user.id),
+        "display_name": user.display_name,
+        "is_verified": user.is_verified,
         "totp_required": False,
     }
 
@@ -303,7 +318,11 @@ async def refresh_token(
     await refresh_repo.revoke(stored.id)
 
     # Issue new pair
-    access_token = jwt_handler.create_access_token(stored.user_id)
+    user_repo = SQLUserRepository(db)
+    user = await user_repo.get_by_id(stored.user_id)
+    is_verified = user.is_verified if user else False
+    
+    access_token = jwt_handler.create_access_token(stored.user_id, is_verified=is_verified)
     new_raw = secrets.token_urlsafe(48)
     new_hash = hashlib.sha256(new_raw.encode()).hexdigest()
 
@@ -496,7 +515,34 @@ async def google_callback(
 
     user_repo = SQLUserRepository(db)
     use_case = GoogleOAuthUseCase(user_repo)
-    user = await use_case.execute(user_info)
+    user, created = await use_case.execute(user_info)
+
+    # If new user, send OTP
+    if created:
+        otp_code = "".join(secrets.choice("0123456789") for _ in range(settings.otp_length))
+        pw_handler = PasswordHandler(settings)
+        otp_hash = pw_handler.hash(otp_code)
+
+        verif_repo = SQLEmailVerificationRepository(db)
+        await verif_repo.create(
+            EmailVerification(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                otp_hash=otp_hash,
+                expires_at=datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(minutes=settings.otp_expire_minutes),
+            )
+        )
+
+        try:
+            from spectre.infrastructure.email.smtp_mailer import SMTPMailer
+            mailer = SMTPMailer(settings)
+            await mailer.send_verification_email(user.email, otp_code, user.display_name)
+        except Exception as e:
+            # We don't want to fail the whole OAuth flow if email fails, 
+            # but we should log it.
+            from spectre.core.logger import get_logger
+            get_logger(__name__).error("oauth_otp_send_failed", user_id=str(user.id), error=str(e))
 
     # Issue tokens
     jwt_handler = JWTHandler(settings)
@@ -524,12 +570,16 @@ async def google_callback(
     # Redirect to frontend with tokens
     frontend_url = getattr(settings, "oauth_frontend_redirect", None) or "http://localhost:5173"
 
-    params = urlencode({
+    params_dict = {
         "access_token": access_token,
         "refresh_token": refresh_raw,
         "user_id": str(user.id),
         "email": user.email,
         "display_name": user.display_name or "",
         "role": user.role,
-    })
+    }
+    if not user.is_verified:
+        params_dict["status"] = "pending_verification"
+        
+    params = urlencode(params_dict)
     return RedirectResponse(url=f"{frontend_url}/oauth/callback?{params}")

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { api } from "@/lib/api";
 import { getBaseUrl } from "@/lib/config";
 import { GoogleIcon } from "@/shared/icons";
@@ -14,12 +15,26 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useAuthUi } from "../model/auth-ui-store";
+import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
+
+const signUpSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string()
+    .min(8, "At least 8 characters")
+    .regex(/[A-Z]/, "At least one uppercase letter")
+    .regex(/[a-z]/, "At least one lowercase letter")
+    .regex(/[0-9]/, "At least one number")
+    .regex(/[^A-Za-z0-9]/, "At least one special character")
+    .refine((pw) => !/\s/.test(pw), "No spaces allowed"),
+});
 
 export function SignUpForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const setMode = useAuthUi((s) => s.setMode);
@@ -27,6 +42,19 @@ export function SignUpForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
+    
+    // Validate with Zod
+    const result = signUpSchema.safeParse({ name, email, password });
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        if (issue.path[0]) errors[issue.path[0] as string] = issue.message;
+      });
+      setFieldErrors(errors);
+      return;
+    }
+
     setLoading(true);
     try {
       await api.register({ email, password, display_name: name || undefined });
@@ -52,7 +80,7 @@ export function SignUpForm() {
 
       <form onSubmit={handleSubmit}>
         <FieldGroup>
-          <Field>
+          <Field data-invalid={!!fieldErrors.name || undefined}>
             <FieldLabel htmlFor="signup-name">Display name</FieldLabel>
             <Input
               id="signup-name"
@@ -62,8 +90,13 @@ export function SignUpForm() {
               autoComplete="name"
               className="input-mono"
             />
+            {fieldErrors.name && (
+              <FieldDescription data-invalid className="text-[color:var(--danger)] font-mono text-[10px]">
+                {fieldErrors.name}
+              </FieldDescription>
+            )}
           </Field>
-          <Field data-invalid={!!error || undefined}>
+          <Field data-invalid={!!fieldErrors.email || !!error || undefined}>
             <FieldLabel htmlFor="signup-email">Email</FieldLabel>
             <Input
               id="signup-email"
@@ -72,13 +105,18 @@ export function SignUpForm() {
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
-              aria-invalid={!!error || undefined}
+              aria-invalid={!!fieldErrors.email || !!error || undefined}
               className="input-mono"
             />
+            {fieldErrors.email && (
+              <FieldDescription data-invalid className="text-[color:var(--danger)] font-mono text-[10px]">
+                {fieldErrors.email}
+              </FieldDescription>
+            )}
           </Field>
-          <Field data-invalid={!!error || undefined}>
+          <Field data-invalid={!!fieldErrors.password || !!error || undefined}>
             <FieldLabel htmlFor="signup-password">
-              Password (min 8 chars)
+              Password
             </FieldLabel>
             <Input
               id="signup-password"
@@ -87,13 +125,15 @@ export function SignUpForm() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               required
-              minLength={8}
-              aria-invalid={!!error || undefined}
+              aria-invalid={!!fieldErrors.password || !!error || undefined}
               className="input-mono"
             />
-            {error && (
-              <FieldDescription data-invalid className="text-[color:var(--danger)] font-mono">
-                {error}
+            
+            <PasswordStrengthMeter password={password} />
+
+            {(fieldErrors.password || error) && (
+              <FieldDescription data-invalid className="text-[color:var(--danger)] font-mono text-[10px] mt-2">
+                {fieldErrors.password || error}
               </FieldDescription>
             )}
           </Field>
@@ -132,3 +172,4 @@ export function SignUpForm() {
     </div>
   );
 }
+

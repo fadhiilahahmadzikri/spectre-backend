@@ -63,6 +63,7 @@ class SMTPMailer:
                 username=self._username,
                 password=self._password,
                 use_tls=self._use_tls,
+                timeout=15,
             )
             logger.info("email_sent", to=to_email, subject=subject)
         except Exception as exc:

@@ -27,6 +27,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     user_id: str
     display_name: str | None = None
+    is_verified: bool
 
 
 class VerifyEmailRequest(BaseModel):

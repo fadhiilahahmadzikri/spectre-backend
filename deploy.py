@@ -108,25 +108,30 @@ def load_ignore_patterns(folder: Path) -> tuple[list[str], dict[str, int]]:
 
 
 def _is_ignored(rel_path: str, patterns: list[str]) -> bool:
-    path_parts = rel_path.split('/')
+    # Normalize to lower case for case-insensitive matching
+    rel_path_lower = rel_path.lower()
+    path_parts_lower = rel_path_lower.split('/')
+    
     for pattern in patterns:
-        p = pattern.rstrip("/")
+        p = pattern.strip().rstrip("/")
+        if not p: continue
+        p_lower = p.lower()
         
         # Anchored match (starts with /)
-        if p.startswith("/"):
-            p_anchored = p.lstrip("/")
-            if fnmatch.fnmatch(rel_path, p_anchored) or fnmatch.fnmatch(rel_path, f"{p_anchored}/*"):
+        if p_lower.startswith("/"):
+            p_anchored = p_lower.lstrip("/")
+            if fnmatch.fnmatch(rel_path_lower, p_anchored) or fnmatch.fnmatch(rel_path_lower, f"{p_anchored}/*"):
                 return True
             continue
 
-        # Standard matches
-        if fnmatch.fnmatch(rel_path, p) or fnmatch.fnmatch(rel_path, f"{p}/*"):
+        # Standard matches (relative or name-based)
+        if fnmatch.fnmatch(rel_path_lower, p_lower) or fnmatch.fnmatch(rel_path_lower, f"{p_lower}/*"):
             return True
-        if fnmatch.fnmatch(Path(rel_path).name, p):
+        if fnmatch.fnmatch(Path(rel_path_lower).name, p_lower):
             return True
         
         # Directory segment match (e.g. "node_modules" matches any depth)
-        if p in path_parts:
+        if p_lower in path_parts_lower:
             return True
             
     return False

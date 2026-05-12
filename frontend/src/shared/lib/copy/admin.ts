@@ -228,8 +228,7 @@ export const admin = {
     apiSpecTitle: "API Spec (Hosted)",
     apiSpecDescription: "Full integration reference",
     postmanTitle: "Postman Collection",
-    postmanDescription: "30 requests · Public workspace",
-  },
+    postmanDescription: "39 requests · Public workspace",  },
 } as const;
 
 export type AdminCopy = typeof admin;

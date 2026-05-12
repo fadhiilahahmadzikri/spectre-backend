@@ -65,8 +65,7 @@ export function Dashboard() {
             href="https://www.postman.com/orbital-module-pilot-79200790/spectre-api/collection/37470849-b2b09384-4f3d-42b6-a051-2a9bc77980e4"
             icon="https://www.vectorlogo.zone/logos/getpostman/getpostman-icon.svg"
             title="Postman Collection"
-            description="30 requests · Public workspace"
-          />
+            description="39 requests · Public workspace"          />
         </div>
       </section>
     </div>

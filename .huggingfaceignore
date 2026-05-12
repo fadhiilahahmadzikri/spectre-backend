@@ -4,69 +4,69 @@
 # ==============================================================================
 
 # --- Virtual Environment ---
-.venv/
-venv/
-env/
+/.venv/
+/venv/
+/env/
 
 # --- Git ---
-.git/
-.gitignore
+/.git/
+/.gitignore
 
 # --- Python caches ---
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-dist/
-build/
-.eggs/
+/__pycache__/
+/*.pyc
+/*.pyo
+/*.egg-info/
+/dist/
+/build/
+/.eggs/
 
 # --- IDE ---
-.vscode/
-.idea/
-*.swp
-*.swo
+/.vscode/
+/.idea/
+/*.swp
+/*.swo
 
 # --- Environment (secrets!) ---
-.env
-.env.local
-.env.*.local
+/.env
+/.env.local
+/.env.*.local
 
 # --- Agents / Conductor (dev tooling) ---
-.agents/
-.conductor/
+/.agents/
+/.conductor/
 
 # --- Testing ---
-tests/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
+/tests/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+/.coverage
+/htmlcov/
 
 # --- Logs ---
-logs/
-*.log
+/logs/
+/*.log
 
 # --- Local database ---
-spectre.db
+/spectre.db
 
 # --- Local Docker files (not needed on HF) ---
-docker-compose*.yml
-Dockerfile.local
-Makefile
+/docker-compose*.yml
+/Dockerfile.local
+/Makefile
 
 # --- Dev config ---
-ruff.toml
-.python-version
+/ruff.toml
+/.python-version
 
 # --- Documentation (optional) ---
-Docs/
+/Docs/
 
 # --- OS files ---
-.DS_Store
-Thumbs.db
-Desktop.ini
+/.DS_Store
+/Thumbs.db
+/Desktop.ini
 
 # --- POC Frontend (served separately or not needed for API) ---
 /poc/
@@ -75,7 +75,7 @@ Desktop.ini
 /node_modules/
 
 # --- uv lock (regenerated during build) ---
-uv.lock
+/uv.lock
 
 
 # Dependencies
@@ -86,7 +86,7 @@ uv.lock
 /.env/
 
 # Python cache
-__pycache__/
+/__pycache__/
 *.pyc
 *.pyo
 *.pyd

@@ -77,8 +77,7 @@ test-newman-hf-report: ## Run Newman with HTML report (HF Spaces)
 	@echo "Report saved: reports/api-report-hf.html"
 
 postman-push: ## Push collection to Postman cloud (syncs local → remote)
-	$$key = if ($$env:POSTMAN_API_KEY) { $$env:POSTMAN_API_KEY } else { (Select-String -Path .env -Pattern '^POSTMAN_API_KEY=(.+)$$' | ForEach-Object { $$_.Matches.Groups[1].Value }) }; $$uid = if ($$env:POSTMAN_COLLECTION_UID) { $$env:POSTMAN_COLLECTION_UID } else { (Select-String -Path .env -Pattern '^POSTMAN_COLLECTION_UID=(.+)$$' | ForEach-Object { $$_.Matches.Groups[1].Value }) }; $$body = Get-Content tests/postman/spectre-api-v1.postman_collection.json -Raw; $$jsonBody = @{ collection = $$body | ConvertFrom-Json } | ConvertTo-Json -Depth 100; Invoke-RestMethod -Uri "https://api.getpostman.com/collections/$$uid" -Method Put -Headers @{ 'X-Api-Key' = $$key; 'Content-Type' = 'application/json' } -Body $$jsonBody
-	@echo "Collection pushed to Postman cloud."
+	uv run python scripts/postman_push.py
 
 test-all: test test-newman ## Run full local test suite (pytest + Newman)
 

@@ -1,6 +1,6 @@
 {
   "name": "@thewhitenigs/spectre-snap",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Spectre Identity-as-a-Service — embeddable facial authentication for React",
   "type": "module",
   "main": "./dist/spectre-snap.cjs",

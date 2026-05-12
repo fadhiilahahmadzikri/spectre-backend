@@ -12,8 +12,8 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Literal
 
-from spectre.config import Settings, get_settings
-from spectre.interface.dependencies import get_current_user
+from spectre.config import Settings
+from spectre.interface.dependencies import get_current_user, get_settings
 from spectre.domain.entities.user import User
 
 router = APIRouter(tags=["Health"])

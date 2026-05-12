@@ -164,6 +164,7 @@ export function SpectreAuth(props: SpectreAuthProps) {
           onFailed={props.onFailed}
           onClose={handleClose}
           onReady={props.onReady}
+          onRedirect={props.onRedirect}
         />
       </QueryClientProvider>
     </div>
@@ -186,6 +187,7 @@ interface SpectreAuthInnerProps {
   onFailed?: SpectreAuthProps["onFailed"];
   onClose?: () => void;
   onReady?: () => void;
+  onRedirect?: () => void;
 }
 
 function SpectreAuthInner({
@@ -197,6 +199,7 @@ function SpectreAuthInner({
   onFailed,
   onClose,
   onReady,
+  onRedirect,
 }: SpectreAuthInnerProps) {
   // The ScannerView component does all the heavy lifting.
   // We just need to wire callbacks via the useSnapCallbacks hook.
@@ -216,7 +219,7 @@ function SpectreAuthInner({
         // SpectreAuthModal handles the callback bridge for the modal
         // variant. For the inline variant, callbacks are passed via
         // the snap event system.
-        _snapCallbacks={{ onSuccess, onFailed, onReady }}
+        _snapCallbacks={{ onSuccess, onFailed, onReady, onRedirect }}
       />
     </div>
   );

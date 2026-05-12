@@ -183,6 +183,7 @@ export function SpectreAuthModal(props: SpectreAuthModalProps) {
                   onSuccess: props.onSuccess,
                   onFailed: props.onFailed,
                   onReady: props.onReady,
+                  onRedirect: props.onRedirect,
                 }}
               />
             </QueryClientProvider>

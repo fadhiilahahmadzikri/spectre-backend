@@ -1,5 +1,5 @@
 const REDIRECT_STORAGE_KEY = "spectre_scan_redirect_url";
-const DEFAULT_REDIRECT_URL = "https://www.youtube.com";
+const DEFAULT_REDIRECT_URL = "";
 
 export interface ScanConfig {
   redirectUrl: string;

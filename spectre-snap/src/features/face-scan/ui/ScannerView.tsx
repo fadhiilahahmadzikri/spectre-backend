@@ -35,6 +35,7 @@ export interface SnapCallbackBridge {
   onSuccess?: SpectreAuthCallbacks["onSuccess"];
   onFailed?: SpectreAuthCallbacks["onFailed"];
   onReady?: SpectreAuthCallbacks["onReady"];
+  onRedirect?: SpectreAuthCallbacks["onRedirect"];
 }
 
 interface ScannerViewProps {
@@ -67,6 +68,11 @@ export function ScannerView({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [config, setConfig] = useState<ConfigDraft>(INITIAL_CONFIG);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  // --- Snap SDK callback bridge ---
+  const snapFiredRef = useRef({ success: false, failed: false, ready: false });
+  const snapCbRef = useRef(_snapCallbacks);
+  snapCbRef.current = _snapCallbacks;
 
   const { currentLog, showLog, clearLog } = useProgressiveLog();
 
@@ -102,6 +108,7 @@ export function ScannerView({
     redirectUrl,
     showLog,
     clearLog,
+    snapCbRef,
   });
 
   // --- Derived booleans ---
@@ -121,10 +128,6 @@ export function ScannerView({
   const showAuraMascot =
     phase === PHASES.ANALYZING || phase === PHASES.COMPLETE || phase === PHASES.FAILED;
 
-  // --- Snap SDK callback bridge ---
-  const snapFiredRef = useRef({ success: false, failed: false, ready: false });
-  const snapCbRef = useRef(_snapCallbacks);
-  snapCbRef.current = _snapCallbacks;
 
   // Reset fired flags on scan reset
   useEffect(() => {

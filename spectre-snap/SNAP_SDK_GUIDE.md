@@ -300,6 +300,7 @@ If you host the Spectre Backend, an administrative API is available under `/api/
 | `onSuccess` | `(result: SpectreAuthResult) => void` | ✅ | Called on successful verification |
 | `onFailed` | `(reason: SpectreFailureReason) => void` | | Called on verification failure |
 | `onReady` | `() => void` | | Called when scanner is loaded and camera active |
+| `onRedirect` | `() => void` | | Called when SDK's success countdown finishes, replacing the default `window.location.href` redirect. Use this to handle smooth SPA transitions. |
 | `mode` | `"auto" \| "register" \| "authenticate"` | | Default: `"auto"` |
 | `baseUrl` | `string` | | Override API base URL |
 | `theme` | `SpectreTheme` | | Custom theme overrides |

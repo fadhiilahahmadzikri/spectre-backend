@@ -63,6 +63,8 @@ export interface SpectreAuthCallbacks {
   onClose?: () => void;
   /** Fired when the camera is ready and the scanner is active. */
   onReady?: () => void;
+  /** Fired when the internal success countdown finishes, replacing the default window.location.href redirect. */
+  onRedirect?: () => void;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,3 +1,6 @@
+// Styles — bundled into dist/style.css by Vite
+import "./index.css";
+
 /**
  * Spectre Snap — Identity-as-a-Service SDK for React.
  *

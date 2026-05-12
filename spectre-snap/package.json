@@ -12,10 +12,15 @@
       "require": "./dist/spectre-snap.cjs",
       "types": "./dist/index.d.ts"
     },
-    "./style.css": "./dist/style.css"
+    "./style.css": "./dist/spectre-snap.css"
   },
   "files": [
-    "dist",
+    "dist/spectre-snap.js",
+    "dist/spectre-snap.cjs",
+    "dist/spectre-snap.css",
+    "dist/index.d.ts",
+    "dist/index.d.ts.map",
+    "dist/snap",
     "README.md"
   ],
   "sideEffects": [

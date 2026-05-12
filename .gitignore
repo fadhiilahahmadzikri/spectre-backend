@@ -51,6 +51,8 @@ Desktop.ini
 # --- Docker ---
 docker-compose.override.yml
 
+spectre-frontend/node_modules
+spectre-snap/node_modules
 # --- Logs ---
 *.log
 logs/

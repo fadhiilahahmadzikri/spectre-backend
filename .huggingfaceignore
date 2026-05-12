@@ -1,122 +1,116 @@
 # ==============================================================================
-# Spectre — Hugging Face Spaces Upload Ignore
-# Files listed here will NOT be uploaded to the Space.
+# Spectre — Hugging Face Spaces Deploy Ignore
+# SINGLE SOURCE OF TRUTH — replaces both .gitignore and .huggingfaceignore
+# for the deploy.py upload. Only pure backend + infra files should be uploaded.
 # ==============================================================================
 
-# --- Virtual Environment ---
-/.venv/
-/venv/
-/env/
+# ── Frontend / SDK (NOT part of backend deploy) ──────────────────────────
+spectre-frontend/
+spectre-snap/
+example-client/
+poc/
 
-# --- Git ---
-/.git/
-/.gitignore
+# ── Virtual environment ──────────────────────────────────────────────────
+.venv/
+venv/
+env/
 
-# --- Python caches ---
-/__pycache__/
-/*.pyc
-/*.pyo
-/*.egg-info/
-/dist/
-/build/
-/.eggs/
+# ── Git ──────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
 
-# --- IDE ---
-/.vscode/
-/.idea/
-/*.swp
-/*.swo
-
-# --- Environment (secrets!) ---
-/.env
-/.env.local
-/.env.*.local
-
-# --- Agents / Conductor (dev tooling) ---
-/.agents/
-/.conductor/
-
-# --- Testing ---
-/tests/
-/.pytest_cache/
-/.mypy_cache/
-/.ruff_cache/
-/.coverage
-/htmlcov/
-
-# --- Logs ---
-/logs/
-/*.log
-
-# --- Local database ---
-/spectre.db
-
-# --- Local Docker files (not needed on HF) ---
-/docker-compose*.yml
-/Dockerfile.local
-/Makefile
-
-# --- Dev config ---
-/ruff.toml
-/.python-version
-
-# --- Documentation (optional) ---
-/Docs/
-
-# --- OS files ---
-/.DS_Store
-/Thumbs.db
-/Desktop.ini
-
-# --- POC Frontend (served separately or not needed for API) ---
-/poc/
-
-# --- Node ---
-/node_modules/
-
-# --- uv lock (regenerated during build) ---
-/uv.lock
-
-
-# Dependencies
-/node_modules/
-/.venv/
-/venv/
-/env/
-/.env/
-
-# Python cache
-/__pycache__/
+# ── Python caches ────────────────────────────────────────────────────────
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-
-# Build output
-/dist/
-/build/
 *.egg-info/
 .eggs/
 
-# Model cache
-/.cache/
+# ── Build output ─────────────────────────────────────────────────────────
+dist/
+build/
+
+# ── Node (shouldn't exist in backend, but just in case) ──────────────────
+node_modules/
+package.json
+package-lock.json
+pnpm-lock.yaml
+
+# ── IDE ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Environment files (secrets — pushed via deploy.py secrets flow) ──────
+.env
+.env.local
+.env.*.local
+.env.spaces
+
+# ── Dev tooling ──────────────────────────────────────────────────────────
+.agents/
+.conductor/
+.gemini/
+
+# ── Testing ──────────────────────────────────────────────────────────────
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+reports/
+
+# ── Logs & temp ──────────────────────────────────────────────────────────
+logs/
+*.log
+*.tmp
+
+# ── Local database ───────────────────────────────────────────────────────
+spectre.db
+*.db
+
+# ── Local Docker (HF has its own Dockerfile) ─────────────────────────────
+docker-compose*.yml
+Dockerfile.local
+
+# ── Dev config (not needed on HF) ────────────────────────────────────────
+Makefile
+ruff.toml
+.python-version
+uv.lock
+
+# ── Documentation (not needed on runtime) ────────────────────────────────
+Docs/
+
+# ── OS files ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Model weights (large files, handled by HF LFS or downloaded at runtime)
 *.bin
 *.safetensors
 *.pt
 *.pth
 *.ckpt
+.cache/
 
-# Logs & temp
-*.log
-*.tmp
-.DS_Store
-Thumbs.db
+# ── Deploy script itself ────────────────────────────────────────────────
+deploy.py
+_verify_deploy.py
+clone_scan_feature.py
+hf_sec.py
 
-# Git
-/.git/
-
-# IDE
-/.vscode/
-/.idea/
-
-/poc/
+# ── Dev-only directories (not needed at runtime) ────────────────────────
+conductor/
+kaggle/
+scripts/
+artifact/
+multimodel/
+.kiro/
+.github/

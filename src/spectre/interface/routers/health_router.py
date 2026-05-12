@@ -118,7 +118,7 @@ async def health_check(
     }
 
 
-@router.get("/health/ml-status")
+@router.get("/health/ml-status", tags=["Health", "SDK Integration"])
 async def ml_status(
     request: Request,
     settings: Settings = Depends(get_settings),

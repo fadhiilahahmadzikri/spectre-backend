@@ -161,17 +161,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Spectre API",
-        description="AI-Powered Facial Authentication Platform",
-        version="0.1.0",
+        description=(
+            "**AI-Powered Facial Authentication Platform — Identity as a Service**\n\n"
+            "Spectre provides biometric face authentication via:\n"
+            "- **REST API** — Direct integration for server-to-server face operations\n"
+            "- **Snap SDK** (`@thewhitenigs/spectre-snap`) — Drop-in React component for "
+            "client-side face capture, liveness detection, and identity verification\n\n"
+            "### Authentication\n"
+            "- **Dashboard endpoints** → JWT Bearer token (`Authorization: Bearer <token>`)\n"
+            "- **Face/ML endpoints** → API Key (`X-API-Key: spk_...`)\n\n"
+            "### Snap SDK Integration\n"
+            "```bash\n"
+            "npm install @thewhitenigs/spectre-snap\n"
+            "```\n"
+            "The SDK handles camera access, face detection, liveness checks, and API "
+            "communication. Results are delivered via real-time callbacks and async webhooks."
+        ),
+        version="1.1.0",
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
         lifespan=_lifespan,
         openapi_tags=[
-            {"name": "Health", "description": "System status and health checks"},
+            {"name": "Health", "description": "System status, ML model status, and health checks"},
             {"name": "Authentication", "description": "User registration, login, and Google OAuth"},
             {"name": "Applications", "description": "Tenant application and API key management"},
-            {"name": "Face Operations", "description": "Biometric registration and authentication"},
-            {"name": "Configuration", "description": "Admin system configuration management"},
+            {"name": "Face Operations", "description": "Biometric face registration, authentication, and liveness detection. Used by the Snap SDK and direct API consumers."},
+            {"name": "Webhooks", "description": "Webhook delivery status and event payloads. Events: `face.registered`, `face.authenticated`, `face.no_match`, `face.spoof_rejected`, `face.failed`"},
+            {"name": "Configuration", "description": "Admin system configuration management with hot-reload"},
+            {"name": "SDK Integration", "description": "Endpoints consumed by `@thewhitenigs/spectre-snap` — session polling, mode detection, and ML status. See [NPM package](https://www.npmjs.com/package/@thewhitenigs/spectre-snap)."},
             {"name": "Telemetry", "description": "Frontend logging and error ingestion"},
         ]
     )

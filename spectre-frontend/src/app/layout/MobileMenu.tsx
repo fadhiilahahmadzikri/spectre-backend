@@ -77,6 +77,9 @@ export function MobileMenu() {
               {user?.role === "admin" && (
                 <MobileNavItem icon={<Settings2 size={16} />} label="Configuration" onClick={handleOpenConfig} />
               )}
+              {user?.role === "admin" && (
+                <MobileNavItem icon={<AppWindow size={16} />} label="Monitoring" onClick={() => handleNav("/admin/monitoring")} />
+              )}
             </nav>
 
             <div className="mt-auto p-5 flex flex-col gap-4 border-t border-[color:var(--separator)]">

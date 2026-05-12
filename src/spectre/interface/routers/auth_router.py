@@ -333,6 +333,10 @@ async def totp_verify(
 async def google_login(request: Request, settings: Settings = Depends(get_settings)):
     """Initiate Google OAuth flow."""
     from spectre.infrastructure.security.oauth_client import oauth
+    
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(status_code=400, detail="Google OAuth is not configured on this server")
+        
     redirect_uri = settings.google_redirect_uri
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -345,6 +349,9 @@ async def google_callback(
 ) -> dict:
     """Handle Google OAuth callback."""
     from spectre.infrastructure.security.oauth_client import oauth
+    
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(status_code=400, detail="Google OAuth is not configured on this server")
     from spectre.application.oauth_use_cases import GoogleOAuthUseCase
     from spectre.infrastructure.repositories.sql_repositories import (
         SQLUserRepository,

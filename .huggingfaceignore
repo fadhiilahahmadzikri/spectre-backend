@@ -69,21 +69,21 @@ Thumbs.db
 Desktop.ini
 
 # --- POC Frontend (served separately or not needed for API) ---
-poc/
+/poc/
 
 # --- Node ---
-node_modules/
+/node_modules/
 
 # --- uv lock (regenerated during build) ---
 uv.lock
 
 
 # Dependencies
-node_modules/
-.venv/
-venv/
-env/
-.env/
+/node_modules/
+/.venv/
+/venv/
+/env/
+/.env/
 
 # Python cache
 __pycache__/
@@ -93,13 +93,13 @@ __pycache__/
 .Python
 
 # Build output
-dist/
-build/
+/dist/
+/build/
 *.egg-info/
 .eggs/
 
 # Model cache
-.cache/
+/.cache/
 *.bin
 *.safetensors
 *.pt
@@ -113,10 +113,10 @@ build/
 Thumbs.db
 
 # Git
-.git/
+/.git/
 
 # IDE
-.vscode/
-.idea/
+/.vscode/
+/.idea/
 
-poc/
+/poc/

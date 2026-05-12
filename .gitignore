@@ -33,7 +33,7 @@ env/
 .env.*.local
 
 # --- ML Models (large binaries) ---
-models/
+/models/
 *.tflite
 !artifact/.gitkeep
 

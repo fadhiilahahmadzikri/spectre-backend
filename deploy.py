@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
+import fnmatch
 import sys
 import threading
 import time
@@ -42,8 +45,13 @@ BANNER = """[bold cyan]
  ╚════██║██╔═══╝ ██╔══╝  ██║        ██║   ██╔══██╗██╔══╝  
  ███████║██║     ███████╗╚██████╗   ██║   ██║  ██║███████╗
  ╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
-[/bold cyan][dim cyan]         HF Space Deployer — Repeatable. Robust. Clean.[/dim cyan]
+[/bold cyan][dim cyan]         HF Space Deployer — Sync. Robust. Clean.[/dim cyan]
 """
+
+UPLOAD_MODES = {
+    "sync": "SYNC — Upload baru/berubah + hapus file remote yang tidak ada di lokal",
+    "additive": "ADDITIVE — Upload saja, tidak hapus apapun (perilaku lama)",
+}
 
 MAIN_MENU_OPTIONS = [
     "Upload / Redeploy Space",
@@ -97,6 +105,258 @@ def load_ignore_patterns(folder: Path) -> tuple[list[str], dict[str, int]]:
         ".gitignore":         len(git_patterns),
         "total_unique":       len(combined),
     }
+
+
+def _is_ignored(rel_path: str, patterns: list[str]) -> bool:
+    path_parts = rel_path.split('/')
+    for pattern in patterns:
+        p = pattern.rstrip("/")
+        
+        # Anchored match (starts with /)
+        if p.startswith("/"):
+            p_anchored = p.lstrip("/")
+            if fnmatch.fnmatch(rel_path, p_anchored) or fnmatch.fnmatch(rel_path, f"{p_anchored}/*"):
+                return True
+            continue
+
+        # Standard matches
+        if fnmatch.fnmatch(rel_path, p) or fnmatch.fnmatch(rel_path, f"{p}/*"):
+            return True
+        if fnmatch.fnmatch(Path(rel_path).name, p):
+            return True
+        
+        # Directory segment match (e.g. "node_modules" matches any depth)
+        if p in path_parts:
+            return True
+            
+    return False
+
+
+def _collect_local_files(folder: Path, ignore_patterns: list[str]) -> set[str]:
+    local_files: set[str] = set()
+    for path in folder.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(folder).as_posix()
+        if _is_ignored(rel, ignore_patterns):
+            continue
+        local_files.add(rel)
+    return local_files
+
+
+def _collect_remote_files(api: HfApi, repo_id: str) -> set[str]:
+    remote_files: set[str] = set()
+    try:
+        repo_files = api.list_repo_files(repo_id=repo_id, repo_type="space")
+        for f in repo_files:
+            remote_files.add(f)
+    except Exception as e:
+        console.print(f"[yellow]Warning: tidak bisa list remote files: {e}[/]")
+    return remote_files
+
+
+def _delete_stale_remote_files(
+    api: HfApi,
+    repo_id: str,
+    local_files: set[str],
+    remote_files: set[str],
+) -> list[str]:
+    """
+    Hapus file-file di remote yang sudah tidak ada di lokal.
+    File .gitattributes dan README.md dilindungi, tidak akan dihapus.
+    """
+    stale = remote_files - local_files
+    protected = {".gitattributes", "README.md"}
+    stale = {f for f in stale if f not in protected}
+
+    if not stale:
+        return []
+
+    deleted = []
+    with console.status(f"[red]Menghapus {len(stale)} file stale dari remote...[/]"):
+        for path in sorted(stale):
+            try:
+                api.delete_file(
+                    path_in_repo=path,
+                    repo_id=repo_id,
+                    repo_type="space",
+                    commit_message=f"sync: remove stale {path}",
+                )
+                deleted.append(path)
+                console.print(f"  [red]DEL[/] {path}")
+            except Exception as e:
+                console.print(f"  [yellow]SKIP[/] {path} — {e}")
+    return deleted
+
+
+def _patch_create_repo(api: HfApi, sdk: str):
+    original = api.create_repo
+    def patched(*args, **kwargs):
+        if kwargs.get("repo_type") == "space" and "space_sdk" not in kwargs:
+            kwargs["space_sdk"] = sdk
+        return original(*args, **kwargs)
+    api.create_repo = patched
+    return original
+
+
+def run_upload(
+    api: HfApi,
+    repo_id: str,
+    folder: Path,
+    patterns: list[str],
+    workers: int,
+    sdk: str = "docker",
+    mode: str = "sync",
+):
+    console.print(Rule(f"[bold cyan]PRE-FLIGHT CHECK — mode=[yellow]{mode.upper()}[/][/]"))
+
+    with console.status(f"[cyan]Verifikasi Space {repo_id}...[/]"):
+        try:
+            api.space_info(repo_id)
+            console.print(f"  [green]OK[/] Space [bold]{repo_id}[/] ditemukan (sdk={sdk})")
+        except Exception:
+            try:
+                api.create_repo(repo_id=repo_id, repo_type="space", space_sdk=sdk, exist_ok=True)
+                console.print(f"  [green]OK[/] Space [bold]{repo_id}[/] dibuat (sdk={sdk})")
+            except Exception as e:
+                console.print(f"  [red]FAIL:[/] {e}")
+                sys.exit(1)
+
+    console.print(f"  [green]OK[/] Mode: [bold yellow]{mode.upper()}[/]")
+    console.print(f"  [green]OK[/] Ignore patterns: [bold]{len(patterns)}[/] rules")
+    console.print(f"  [green]OK[/] Workers: [bold]{workers}[/]")
+    console.print(f"  [green]OK[/] Folder: [bold]{folder.resolve()}[/]")
+    console.print()
+
+    deleted: list[str] = []
+
+    if mode == "sync":
+        # ── SYNC PRE-FLIGHT ────────────────────────────────────────────────────
+        # Hitung 3 hal:
+        #   to_add    = ada di lokal, belum ada di remote  → akan di-UPLOAD
+        #   to_delete = ada di remote, sudah tidak ada di lokal → akan di-HAPUS
+        #   in_sync   = ada di kedua tempat (mungkin berubah isinya, upload_large_folder
+        #               yang akan deteksi lewat hash)
+        # ──────────────────────────────────────────────────────────────────────
+        console.print(Rule("[bold red]SYNC — Delta Analysis[/]"))
+
+        with console.status("[cyan]Scanning local files...[/]"):
+            local_files = _collect_local_files(folder, patterns)
+        with console.status("[cyan]Scanning remote files...[/]"):
+            remote_files = _collect_remote_files(api, repo_id)
+
+        protected = {".gitattributes", "README.md"}
+
+        # File yang perlu diupload (belum ada di remote)
+        to_add = local_files - remote_files
+
+        # File remote yang stale (tidak ada di lokal), kecuali yang dilindungi
+        stale = {f for f in (remote_files - local_files) if f not in protected}
+
+        # File yang sudah sama-sama ada (mungkin perlu update isi)
+        in_both = local_files & remote_files
+
+        console.print(f"  Local   : [bold]{len(local_files)}[/] files")
+        console.print(f"  Remote  : [bold]{len(remote_files)}[/] files")
+        console.print()
+        console.print(f"  [green]To Add[/]    : [bold green]{len(to_add)}[/] files   (lokal → remote, akan diupload)")
+        console.print(f"  [cyan]In Sync[/]   : [bold cyan]{len(in_both)}[/] files   (sudah ada, upload_large_folder cek hash)")
+        console.print(f"  [red]To Delete[/] : [bold red]{len(stale)}[/] files   (remote stale, akan dihapus)")
+        console.print()
+
+        # Tampilkan preview file yang akan ditambah (max 20 baris agar tidak flood)
+        if to_add:
+            preview_add = sorted(to_add)[:20]
+            for f in preview_add:
+                console.print(f"  [green]+ ADD[/] {f}")
+            if len(to_add) > 20:
+                console.print(f"  [dim]... dan {len(to_add) - 20} file lainnya[/]")
+            console.print()
+
+        # Hapus file stale dulu sebelum upload
+        if stale:
+            for f in sorted(stale):
+                console.print(f"  [red]→ DEL[/] {f}")
+            console.print()
+            deleted = _delete_stale_remote_files(api, repo_id, local_files, remote_files)
+            console.print(f"\n  [green]✓ Deleted {len(deleted)} stale files.[/]\n")
+        else:
+            console.print("  [green]✓ Tidak ada file stale di remote.[/]\n")
+
+    # ── UPLOAD ────────────────────────────────────────────────────────────────
+    # upload_large_folder handles:
+    #   - file baru (to_add)    → diupload
+    #   - file berubah isi      → diupload ulang (lewat SHA comparison)
+    #   - file tidak berubah    → diskip
+    # ─────────────────────────────────────────────────────────────────────────
+    console.print(Rule("[bold cyan]UPLOADING[/]"))
+    console.print(f"[dim]Target: https://huggingface.co/spaces/{repo_id}[/]\n")
+
+    start         = time.time()
+    result_holder = {}
+    error_holder  = {}
+
+    original_create_repo = _patch_create_repo(api, sdk)
+
+    def do_upload():
+        try:
+            result_holder["url"] = api.upload_large_folder(
+                repo_id=repo_id,
+                repo_type="space",
+                folder_path=str(folder),
+                ignore_patterns=patterns if patterns else None,
+                num_workers=workers,
+            )
+        except Exception as exc:
+            error_holder["err"] = exc
+        finally:
+            api.create_repo = original_create_repo
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Uploading...", total=None)
+            t = threading.Thread(target=do_upload, daemon=True)
+            t.start()
+            while t.is_alive():
+                t.join(timeout=0.5)
+                progress.advance(task, 0)
+            progress.update(task, completed=1, total=1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Upload diinterrupt.[/]")
+        sys.exit(0)
+
+    elapsed = time.time() - start
+
+    if "err" in error_holder:
+        console.print(Panel(
+            f"[red]Upload gagal:[/]\n{error_holder['err']}",
+            border_style="red",
+            title="Error",
+        ))
+        sys.exit(1)
+
+    summary_lines = [
+        f"[bold green]Upload selesai![/]",
+        f"",
+        f"  Mode    : [yellow]{mode.upper()}[/]",
+        f"  Durasi  : [bold]{elapsed:.1f}s[/]",
+        f"  Deleted : [red]{len(deleted)} stale files[/]",
+        f"  URL     : https://huggingface.co/spaces/{repo_id}",
+    ]
+    console.print()
+    console.print(Panel(
+        "\n".join(summary_lines),
+        border_style="green",
+        title="SUCCESS",
+        padding=(1, 3),
+    ))
 
 
 def _getch_windows():
@@ -203,11 +463,11 @@ def print_spaces_table(spaces: list[SpaceInfo], username: str):
         show_lines=True,
         header_style="bold magenta",
     )
-    table.add_column("#",        justify="right", style="dim",       width=4)
-    table.add_column("Space ID", style="bold cyan", no_wrap=True)
-    table.add_column("SDK",      style="yellow",   width=10)
+    table.add_column("#",          justify="right", style="dim",       width=4)
+    table.add_column("Space ID",   style="bold cyan", no_wrap=True)
+    table.add_column("SDK",        style="yellow",   width=10)
     table.add_column("Visibility", justify="center", width=10)
-    table.add_column("URL",      style="blue dim")
+    table.add_column("URL",        style="blue dim")
     for i, space in enumerate(spaces, 1):
         sdk        = getattr(space, "sdk", "-") or "-"
         visibility = "private" if getattr(space, "private", False) else "public"
@@ -216,100 +476,6 @@ def print_spaces_table(spaces: list[SpaceInfo], username: str):
     console.print()
     console.print(table)
     console.print()
-
-
-def _patch_create_repo(api: HfApi, sdk: str):
-    original = api.create_repo
-    def patched(*args, **kwargs):
-        if kwargs.get("repo_type") == "space" and "space_sdk" not in kwargs:
-            kwargs["space_sdk"] = sdk
-        return original(*args, **kwargs)
-    api.create_repo = patched
-    return original
-
-
-def run_upload(api: HfApi, repo_id: str, folder: Path, patterns: list[str], workers: int, sdk: str = "docker"):
-    console.print(Rule("[bold cyan]PRE-FLIGHT CHECK[/]"))
-
-    with console.status(f"[cyan]Verifikasi Space {repo_id}...[/]"):
-        try:
-            api.space_info(repo_id)
-            console.print(f"  [green]OK[/] Space [bold]{repo_id}[/] ditemukan (sdk={sdk})")
-        except Exception:
-            try:
-                api.create_repo(repo_id=repo_id, repo_type="space", space_sdk=sdk, exist_ok=True)
-                console.print(f"  [green]OK[/] Space [bold]{repo_id}[/] dibuat (sdk={sdk})")
-            except Exception as e:
-                console.print(f"  [red]FAIL:[/] {e}")
-                sys.exit(1)
-
-    original_create_repo = _patch_create_repo(api, sdk)
-    console.print(f"  [green]OK[/] Workaround space_sdk aktif (sdk={sdk})")
-    console.print(f"  [green]OK[/] Ignore patterns: [bold]{len(patterns)}[/] rules")
-    console.print(f"  [green]OK[/] Workers: [bold]{workers}[/]")
-    console.print(f"  [green]OK[/] Folder: [bold]{folder.resolve()}[/]")
-    console.print()
-
-    console.print(Rule("[bold cyan]UPLOADING[/]"))
-    console.print(f"[dim]Target: https://huggingface.co/spaces/{repo_id}[/]\n")
-
-    start         = time.time()
-    result_holder = {}
-    error_holder  = {}
-
-    def do_upload():
-        try:
-            result_holder["url"] = api.upload_large_folder(
-                repo_id=repo_id,
-                repo_type="space",
-                folder_path=str(folder),
-                ignore_patterns=patterns if patterns else None,
-                num_workers=workers,
-            )
-        except Exception as exc:
-            error_holder["err"] = exc
-        finally:
-            api.create_repo = original_create_repo
-
-    try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Uploading...", total=None)
-            t = threading.Thread(target=do_upload, daemon=True)
-            t.start()
-            while t.is_alive():
-                t.join(timeout=0.5)
-                progress.advance(task, 0)
-            progress.update(task, completed=1, total=1)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Upload diinterrupt.[/]")
-        sys.exit(0)
-
-    elapsed = time.time() - start
-
-    if "err" in error_holder:
-        console.print(Panel(
-            f"[red]Upload gagal:[/]\n{error_holder['err']}",
-            border_style="red",
-            title="Error",
-        ))
-        sys.exit(1)
-
-    console.print()
-    console.print(Panel(
-        f"[bold green]Upload selesai![/]\n\n"
-        f"  Durasi : [bold]{elapsed:.1f}s[/]\n"
-        f"  URL    : https://huggingface.co/spaces/{repo_id}",
-        border_style="green",
-        title="SUCCESS",
-        padding=(1, 3),
-    ))
 
 
 def flow_watch(api: HfApi, username: str):
@@ -341,9 +507,9 @@ def flow_watch(api: HfApi, username: str):
             resp = requests.get(url, headers=headers, timeout=5)
             resp.raise_for_status()
             data = resp.json()
-            rt = data.get("runtime", {})
+            rt    = data.get("runtime", {})
             stage = rt.get("stage", "UNKNOWN") or "UNKNOWN"
-            err = rt.get("error_message", None) or ""
+            err   = rt.get("error_message", None) or ""
             return stage, err
         except Exception as e:
             return "UNKNOWN", str(e)
@@ -457,6 +623,21 @@ def flow_upload(api: HfApi, username: str):
         pass
 
     print_banner(username)
+    console.print(Rule("[bold cyan]PILIH MODE UPLOAD[/]"))
+    console.print()
+    mode_idx = arrow_menu(
+        title="Upload Mode",
+        options=[
+            "SYNC  — Upload + hapus file remote yang tidak ada di lokal  [RECOMMENDED]",
+            "ADDITIVE — Upload saja, tidak hapus apapun",
+        ],
+        subtitle="SYNC menjamin HF = lokal persis",
+    )
+    if mode_idx == -1:
+        return
+    mode = "sync" if mode_idx == 0 else "additive"
+
+    print_banner(username)
     console.print(Rule("[bold cyan]KONFIGURASI UPLOAD[/]"))
 
     workers_str = Prompt.ask("\nJumlah upload workers", default="4")
@@ -471,15 +652,24 @@ def flow_upload(api: HfApi, username: str):
     summary = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
     summary.add_column(style="dim cyan", width=24)
     summary.add_column(style="bold white")
-    summary.add_row("Target Space",        repo_id)
-    summary.add_row("SDK",                 sdk)
-    summary.add_row("Folder",              str(folder))
-    summary.add_row("Workers",             str(workers))
-    summary.add_row("Ignore patterns",     f"{counts['total_unique']} rules")
+    summary.add_row("Target Space",         repo_id)
+    summary.add_row("SDK",                  sdk)
+    summary.add_row("Mode",                 f"[yellow]{mode.upper()}[/]")
+    summary.add_row("Folder",               str(folder))
+    summary.add_row("Workers",              str(workers))
+    summary.add_row("Ignore patterns",      f"{counts['total_unique']} rules")
     summary.add_row("  .huggingfaceignore", str(counts[".huggingfaceignore"]))
     summary.add_row("  .gitignore",         str(counts[".gitignore"]))
     console.print(Panel(summary, title="[bold]Upload Summary[/]", border_style="cyan"))
     console.print()
+
+    if mode == "sync":
+        console.print(Panel(
+            "[yellow]⚠  Mode SYNC akan MENGHAPUS file di HF yang tidak ada di lokal.\n"
+            "   Pastikan lokal kamu adalah source of truth.[/]",
+            border_style="yellow",
+        ))
+        console.print()
 
     if not Confirm.ask("Lanjutkan upload?", default=True):
         console.print("[yellow]Dibatalkan.[/]")
@@ -487,7 +677,7 @@ def flow_upload(api: HfApi, username: str):
         return
 
     console.print()
-    run_upload(api, repo_id, folder, patterns, workers, sdk)
+    run_upload(api, repo_id, folder, patterns, workers, sdk, mode=mode)
     Prompt.ask("\n[dim]Enter untuk kembali ke menu[/]", default="")
 
 
@@ -511,8 +701,6 @@ def flow_secrets(api: HfApi, username: str):
         return
 
     repo_id = spaces[idx].id
-    print_banner(username)
-    console.print(Rule(f"[bold cyan]SECRETS — {repo_id}[/]"))
 
     SECRET_ACTIONS = [
         "Push secrets from .env file",
@@ -529,7 +717,7 @@ def flow_secrets(api: HfApi, username: str):
         if action == -1 or action == 3:
             return
 
-        elif action == 0:  # Push from .env file
+        elif action == 0:
             print_banner(username)
             env_path = Prompt.ask("Path to .env file", default=".env.spaces")
             p = Path(env_path).expanduser().resolve()
@@ -538,7 +726,7 @@ def flow_secrets(api: HfApi, username: str):
                 Prompt.ask("[dim]Enter[/]", default="")
                 continue
 
-            secrets = {}
+            secrets: dict[str, str] = {}
             with open(p, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
@@ -548,7 +736,6 @@ def flow_secrets(api: HfApi, username: str):
                         key, _, val = line.partition("=")
                         key = key.strip()
                         val = val.strip().strip('"').strip("'")
-                        # Skip placeholder values
                         if val and val not in ("set-via-hf-secrets", "<CHANGE_THIS>", ""):
                             secrets[key] = val
 
@@ -557,7 +744,6 @@ def flow_secrets(api: HfApi, username: str):
                 Prompt.ask("[dim]Enter[/]", default="")
                 continue
 
-            # Show what will be pushed
             table = Table(box=box.SIMPLE, header_style="bold magenta")
             table.add_column("Key", style="cyan")
             table.add_column("Value (preview)", style="dim")
@@ -576,9 +762,9 @@ def flow_secrets(api: HfApi, username: str):
             console.print(f"[green]✓ {len(secrets)} secrets pushed.[/] Space will rebuild.")
             Prompt.ask("[dim]Enter[/]", default="")
 
-        elif action == 1:  # Set single secret
+        elif action == 1:
             print_banner(username)
-            key = Prompt.ask("Secret key (e.g. GOOGLE_CLIENT_ID)")
+            key = Prompt.ask("Secret key")
             if not key:
                 continue
             value = Prompt.ask(f"Value for {key}", password=True)
@@ -589,7 +775,7 @@ def flow_secrets(api: HfApi, username: str):
             console.print(f"[green]✓ {key} set.[/] Space will rebuild.")
             Prompt.ask("[dim]Enter[/]", default="")
 
-        elif action == 2:  # Delete secret
+        elif action == 2:
             print_banner(username)
             key = Prompt.ask("Secret key to delete")
             if not key:
@@ -602,18 +788,14 @@ def flow_secrets(api: HfApi, username: str):
 
 
 def _list_space_secrets(api: HfApi, repo_id: str) -> list[str]:
-    """Robustly list secret keys using direct API if HfApi method is missing."""
     try:
         if hasattr(api, "list_space_secrets"):
             return [s.key for s in api.list_space_secrets(repo_id=repo_id)]
-        
-        # Fallback to direct API request
         import requests
         token = getattr(api, "token", None)
         if not token:
             from huggingface_hub import HfFolder
             token = HfFolder.get_token()
-            
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         resp = requests.get(f"https://huggingface.co/api/spaces/{repo_id}/secrets", headers=headers, timeout=10)
         if resp.status_code == 200:
@@ -644,7 +826,7 @@ def flow_inspect_secrets(api: HfApi, username: str):
         return
 
     repo_id = spaces[idx].id
-    
+
     with console.status(f"[cyan]Mengambil data secret dari {repo_id}...[/]"):
         keys = _list_space_secrets(api, repo_id)
 
@@ -654,9 +836,9 @@ def flow_inspect_secrets(api: HfApi, username: str):
         border_style="cyan",
         header_style="bold magenta",
     )
-    table.add_column("#", justify="right", style="dim", width=4)
+    table.add_column("#",          justify="right", style="dim", width=4)
     table.add_column("Secret Key", style="bold cyan")
-    table.add_column("Value", style="dim", justify="center")
+    table.add_column("Value",      style="dim", justify="center")
 
     if not keys:
         table.add_row("-", "No secrets found or access denied", "-")
@@ -666,7 +848,7 @@ def flow_inspect_secrets(api: HfApi, username: str):
 
     console.print()
     console.print(table)
-    console.print(f"\n[dim]Total: {len(secrets)} secrets terpasang.[/]")
+    console.print(f"\n[dim]Total: {len(keys)} secrets terpasang.[/]")
     Prompt.ask("\n[dim]Enter untuk kembali[/]", default="")
 
 
@@ -683,11 +865,11 @@ def flow_audit_remote_env(api: HfApi, username: str):
         options=[s.id for s in spaces],
         subtitle="Mengambil nilai env langsung dari runtime API",
     )
-    if idx == -1: return
-    
-    repo_id = spaces[idx].id
-    # Construct base URL from space info
-    info = api.space_info(repo_id)
+    if idx == -1:
+        return
+
+    repo_id  = spaces[idx].id
+    info     = api.space_info(repo_id)
     base_url = info.host
     if not base_url:
         console.print("[red]Space host tidak ditemukan. Pastikan Space dalam keadaan RUNNING.[/]")
@@ -695,21 +877,21 @@ def flow_audit_remote_env(api: HfApi, username: str):
         return
 
     token = Prompt.ask("[yellow]Admin JWT Token[/]", password=True)
-    if not token: return
+    if not token:
+        return
 
     with console.status(f"[cyan]Menghubungi {base_url}...[/]"):
         try:
             import requests
             resp = requests.get(
-                f"{base_url}/api/v1/health/admin/env", 
+                f"{base_url}/api/v1/health/admin/env",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=15
+                timeout=15,
             )
             if resp.status_code != 200:
                 console.print(f"[red]Gagal:[/] HTTP {resp.status_code} - {resp.text}")
                 Prompt.ask("[dim]Enter untuk kembali[/]")
                 return
-            
             env_data = resp.json()
         except Exception as e:
             console.print(f"[red]Error koneksi:[/] {e}")
@@ -718,8 +900,7 @@ def flow_audit_remote_env(api: HfApi, username: str):
 
     table = Table(title=f"Live Audit — {repo_id}", box=box.HORIZONTALS, border_style="orange3")
     table.add_column("Environment Variable", style="bold cyan")
-    table.add_column("Active Value", style="green")
-
+    table.add_column("Active Value",         style="green")
     for k, v in sorted(env_data.items()):
         table.add_row(k, str(v))
 
@@ -757,13 +938,30 @@ def interactive_mode(api: HfApi, username: str):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="HF Space Deployer")
+    p = argparse.ArgumentParser(
+        description="HF Space Deployer — Sync & Additive modes",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python deploy.py
+  python deploy.py --repo user/space --mode sync
+  python deploy.py --repo user/space --mode additive
+  python deploy.py --repo user/space --secrets .env.spaces
+  python deploy.py --inspect
+        """,
+    )
     p.add_argument("--repo",    "-r", metavar="USERNAME/SPACE")
     p.add_argument("--folder",  "-f", metavar="PATH", default=None)
     p.add_argument("--workers", "-w", type=int, default=4, metavar="N")
+    p.add_argument(
+        "--mode", "-m",
+        choices=["sync", "additive"],
+        default="sync",
+        help="Upload mode: sync (default) hapus file stale, additive tidak hapus",
+    )
     p.add_argument("--inspect",       action="store_true")
-    p.add_argument("--secrets", "-s", metavar="ENV_FILE", help="Push secrets from .env file non-interactively")
-    p.add_argument("--list-secrets",  action="store_true", help="List secret keys non-interactively")
+    p.add_argument("--secrets", "-s", metavar="ENV_FILE")
+    p.add_argument("--list-secrets",  action="store_true")
     return p
 
 
@@ -778,29 +976,27 @@ def main():
 
     if args.repo:
         repo_id = args.repo
-        
+
         if args.list_secrets:
             with console.status(f"[cyan]Mengambil data secret dari {repo_id}...[/]"):
                 keys = _list_space_secrets(api, repo_id)
-                table = Table(title=f"Secrets — {repo_id}", box=box.ROUNDED, border_style="cyan")
-                table.add_column("#", justify="right", style="dim")
-                table.add_column("Secret Key", style="bold cyan")
-                for i, k in enumerate(keys, 1):
-                    table.add_row(str(i), k)
-                console.print(table)
-                sys.exit(0)
+            table = Table(title=f"Secrets — {repo_id}", box=box.ROUNDED, border_style="cyan")
+            table.add_column("#", justify="right", style="dim")
+            table.add_column("Secret Key", style="bold cyan")
+            for i, k in enumerate(keys, 1):
+                table.add_row(str(i), k)
+            console.print(table)
+            sys.exit(0)
+
         folder = Path(args.folder or ".").expanduser().resolve()
-        
-        # Non-interactive secret pushing
+
         if args.secrets:
             import re
             p = Path(args.secrets).expanduser().resolve()
             if not p.exists():
                 console.print(f"[red]File tidak ditemukan:[/] {p}")
                 sys.exit(1)
-            
-            secrets = {}
-            # Use utf-8 to avoid charmap errors
+            secrets: dict[str, str] = {}
             with open(p, encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     line = line.strip()
@@ -809,14 +1005,11 @@ def main():
                     if "=" in line:
                         key, _, val = line.partition("=")
                         key = key.strip()
-                        # HF requires /^[a-zA-Z][_a-zA-Z0-9]*$/
                         if not re.match(r"^[a-zA-Z][_a-zA-Z0-9]*$", key):
                             continue
-                        
                         val = val.strip().strip('"').strip("'")
                         if val and val not in ("set-via-hf-secrets", "<CHANGE_THIS>", ""):
                             secrets[key] = val
-            
             if secrets:
                 console.print(f"[cyan]Pushing {len(secrets)} valid secrets to {repo_id}...[/]")
                 with console.status("[cyan]Pushing secrets...[/]"):
@@ -825,13 +1018,16 @@ def main():
                             api.add_space_secret(repo_id=repo_id, key=key, value=value)
                         except Exception as e:
                             console.print(f"  [yellow]Skipped {key}:[/] {str(e)[:50]}...")
-                console.print(f"[green]✓ Secrets sync completed.[/]")
+                console.print("[green]✓ Secrets sync completed.[/]")
             else:
                 console.print("[yellow]No valid secrets found in file.[/]")
+            if not args.folder:
+                sys.exit(0)
 
         if not folder.exists():
             console.print(f"[red]Folder tidak ditemukan:[/] {folder}")
             sys.exit(1)
+
         patterns, counts = load_ignore_patterns(folder)
         sdk = "docker"
         try:
@@ -839,21 +1035,23 @@ def main():
             sdk  = getattr(info, "sdk", None) or "docker"
         except Exception:
             pass
+
         console.clear()
         console.print(Align.center(BANNER))
         summary = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
         summary.add_column(style="dim cyan", width=24)
         summary.add_column(style="bold white")
-        summary.add_row("Target Space",        args.repo)
-        summary.add_row("SDK",                 sdk)
-        summary.add_row("Folder",              str(folder))
-        summary.add_row("Workers",             str(args.workers))
-        summary.add_row("Ignore patterns",     f"{counts['total_unique']} rules")
+        summary.add_row("Target Space",         args.repo)
+        summary.add_row("SDK",                  sdk)
+        summary.add_row("Mode",                 f"[yellow]{args.mode.upper()}[/]")
+        summary.add_row("Folder",               str(folder))
+        summary.add_row("Workers",              str(args.workers))
+        summary.add_row("Ignore patterns",      f"{counts['total_unique']} rules")
         summary.add_row("  .huggingfaceignore", str(counts[".huggingfaceignore"]))
         summary.add_row("  .gitignore",         str(counts[".gitignore"]))
         console.print(Panel(summary, title="[bold]Non-Interactive Upload[/]", border_style="cyan"))
         console.print()
-        run_upload(api, args.repo, folder, patterns, args.workers, sdk)
+        run_upload(api, args.repo, folder, patterns, args.workers, sdk, mode=args.mode)
         sys.exit(0)
 
     try:

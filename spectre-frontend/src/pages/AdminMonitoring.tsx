@@ -8,6 +8,7 @@ import type {
 import { useIosAlert } from "@/app/providers/ios-alert-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, AppWindow, KeyRound, ScanFace, Activity,
@@ -80,7 +81,7 @@ function UsersTab() {
 
   return (
     <>
-      <DataTable loading={isLoading} empty={users.length === 0} emptyLabel="No users found">
+      <DataTable loading={isLoading} empty={users.length === 0} emptyLabel="No users found" cols={6}>
         <thead>
           <tr><Th>Email</Th><Th>Display Name</Th><Th>Role</Th><Th>Active</Th><Th>Created</Th><Th /></tr>
         </thead>
@@ -139,7 +140,7 @@ function ApplicationsTab() {
 
   return (
     <>
-      <DataTable loading={isLoading} empty={apps.length === 0} emptyLabel="No applications found">
+      <DataTable loading={isLoading} empty={apps.length === 0} emptyLabel="No applications found" cols={6}>
         <thead>
           <tr><Th>Name</Th><Th>Owner</Th><Th>Status</Th><Th>Webhook</Th><Th>Created</Th><Th /></tr>
         </thead>
@@ -203,7 +204,7 @@ function ApiKeysTab() {
 
   return (
     <>
-      <DataTable loading={isLoading} empty={keys.length === 0} emptyLabel="No API keys found">
+      <DataTable loading={isLoading} empty={keys.length === 0} emptyLabel="No API keys found" cols={6}>
         <thead>
           <tr><Th>Prefix</Th><Th>App ID</Th><Th>Status</Th><Th>Last Used</Th><Th>Created</Th><Th /></tr>
         </thead>
@@ -269,7 +270,7 @@ function FaceProfilesTab() {
 
   return (
     <>
-      <DataTable loading={isLoading} empty={profiles.length === 0} emptyLabel="No face profiles found">
+      <DataTable loading={isLoading} empty={profiles.length === 0} emptyLabel="No face profiles found" cols={6}>
         <thead>
           <tr><Th>External User ID</Th><Th>App ID</Th><Th>Model</Th><Th>Active</Th><Th>Created</Th><Th /></tr>
         </thead>
@@ -310,7 +311,7 @@ function SessionsTab() {
 
   return (
     <>
-      <DataTable loading={isLoading} empty={sessions.length === 0} emptyLabel="No sessions found">
+      <DataTable loading={isLoading} empty={sessions.length === 0} emptyLabel="No sessions found" cols={7}>
         <thead>
           <tr><Th>User</Th><Th>Type</Th><Th>Status</Th><Th>Liveness</Th><Th>Similarity</Th><Th>Time (ms)</Th><Th>Created</Th></tr>
         </thead>
@@ -338,12 +339,33 @@ function SessionsTab() {
 /* ═══════════════════════════════════════════════════════════════════════ */
 
 function DataTable({
-  children, loading, empty, emptyLabel,
-}: { children: React.ReactNode; loading: boolean; empty: boolean; emptyLabel: string }) {
+  children, loading, empty, emptyLabel, cols = 5
+}: { children: React.ReactNode; loading: boolean; empty: boolean; emptyLabel: string; cols?: number }) {
   if (loading) {
     return (
-      <div className="glass rounded-[var(--radius-card)] p-10 flex items-center justify-center">
-        <div className="spectre-snap-spinner" />
+      <div className="glass rounded-[var(--radius-card)] overflow-hidden">
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr>
+              {Array.from({ length: cols }).map((_, i) => (
+                <th key={i} className="px-4 py-3 border-b border-[color:var(--poc-border)]">
+                  <Skeleton className="h-3 w-16 bg-[color:var(--border-strong)]/30" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 5 }).map((_, r) => (
+              <tr key={r}>
+                {Array.from({ length: cols }).map((_, c) => (
+                  <td key={c} className="px-4 py-3 border-b border-[color:var(--poc-border)]/40">
+                    <Skeleton className="h-4 w-full max-w-[120px] bg-[color:var(--border-strong)]/20" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }

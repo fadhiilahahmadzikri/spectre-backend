@@ -65,13 +65,16 @@ export default function App() {
 
   const handleSuccess = useCallback((r: SpectreAuthResult) => {
     setResult(r);
+  }, []);
+
+  const handleRedirect = useCallback(() => {
     setScannerOpen(false);
-    setTimeout(() => setView("dashboard"), 600);
+    setView("dashboard");
   }, []);
 
   const handleFailed = useCallback((reason: SpectreFailureReason) => {
     console.error("[KYC] Verification failed:", reason);
-    setScannerOpen(false);
+    // DO NOT CLOSE the modal. Let the SDK show its spoofing mascot, panel, and diagnostics.
   }, []);
 
   return (
@@ -98,6 +101,7 @@ export default function App() {
         mode="auto"
         onSuccess={handleSuccess}
         onFailed={handleFailed}
+        onRedirect={handleRedirect}
         onClose={() => setScannerOpen(false)}
       />
     </>

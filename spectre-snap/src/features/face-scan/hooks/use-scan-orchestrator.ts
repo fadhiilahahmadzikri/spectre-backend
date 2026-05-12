@@ -15,8 +15,8 @@ import {
   MEDIAPIPE_SCRIPT_URLS,
   MODE_REGISTER,
   MODE_AUTHENTICATE,
-  REDIRECT_DELAY_SECONDS,
 } from "../model/constants";
+import { SCAN_CONFIG } from "@/shared/config/scan.config";
 import type {
   AuraConfig,
   BenchmarkApiResponse,
@@ -57,6 +57,7 @@ export interface UseScanOrchestratorParams {
   redirectUrl: string | null;
   showLog: (text: string, kind: LogEntry["kind"]) => void;
   clearLog: () => void;
+  snapCbRef: React.MutableRefObject<any>;
 }
 
 export interface UseScanOrchestratorReturn {
@@ -95,6 +96,7 @@ export function useScanOrchestrator({
   redirectUrl,
   showLog,
   clearLog,
+  snapCbRef,
 }: UseScanOrchestratorParams): UseScanOrchestratorReturn {
   const setCachedMode = useScanSession((s) => s.setCachedMode);
 
@@ -221,8 +223,9 @@ export function useScanOrchestrator({
 
   const startRedirect = useCallback(() => {
     const target = config.redirectUrl || redirectUrl;
-    if (!target) return;
-    let seconds = REDIRECT_DELAY_SECONDS;
+    const hasRedirectCb = !!snapCbRef.current?.onRedirect;
+    if (!target && !hasRedirectCb) return;
+    let seconds = SCAN_CONFIG.redirectDelay || 5;
     setRedirectIn(seconds);
     if (redirectTimerRef.current !== null) clearInterval(redirectTimerRef.current);
     redirectTimerRef.current = setInterval(() => {
@@ -232,10 +235,14 @@ export function useScanOrchestrator({
         if (redirectTimerRef.current !== null) clearInterval(redirectTimerRef.current);
         redirectTimerRef.current = null;
         setRedirectIn(null);
-        window.location.href = target;
+        if (snapCbRef.current?.onRedirect) {
+          snapCbRef.current.onRedirect();
+        } else if (target) {
+          window.location.href = target;
+        }
       }
     }, 1000);
-  }, [redirectUrl, config.redirectUrl]);
+  }, [redirectUrl, config.redirectUrl, snapCbRef]);
 
   const executeApiSubmission = useCallback(
     async (b64: string) => {
@@ -336,7 +343,7 @@ export function useScanOrchestrator({
           pendingPhaseRef.current = PHASES.COMPLETE;
         } else {
           setPhase(PHASES.COMPLETE);
-          if (effectiveMode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+          if (effectiveMode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl || snapCbRef.current?.onRedirect)) startRedirect();
           if (effectiveMode === MODE_REGISTER) {
             setTimeout(() => {
               if (requestEpochRef.current === epoch) {

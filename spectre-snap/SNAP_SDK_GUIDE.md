@@ -60,6 +60,13 @@ Spectre Snap is an **embedded React SDK** that provides face authentication as a
 - **SDK callbacks** (`onSuccess`/`onFailed`) — real-time UI feedback
 - **Webhooks** (`face.authenticated`, `face.spoof_rejected`) — server-to-server verification
 
+### Identity Gating (Persistent `userId`)
+Spectre Snap relies on an **external** `userId` (provided by your application) to perform Identity Gating in `"auto"` mode:
+1. When the scanner opens, the backend checks if a Face Profile exists for this `userId`.
+2. If **not found**, the SDK automatically enters `register` mode and binds the captured face to the `userId`.
+3. If **found**, the SDK automatically enters `authenticate` mode and verifies the captured face against the stored profile.
+*Note: Do not use random UUIDs for `userId` on every render, otherwise Spectre will always attempt to register a new user.*
+
 ---
 
 ## Build System
@@ -274,6 +281,14 @@ function App() {
 | `<SpectreAuthModal />` | Scanner wrapped in a dialog overlay |
 | `<SpectreAuthProvider />` | Context provider for shared config across components |
 
+### Administrative API (Backend)
+If you host the Spectre Backend, an administrative API is available under `/api/v1/admin/*` to manage the ecosystem. All admin routes require a valid session belonging to a user with the `admin` role.
+- **`GET /admin/users`**: List and paginate platform users
+- **`GET /admin/applications`**: Manage tenant applications
+- **`GET /admin/api-keys`**: Audit and revoke API keys
+- **`GET /admin/face-profiles`**: Manage enrolled identities
+- **`GET /admin/auth-sessions`**: Review authentication telemetry and logs
+
 ### Props: `SpectreAuthModal`
 
 | Prop | Type | Required | Description |
@@ -364,6 +379,11 @@ def verify_webhook(body: bytes, signature: str, secret: str) -> bool:
 ---
 
 ## Changelog
+
+### v1.1.0 (2026-05-13)
+- **feat**: Identity Gating with persistent `userId` support.
+- **feat**: Administrative APIs exposed for ecosystem management.
+- **fix**: Cleaned up Hugging Face Spaces deployment pipeline.
 
 ### v1.0.1 (2026-05-12)
 - **fix**: Inline SVG logo in FaceIDGlyph (was referencing `/logo.svg` which doesn't exist in consumer apps)

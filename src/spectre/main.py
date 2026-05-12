@@ -185,6 +185,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "Health", "description": "System status, ML model status, and health checks"},
             {"name": "Authentication", "description": "User registration, login, and Google OAuth"},
             {"name": "Applications", "description": "Tenant application and API key management"},
+            {"name": "Platform Admin", "description": "Administrative endpoints for platform oversight, user management, and global metrics (requires `admin` role)"},
             {"name": "Face Operations", "description": "Biometric face registration, authentication, and liveness detection. Used by the Snap SDK and direct API consumers."},
             {"name": "Webhooks", "description": "Webhook delivery status and event payloads. Events: `face.registered`, `face.authenticated`, `face.no_match`, `face.spoof_rejected`, `face.failed`"},
             {"name": "Configuration", "description": "Admin system configuration management with hot-reload"},

@@ -190,7 +190,7 @@ frontend-install: ## Install frontend dependencies
 	Set-Location frontend; npm install
 
 frontend-dev: ## Start frontend dev server (Vite)
-	Set-Location frontend; npm run dev
+	Set-Location spectre-frontend; npm run dev
 
 frontend-build: ## Build frontend for production
 	Set-Location frontend; npm run build

@@ -284,8 +284,7 @@ def run_upload(
                 console.print("  [green]OK[/] Pushed successfully via Git.")
 
     except Exception as e:
-        console.print(Panel(f"[red]Upload gagal:[/]
-{e}", border_style="red", title="Error"))
+        console.print(Panel(f"[red]Upload gagal:[/]\n{e}", border_style="red", title="Error"))
         sys.exit(1)
     finally:
         if temp_dir.exists():
@@ -293,10 +292,7 @@ def run_upload(
 
     console.print()
     console.print(Panel(
-        f"[bold green]Upload selesai![/]
-
-  Mode    : [yellow]GIT LFS SYNC[/]
-  URL     : https://huggingface.co/spaces/{repo_id}",
+        f"[bold green]Upload selesai![/]\n\n  Mode    : [yellow]GIT LFS SYNC[/]\n  URL     : https://huggingface.co/spaces/{repo_id}",
         border_style="green",
         title="SUCCESS",
         padding=(1, 3),

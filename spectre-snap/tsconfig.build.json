@@ -5,8 +5,9 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "types": ["vite/client"]
   },
-  "include": ["src/index.ts", "src/snap/**/*"],
+  "include": ["src"],
   "exclude": ["src/**/__tests__/**", "src/main.tsx", "src/pages/**"]
 }

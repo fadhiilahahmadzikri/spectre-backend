@@ -84,7 +84,9 @@ uv.lock
 # ── Dev tooling ──────────────────────────────────────────────────────────
 .agent/
 .agents/
+.antigravitycli/
 .cache/
 .conductor/
 .kiro/
+Docs/
 graphify-out/

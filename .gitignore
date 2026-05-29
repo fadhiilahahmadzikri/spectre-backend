@@ -47,6 +47,11 @@ artifact/*.h5
 artifact/*.pb
 artifact/**/*.h5
 artifact/**/*.pb
+artifact/*.keras
+artifact/**/*.keras
+*.zip
+*.tar.gz
+*.7z
 
 # ── Testing ──────────────────────────────────────────────────────────────
 .coverage

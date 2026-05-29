@@ -1,12 +1,3 @@
----
-title: Spectre Backend
-emoji: 👻
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 7860
----
-
 # Spectre
 
 AI-Powered Facial Authentication Platform.

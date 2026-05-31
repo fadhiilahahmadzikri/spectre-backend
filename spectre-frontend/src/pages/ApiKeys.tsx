@@ -81,7 +81,7 @@ export function ApiKeys() {
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="flex flex-col gap-2">
             <Link
-              to="/applications"
+              to="/app/applications"
               className="inline-flex items-center gap-1 text-[12px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors w-fit"
             >
               <ChevronLeft size={14} />

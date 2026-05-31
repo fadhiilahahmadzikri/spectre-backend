@@ -71,14 +71,14 @@ export function MobileMenu() {
             )}
 
             <nav className="flex flex-col p-3 gap-1">
-              <MobileNavItem icon={<LayoutDashboard size={16} />} label="Dashboard" onClick={() => handleNav("/")} />
-              <MobileNavItem icon={<AppWindow size={16} />} label="Applications" onClick={() => handleNav("/applications")} />
-              <MobileNavItem icon={<ScanLine size={16} />} label="Face scan" onClick={() => handleNav("/scan")} />
+              <MobileNavItem icon={<LayoutDashboard size={16} />} label="Dashboard" onClick={() => handleNav("/app")} />
+              <MobileNavItem icon={<AppWindow size={16} />} label="Applications" onClick={() => handleNav("/app/applications")} />
+              <MobileNavItem icon={<ScanLine size={16} />} label="Face scan" onClick={() => handleNav("/app/scan")} />
               {user?.role === "admin" && (
                 <MobileNavItem icon={<Settings2 size={16} />} label="Configuration" onClick={handleOpenConfig} />
               )}
               {user?.role === "admin" && (
-                <MobileNavItem icon={<AppWindow size={16} />} label="Monitoring" onClick={() => handleNav("/admin/monitoring")} />
+                <MobileNavItem icon={<AppWindow size={16} />} label="Monitoring" onClick={() => handleNav("/app/admin/monitoring")} />
               )}
             </nav>
 

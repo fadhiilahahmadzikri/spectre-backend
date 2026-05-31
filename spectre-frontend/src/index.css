@@ -2,6 +2,13 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Landing & docs fonts */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/instrument-serif";
+@import "@fontsource/instrument-serif/400-italic.css";
+
 @import "./app/styles/tokens.css";
 @import "./app/styles/animations.css";
 @import "./app/styles/utilities.css" layer(components);
@@ -48,6 +55,30 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Landing & docs brand colors */
+  --color-brand-blue: #240CF6;
+  --color-brand-cyan: #92F8FF;
+  --color-neutral-ink: #040404;
+  --color-neutral-charcoal: #57555A;
+  --color-neutral-slate: #52525B;
+  --color-neutral-muted: #A1A1AA;
+  --color-neutral-subtle: #909090;
+  --color-neutral-line: #E9E9E9;
+  --color-neutral-divider: #ECECEC;
+  --color-neutral-surface: #F4F4F5;
+  --color-neutral-bg: #F7F7F8;
+  --color-neutral-canvas: #FAFAFA;
+  --color-neutral-white: #FFFFFF;
+
+  /* Landing & docs font families */
+  --font-display: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'Inter Variable', 'Inter', sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono-code: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Landing gradients */
+  --gradient-brand: linear-gradient(to right, #240CF6, #92F8FF);
+  --gradient-scrim: linear-gradient(to bottom, rgba(217,217,217,0), rgba(4,4,4,0.49) 49%, #040404);
 }
 
 :root {
@@ -94,5 +125,32 @@
 
   html {
     color-scheme: dark;
+  }
+}
+
+/* ─── Landing & Docs page overrides ──────────────────────────────────────── */
+/* These pages are light-themed; they set their own background/foreground.   */
+@layer components {
+  .docs-body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #52525B;
+  }
+  .docs-code {
+    font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: #111114;
+    color: #F4F4F5;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .shadow-card {
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px 0 rgba(0,0,0,0.04);
+  }
+  .shadow-card-hover {
+    box-shadow: 0 4px 12px 0 rgba(0,0,0,0.1);
+  }
+  .shadow-brand-glow {
+    box-shadow: 0 0 20px rgba(36,12,246,0.25);
   }
 }

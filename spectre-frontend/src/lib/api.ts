@@ -102,11 +102,35 @@ export const api = {
       signal: opts.signal,
     }),
 
-  login: (data: { email: string; password: string }, opts: RequestOpts = {}) =>
-    request<{ access_token: string; refresh_token: string; user: AuthUser }>(
-      "/api/v1/auth/login",
-      { method: "POST", body: data, signal: opts.signal },
-    ),
+  login: async (data: { email: string; password: string }, opts: RequestOpts = {}) => {
+    const resp = await request<{
+      access_token: string;
+      refresh_token: string;
+      user_id: string;
+      display_name: string;
+      token_type: string;
+      expires_in: number;
+      totp_required: boolean;
+    }>("/api/v1/auth/login", { method: "POST", body: data, signal: opts.signal });
+
+    // Decode role from JWT payload since backend doesn't return it at top level
+    let role = "user";
+    try {
+      const payload = JSON.parse(atob(resp.access_token.split(".")[1]));
+      role = payload.role ?? "user";
+    } catch { /* keep default */ }
+
+    return {
+      access_token: resp.access_token,
+      refresh_token: resp.refresh_token,
+      user: {
+        id: resp.user_id,
+        email: data.email,
+        display_name: resp.display_name,
+        role,
+      } as AuthUser,
+    };
+  },
 
   googleLogin: () => `${getBaseUrl()}/api/v1/auth/oauth/google`,
 

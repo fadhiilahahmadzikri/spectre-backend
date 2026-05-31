@@ -33,7 +33,7 @@ export function SignInForm() {
       const data = await api.login({ email, password });
       setAuth(data);
       notify.success("Signed in", { description: data.user.email });
-      navigate("/");
+      navigate("/app");
     } catch (err) {
       // Inline error below the form is enough feedback; no duplicate toast
       // (per UX feedback plan: AP-10 redundant multi-channel errors).

@@ -14,26 +14,26 @@ export function AppHeader() {
     <header className="w-full sticky top-0 z-30">
       <div className="glass-strong h-[60px] px-4 md:px-6 flex items-center justify-between gap-4 rounded-none border-x-0 border-t-0">
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2 text-[color:var(--label-primary)]">
+          <Link to="/app" className="flex items-center gap-2 text-[color:var(--label-primary)]">
             <FaceIDGlyph size={22} />
             <span className="face-title text-[14px]">Spectre</span>
           </Link>
           <nav className="hidden md:flex items-center gap-5">
             <Link
-              to="/"
+              to="/app"
               className="text-[13px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors"
             >
               Dashboard
             </Link>
             <Link
-              to="/applications"
+              to="/app/applications"
               className="text-[13px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors"
             >
               Applications
             </Link>
             {user?.role === "admin" && (
               <Link
-                to="/admin/health"
+                to="/app/admin/health"
                 className="text-[13px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors"
               >
                 Health
@@ -41,7 +41,7 @@ export function AppHeader() {
             )}
             {user?.role === "admin" && (
               <Link
-                to="/admin/monitoring"
+                to="/app/admin/monitoring"
                 className="text-[13px] text-[color:var(--label-secondary)] hover:text-[color:var(--label-primary)] transition-colors"
               >
                 Monitoring
@@ -73,7 +73,7 @@ export function AppHeader() {
             type="button"
             className="icon-btn hidden md:inline-flex"
             aria-label="Start face scan"
-            onClick={() => navigate("/scan")}
+            onClick={() => navigate("/app/scan")}
           >
             <ScanLine size={16} />
           </button>

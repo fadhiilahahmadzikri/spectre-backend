@@ -33,7 +33,7 @@ export function OAuthCallback() {
         role: params.get("role") ?? "user",
       },
     });
-    navigate("/", { replace: true });
+    navigate("/app", { replace: true });
   }, [hasCredentials, token, refresh, params, setAuth, navigate]);
 
   if (!hasCredentials) {

@@ -24,6 +24,7 @@ import LandingPage from "./pages/LandingPage";
 import ApiReference from "./pages/ApiReference";
 import Sdks from "./pages/Sdks";
 import Changelog from "./pages/Changelog";
+import Analytics from "./pages/Analytics";
 
 // Docs layout
 import DocsLayout from "./components/layout/DocsLayout";

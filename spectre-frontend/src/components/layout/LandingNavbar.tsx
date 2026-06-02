@@ -3,9 +3,14 @@ import { Link, NavLink } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SpecterLogo from '@/components/ui/SpecterLogo'
+import ThemeToggle from '@/components/ui/ThemeToggle'
+import { useAuthStore } from '@/lib/store'
 
 export default function LandingNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const isLoggedIn = useAuthStore(s => !!s.accessToken)
+  const ctaPath = isLoggedIn ? '/app' : '/login'
+  const ctaLabel = isLoggedIn ? 'Dashboard' : 'Get Started'
 
   const navLinks = [
     { label: 'Documentation', href: '/docs/introduction' },
@@ -16,9 +21,9 @@ export default function LandingNavbar() {
 
   return (
     <div className="w-full flex justify-center px-6 pt-6 pb-0">
-      {/* Pill container */}
       <div className="w-full max-w-[960px] relative">
-        <div className="flex items-center justify-between h-[64px] px-5 rounded-full border border-black/10 bg-white shadow-sm">
+        {/* Pill navbar */}
+        <div className="flex items-center justify-between h-[64px] px-5 rounded-full border border-neutral-line bg-neutral-white dark:bg-neutral-surface shadow-sm">
           {/* Logo */}
           <Link to="/" className="flex items-center flex-shrink-0">
             <SpecterLogo className="h-[20px] w-auto" />
@@ -34,8 +39,8 @@ export default function LandingNavbar() {
                   cn(
                     'px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
                     isActive
-                      ? 'text-neutral-ink bg-neutral-surface'
-                      : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
+                      ? 'text-neutral-ink bg-neutral-surface dark:bg-neutral-canvas'
+                      : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas'
                   )
                 }
               >
@@ -44,8 +49,9 @@ export default function LandingNavbar() {
             ))}
           </div>
 
-          {/* Right: Sign In + CTA */}
+          {/* Right: theme toggle + Sign In + CTA */}
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+            <ThemeToggle shape="circle" />
             <Link
               to="/login"
               className="px-3 py-1.5 rounded-full text-sm font-medium text-neutral-charcoal hover:text-neutral-ink transition-colors"
@@ -53,26 +59,29 @@ export default function LandingNavbar() {
               Sign In
             </Link>
             <Link
-              to="/register"
-              className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-br from-[#57555A] to-[#040404] hover:opacity-85 transition-opacity shadow-sm"
+              to={ctaPath}
+              className="px-5 py-2 rounded-full text-sm font-semibold text-white dark:text-neutral-ink bg-gradient-to-br from-[#57555A] to-[#040404] dark:bg-none dark:bg-neutral-surface dark:border dark:border-neutral-charcoal hover:opacity-85 transition-opacity shadow-sm dark:shadow-none"
             >
-              Get Started
+              {ctaLabel}
             </Link>
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 rounded-full text-neutral-charcoal hover:bg-neutral-surface transition-colors"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          {/* Mobile: theme toggle + hamburger */}
+          <div className="md:hidden flex items-center gap-1">
+            <ThemeToggle shape="circle" />
+            <button
+              className="p-2 rounded-full text-neutral-charcoal hover:bg-neutral-surface transition-colors"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile dropdown */}
         {mobileOpen && (
-          <div className="md:hidden mt-2 bg-white border border-black/10 rounded-2xl shadow-card-hover px-4 py-3">
+          <div className="md:hidden mt-2 bg-neutral-white dark:bg-neutral-surface border border-neutral-line rounded-2xl shadow-card-hover px-4 py-3">
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <NavLink
@@ -83,8 +92,8 @@ export default function LandingNavbar() {
                     cn(
                       'px-3 py-2 rounded-xl text-sm font-medium transition-colors',
                       isActive
-                        ? 'text-neutral-ink bg-neutral-surface font-semibold'
-                        : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
+                        ? 'text-neutral-ink bg-neutral-surface dark:bg-neutral-canvas font-semibold'
+                        : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas'
                     )
                   }
                 >
@@ -100,11 +109,11 @@ export default function LandingNavbar() {
                   Sign In
                 </Link>
                 <Link
-                  to="/register"
+                  to={ctaPath}
                   onClick={() => setMobileOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-[#57555A] to-[#040404] text-center"
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white dark:text-neutral-ink bg-gradient-to-br from-[#57555A] to-[#040404] dark:bg-none dark:bg-neutral-surface dark:border dark:border-neutral-charcoal text-center"
                 >
-                  Get Started
+                  {ctaLabel}
                 </Link>
               </div>
             </div>

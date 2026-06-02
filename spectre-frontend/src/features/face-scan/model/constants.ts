@@ -119,8 +119,32 @@ export const DEFAULT_AURA_CONFIG: AuraConfig = {
   expression: "normal",
   layers: [
     { id: 1, name: "Outer Indigo", hex: "#5e5ce6", width: 8, blur: 50, w1: 2, w2: 3, amp1: 6, amp2: 5, s1: 0.015, s2: 0.025 },
-    { id: 2, name: "Neon Pink", hex: "#ff2a5f", width: 6, blur: 40, w1: 3, w2: 1, amp1: 4, amp2: 7, s1: -0.02, s2: 0.015 },
+    { id: 2, name: "Neon Pink",   hex: "#ff2a5f", width: 6, blur: 40, w1: 3, w2: 1, amp1: 4, amp2: 7, s1: -0.02, s2: 0.015 },
     { id: 3, name: "Core Orange", hex: "#ff6b00", width: 4, blur: 30, w1: 1, w2: 4, amp1: 8, amp2: 4, s1: 0.03, s2: -0.02 },
+    { id: 4, name: "Inner Glow",  hex: "#ffffff", width: 2, blur: 20, w1: 2, w2: 2, amp1: 3, amp2: 4, s1: 0.04, s2: -0.03 },
+  ],
+};
+
+export const COMPLETE_AURA_CONFIG: AuraConfig = {
+  globalSpeed: 0.8,
+  baseRadiusScale: 0.35,
+  expression: "berhasil",
+  layers: [
+    { id: 1, name: "Outer Green",  hex: "#22c55e", width: 8, blur: 50, w1: 2, w2: 3, amp1: 6, amp2: 5, s1: 0.015, s2: 0.025 },
+    { id: 2, name: "Mid Green",    hex: "#4ade80", width: 6, blur: 40, w1: 3, w2: 1, amp1: 4, amp2: 7, s1: -0.02, s2: 0.015 },
+    { id: 3, name: "Core Green",   hex: "#86efac", width: 4, blur: 30, w1: 1, w2: 4, amp1: 8, amp2: 4, s1: 0.03, s2: -0.02 },
+    { id: 4, name: "Inner Glow",   hex: "#ffffff", width: 2, blur: 20, w1: 2, w2: 2, amp1: 3, amp2: 4, s1: 0.04, s2: -0.03 },
+  ],
+};
+
+export const FAILED_AURA_CONFIG: AuraConfig = {
+  globalSpeed: 0.9,
+  baseRadiusScale: 0.35,
+  expression: "gagal",
+  layers: [
+    { id: 1, name: "Outer Red",  hex: "#ef4444", width: 8, blur: 50, w1: 2, w2: 3, amp1: 6, amp2: 5, s1: 0.015, s2: 0.025 },
+    { id: 2, name: "Mid Red",    hex: "#f87171", width: 6, blur: 40, w1: 3, w2: 1, amp1: 4, amp2: 7, s1: -0.02, s2: 0.015 },
+    { id: 3, name: "Core Red",   hex: "#ff6b00", width: 4, blur: 30, w1: 1, w2: 4, amp1: 8, amp2: 4, s1: 0.03, s2: -0.02 },
     { id: 4, name: "Inner Glow", hex: "#ffffff", width: 2, blur: 20, w1: 2, w2: 2, amp1: 3, amp2: 4, s1: 0.04, s2: -0.03 },
   ],
 };

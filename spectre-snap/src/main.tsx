@@ -22,12 +22,10 @@ const router = createBrowserRouter([
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={qc}>
-      {/* This outer div provides the dark background */}
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <RouterProvider router={router} />
-      </div>
-    </QueryClientProvider>
-  </React.StrictMode>
+  <QueryClientProvider client={qc}>
+    {/* This outer div provides the dark background */}
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <RouterProvider router={router} />
+    </div>
+  </QueryClientProvider>
 );

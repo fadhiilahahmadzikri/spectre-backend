@@ -64,7 +64,7 @@ export function AnalysisDrawer({ open, onClose, result }: AnalysisDrawerProps) {
         {hasResult && result && (
           <>
             <section className="flex flex-col gap-3">
-              <div className="text-[11px] font-mono font-bold uppercase tracking-[0.15em] border-b border-[rgba(255,255,255,0.1)] pb-2 text-[#0ea5e9]">
+              <div className="text-[11px] font-mono font-bold uppercase tracking-[0.15em] border-b border-[color:var(--separator)] pb-2 text-[color:var(--label-secondary)]">
                 {scan.analysis.aggregateSummary}
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -82,7 +82,7 @@ export function AnalysisDrawer({ open, onClose, result }: AnalysisDrawerProps) {
             </section>
 
             <section className="flex flex-col gap-3">
-              <div className="text-[11px] font-mono font-bold uppercase tracking-[0.15em] border-b border-[rgba(255,255,255,0.1)] pb-2 text-[#0ea5e9]">
+              <div className="text-[11px] font-mono font-bold uppercase tracking-[0.15em] border-b border-[color:var(--separator)] pb-2 text-[color:var(--label-secondary)]">
                 {scan.analysis.classDistribution}
               </div>
               <div className="grid grid-cols-2 gap-4">

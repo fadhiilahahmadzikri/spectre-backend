@@ -199,7 +199,7 @@ export function ScannerView({
               <>
                 <AuraRing size={380} config={auraConfig} />
                 {statusText && (
-                  <div className="my-5 text-white/80 font-medium tracking-tight text-sm mt-4 tracking-[-0.02em]">
+                  <div className="mt-4 mb-16 text-[color:var(--label-secondary)] font-medium text-sm tracking-[-0.02em]">
                     {statusText}
                   </div>
                 )}
@@ -223,7 +223,9 @@ export function ScannerView({
           </div>
         </motion.div>
 
-        <ProgressiveLog log={currentLog} visible={showLogs} />
+        <div className="-mt-3">
+          <ProgressiveLog log={currentLog} visible={showLogs} />
+        </div>
       </div>
 
       <PreviewDialog
@@ -242,7 +244,7 @@ export function ScannerView({
             exit={{ opacity: 0, y: 32 }}
             transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
             className="absolute left-0 right-0 px-5 z-30"
-            style={{ bottom: 24 }}
+            style={{ bottom: 32 }}
           >
             <ResultPanel result={result} onReset={handleReset} redirectIn={redirectIn} />
           </motion.div>

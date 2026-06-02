@@ -37,10 +37,10 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 bg-neutral-canvas">
+    <section className="py-12 sm:py-24 bg-neutral-canvas">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 sm:mb-16">
           <p className="text-sm font-semibold text-neutral-muted uppercase tracking-wider mb-3">
             How It Works
           </p>
@@ -60,10 +60,10 @@ export default function HowItWorks() {
               {i < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-8 left-full w-full h-px bg-gradient-to-r from-neutral-line to-transparent z-0" />
               )}
-              <div className="relative bg-white border border-neutral-line rounded-xl p-6 hover:shadow-card-hover transition-shadow">
+              <div className="relative bg-neutral-canvas border border-neutral-line rounded-xl p-6 hover:shadow-card-hover transition-shadow">
                 {/* Number + icon */}
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl font-bold text-neutral-line font-['Plus_Jakarta_Sans',sans-serif]">
+                  <span className="text-3xl font-bold text-neutral-muted font-['Plus_Jakarta_Sans',sans-serif]">
                     {number}
                   </span>
                   <div className="w-9 h-9 rounded-lg bg-neutral-surface flex items-center justify-center">

@@ -44,7 +44,7 @@ export function PreviewDialog({
           <img
             src={`data:image/jpeg;base64,${base64Data}`}
             alt="Captured preview"
-            className="w-full aspect-square object-cover rounded-[var(--radius-card,18px)] border border-[rgba(255,255,255,0.08)]"
+            className="w-full aspect-square object-cover rounded-[var(--radius-card,18px)] border border-[color:var(--separator)]"
             draggable={false}
           />
         )}

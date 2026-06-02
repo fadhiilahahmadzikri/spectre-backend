@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/lib/store";
 import { FaceIDGlyph } from "@/shared/icons";
-import { ScanLine, LogOut, Settings2 } from "lucide-react";
+import { ScanLine, LogOut, Settings2, BookOpen } from "lucide-react";
 import { MobileMenu } from "./MobileMenu";
 import { ConfigDialog, useConfigUi } from "@/features/configuration";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
@@ -68,6 +69,16 @@ export function AppHeader() {
               <Settings2 size={16} />
             </button>
           )}
+
+          <ThemeToggle className="hidden md:flex icon-btn !p-0 !w-[34px] !h-[34px] !text-[color:var(--label-secondary)] hover:!text-[color:var(--label-primary)]" />
+
+          <Link
+            to="/docs/introduction"
+            className="icon-btn hidden md:inline-flex"
+            aria-label="Documentation"
+          >
+            <BookOpen size={15} />
+          </Link>
 
           <button
             type="button"

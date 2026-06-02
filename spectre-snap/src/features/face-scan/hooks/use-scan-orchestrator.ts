@@ -249,6 +249,7 @@ export function useScanOrchestrator({
       if (inflightRef.current) return;
       inflightRef.current = true;
       const epoch = requestEpochRef.current;
+      try {
 
       setPhase(PHASES.ANALYZING);
       showLog(scan.logs.encrypting, "active");
@@ -433,6 +434,12 @@ export function useScanOrchestrator({
         setMode(effectiveMode);
       }
       inflightRef.current = false;
+    } catch (err) {
+      inflightRef.current = false;
+      // Abort means the component unmounted or scan was reset — not an error.
+      if (err instanceof Error && err.name === "AbortError") return;
+      throw err;
+    }
     },
     [
       apiKey,

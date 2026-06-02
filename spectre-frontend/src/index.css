@@ -59,17 +59,19 @@
   /* Landing & docs brand colors */
   --color-brand-blue: #240CF6;
   --color-brand-cyan: #92F8FF;
-  --color-neutral-ink: #040404;
-  --color-neutral-charcoal: #57555A;
-  --color-neutral-slate: #52525B;
-  --color-neutral-muted: #A1A1AA;
-  --color-neutral-subtle: #909090;
-  --color-neutral-line: #E9E9E9;
-  --color-neutral-divider: #ECECEC;
-  --color-neutral-surface: #F4F4F5;
-  --color-neutral-bg: #F7F7F8;
-  --color-neutral-canvas: #FAFAFA;
-  --color-neutral-white: #FFFFFF;
+
+  /* Neutral palette — referensi ke CSS var agar dark mode bisa override */
+  --color-neutral-ink:      var(--nd-ink);
+  --color-neutral-charcoal: var(--nd-charcoal);
+  --color-neutral-slate:    var(--nd-slate);
+  --color-neutral-muted:    var(--nd-muted);
+  --color-neutral-subtle:   var(--nd-subtle);
+  --color-neutral-line:     var(--nd-line);
+  --color-neutral-divider:  var(--nd-divider);
+  --color-neutral-surface:  var(--nd-surface);
+  --color-neutral-bg:       var(--nd-bg);
+  --color-neutral-canvas:   var(--nd-canvas);
+  --color-neutral-white:    var(--nd-white);
 
   /* Landing & docs font families */
   --font-display: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'Inter Variable', 'Inter', sans-serif;
@@ -124,8 +126,85 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light dark;
   }
+}
+
+/* ─── Scrollbar tipis untuk code block dan tabel ─────────────────────────── */
+.overflow-x-auto::-webkit-scrollbar,
+pre::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+.overflow-x-auto::-webkit-scrollbar-track,
+pre::-webkit-scrollbar-track {
+  background: var(--nd-surface);
+  border-radius: 2px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb {
+  background: var(--nd-line);
+  border-radius: 2px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+pre::-webkit-scrollbar-thumb:hover {
+  background: var(--nd-muted);
+}
+
+/* ─── Theme transition — aktif hanya saat kelas ini ada di <html> ─────────── */
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 350ms ease,
+    color 350ms ease,
+    border-color 350ms ease,
+    fill 350ms ease,
+    opacity 350ms ease !important;
+}
+
+/* ─── Neutral palette values: light & dark ───────────────────────────────── */
+:root {
+  --nd-canvas:   #FAFAFA;
+  --nd-bg:       #F7F7F8;
+  --nd-surface:  #F4F4F5;
+  --nd-divider:  #ECECEC;
+  --nd-line:     #E9E9E9;
+  --nd-white:    #FFFFFF;
+  --nd-subtle:   #909090;
+  --nd-muted:    #A1A1AA;
+  --nd-charcoal: #57555A;
+  --nd-slate:    #52525B;
+  --nd-ink:      #040404;
+}
+
+.dark {
+  --nd-canvas:   #0f0f12;
+  --nd-bg:       #0d0d10;
+  --nd-surface:  #1a1a20;
+  --nd-divider:  #252530;
+  --nd-line:     #252530;
+  --nd-white:    #16161c;
+  --nd-subtle:   #505060;
+  --nd-muted:    #64647a;
+  --nd-charcoal: #a0a0b0;
+  --nd-slate:    #8a8a9a;
+  --nd-ink:      #f0f0f4;
+}
+
+
+/* ─── TOC heading highlight saat diklik ──────────────────────────────────── */
+@keyframes heading-highlight {
+  0%   { background-color: transparent; }
+  20%  { background-color: color-mix(in srgb, var(--nd-ink) 8%, transparent); }
+  100% { background-color: transparent; }
+}
+
+.heading-flash {
+  animation: heading-highlight 1200ms ease-out forwards;
+  border-radius: 6px;
+  padding-inline: 4px;
+  margin-inline: -4px;
 }
 
 /* ─── Landing & Docs page overrides ──────────────────────────────────────── */

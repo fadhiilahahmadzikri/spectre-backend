@@ -19,13 +19,17 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency manifests
 COPY pyproject.toml uv.lock* ./
 
-# Install dependencies
-RUN uv sync --frozen --no-dev --no-editable 2>/dev/null || uv sync --no-dev --no-editable
+# Install only dependencies (not the project itself) for better layer caching
+RUN uv sync --frozen --no-dev --no-install-project 2>/dev/null || uv sync --no-dev --no-install-project
 
 # Copy source code
 COPY src/ src/
 COPY alembic.ini .
 COPY migrations/ migrations/
+COPY README.md .
+
+# Install the project itself
+RUN uv sync --frozen --no-dev --no-editable 2>/dev/null || uv sync --no-dev --no-editable
 
 # --- Stage 2: Runtime ---
 FROM python:3.11-slim AS runtime
@@ -35,7 +39,7 @@ WORKDIR /app
 # Install runtime system deps only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     curl \
     && rm -rf /var/lib/apt/lists/* \

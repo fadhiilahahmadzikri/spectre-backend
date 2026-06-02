@@ -18,7 +18,7 @@ export function GlassDrawerHeader({
     <div className="px-6 pt-5 pb-4 flex items-center justify-between border-b border-[color:var(--separator)]">
       <div className="flex items-center gap-2.5">
         {icon && (
-          <div style={{ color: "rgba(235,235,245,0.75)" }}>{icon}</div>
+          <div style={{ color: "var(--label-secondary)" }}>{icon}</div>
         )}
         <div>
           <div className="face-title text-[15px]">{title}</div>

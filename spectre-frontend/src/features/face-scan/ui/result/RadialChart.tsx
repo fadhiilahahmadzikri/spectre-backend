@@ -14,7 +14,13 @@ export function RadialChart({ value, label, color, size = 90 }: RadialChartProps
   const offset = circumference * (1 - pct);
 
   return (
-    <div className="flex flex-col items-center gap-1 p-3 bg-white/[0.03] rounded-2xl border border-white/[0.05]">
+    <div
+      className="flex flex-col items-center gap-1 p-3 rounded-2xl"
+      style={{
+        background: 'var(--fill-quaternary)',
+        border: '1px solid var(--separator)',
+      }}
+    >
       <div
         className="relative flex items-center justify-center"
         style={{ width: size, height: size }}
@@ -25,7 +31,7 @@ export function RadialChart({ value, label, color, size = 90 }: RadialChartProps
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="rgba(255,255,255,0.08)"
+            stroke="var(--fill-primary)"
             strokeWidth={STROKE_WIDTH}
           />
           <circle
@@ -41,11 +47,17 @@ export function RadialChart({ value, label, color, size = 90 }: RadialChartProps
             style={{ transition: "stroke-dashoffset 800ms cubic-bezier(0.4, 0, 0.2, 1)" }}
           />
         </svg>
-        <span className="absolute text-[13px] font-semibold font-mono text-white">
+        <span
+          className="absolute text-[13px] font-semibold font-mono"
+          style={{ color: 'var(--label-primary)' }}
+        >
           {(pct * 100).toFixed(1)}%
         </span>
       </div>
-      <span className="text-[11px] text-white/70 font-mono text-center tracking-tight leading-tight w-full truncate px-1 mt-1">
+      <span
+        className="text-[11px] font-mono text-center tracking-tight leading-tight w-full truncate px-1 mt-1"
+        style={{ color: 'var(--label-secondary)' }}
+      >
         {label}
       </span>
     </div>

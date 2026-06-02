@@ -6,7 +6,7 @@ export default function SpecterIcon({ className = '' }: { className?: string }) 
       viewBox="0 0 35 37"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
+      className={`dark:invert ${className}`}
     >
       <path
         d="M30.4748 11.2L8.95919 22.6363L4.2809 19.8354L4.5769 14.3917L26.0925 2.95535L30.1771 6.07068L30.4748 11.2Z"

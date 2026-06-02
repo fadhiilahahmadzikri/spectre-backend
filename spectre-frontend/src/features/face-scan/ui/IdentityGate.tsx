@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { z } from "zod";
+import { ScanFace } from "lucide-react";
 import { FaceIDGlyph } from "@/shared/icons";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -72,64 +73,59 @@ export function IdentityGate({
   }
 
   return (
-    <div className="relative flex flex-col items-center justify-center w-full py-10">
-      <div className="w-full max-w-[380px] rounded-[24px] p-8 flex flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <div className="gate-icon-ring">
-            <FaceIDGlyph size={28} />
-          </div>
-          <div>
-            <h2 className="face-title text-[18px]">{scan.identityGate.title}</h2>
-            <p className="face-helper text-[12px]">
-              {scan.identityGate.placeholder}
-            </p>
-          </div>
-        </div>
+    <div className="flex flex-col w-full">
+      {/* Header — mepet ke atas */}
+      <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
+        <FaceIDGlyph size={20} />
+        <span className="face-title text-[15px]">{scan.identityGate.title}</span>
+      </div>
 
-        <div className="flex flex-col gap-3">
-          <input
-            type="text"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleStart();
-              }
-            }}
-            placeholder="spk_..."
-            className="input-mono"
-            autoComplete="off"
-            spellCheck={false}
-            disabled={loading}
-          />
-          {error && (
-            <Alert variant="destructive" className="py-2 px-3">
-              <AlertDescription className="font-mono text-[11px]">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-          <Button
-            type="button"
-            variant="primary-glass"
-            onClick={handleStart}
-            disabled={loading || !apiKey.trim()}
-          >
-            {loading && <Spinner size="sm" data-icon="inline-start" />}
-            {loading ? scan.identityGate.verifying : scan.identityGate.start}
+      {/* Icon scan — tanpa wrapper, langsung di tengah */}
+      <div className="flex items-center justify-center py-10">
+        <ScanFace
+          size={120}
+          strokeWidth={0.8}
+          style={{ color: 'var(--label-secondary)' }}
+        />
+      </div>
+
+      {/* Input + buttons */}
+      <div className="flex flex-col gap-3 px-5 pt-4 pb-5">
+        <p className="face-helper text-[12px]">
+          Paste API Key yang sudah di-generate
+        </p>
+        <input
+          type="text"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); handleStart(); }
+          }}
+          placeholder="spk_..."
+          className="input-mono"
+          autoComplete="off"
+          spellCheck={false}
+          disabled={loading}
+        />
+        {error && (
+          <Alert variant="destructive" className="py-2 px-3">
+            <AlertDescription className="font-mono text-[11px]">{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button
+          type="button"
+          variant="primary-glass"
+          onClick={handleStart}
+          disabled={loading || !apiKey.trim()}
+        >
+          {loading && <Spinner size="sm" data-icon="inline-start" />}
+          {loading ? scan.identityGate.verifying : scan.identityGate.start}
+        </Button>
+        {onCancel && (
+          <Button type="button" variant="ghost-glass" onClick={onCancel} disabled={loading}>
+            {scan.identityGate.cancel}
           </Button>
-          {onCancel && (
-            <Button
-              type="button"
-              variant="ghost-glass"
-              onClick={onCancel}
-              disabled={loading}
-            >
-              {scan.identityGate.cancel}
-            </Button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

@@ -16,6 +16,8 @@ export default function DocsTopbar({ onMenuToggle }: DocsTopbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isLoggedIn = useAuthStore(s => !!s.accessToken)
 
+  const analyticsUrl = import.meta.env.VITE_ANALYTICS_URL as string
+
   const tabs = [
     { label: 'API Reference', href: '/api-reference' },
     { label: 'SDKs', href: '/sdks' },
@@ -73,6 +75,15 @@ export default function DocsTopbar({ onMenuToggle }: DocsTopbarProps) {
                 {tab.label}
               </NavLink>
             ))}
+            <div className="w-px h-4 bg-neutral-line mx-1" />
+            <a
+              href={analyticsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
+            >
+              Analytics
+            </a>
           </div>
 
           {/* Search */}
@@ -164,6 +175,15 @@ export default function DocsTopbar({ onMenuToggle }: DocsTopbarProps) {
                 {tab.label}
               </NavLink>
             ))}
+            <a
+              href={analyticsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
+            >
+              Analytics
+            </a>
 
           </div>
 

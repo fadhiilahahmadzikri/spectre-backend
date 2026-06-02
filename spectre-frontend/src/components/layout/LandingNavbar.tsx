@@ -12,6 +12,8 @@ export default function LandingNavbar() {
   const ctaPath = isLoggedIn ? '/app' : '/login'
   const ctaLabel = isLoggedIn ? 'Dashboard' : 'Get Started'
 
+  const analyticsUrl = import.meta.env.VITE_ANALYTICS_URL as string
+
   const navLinks = [
     { label: 'Documentation', href: '/docs/introduction' },
     { label: 'API Reference', href: '/api-reference' },
@@ -47,6 +49,14 @@ export default function LandingNavbar() {
                 {link.label}
               </NavLink>
             ))}
+            <a
+              href={analyticsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas"
+            >
+              Analytics
+            </a>
           </div>
 
           {/* Right: theme toggle + Sign In + CTA */}
@@ -100,6 +110,15 @@ export default function LandingNavbar() {
                   {link.label}
                 </NavLink>
               ))}
+              <a
+                href={analyticsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded-xl text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas"
+              >
+                Analytics
+              </a>
               <div className="border-t border-neutral-line mt-2 pt-2 flex flex-col gap-2">
                 <Link
                   to="/login"

@@ -22,7 +22,7 @@ export function ScanningHeader({ opacity = 1, onOpenConfig, onClose }: ScanningH
         <div className="w-9" />
       )}
       <div className="scanning-center-brand">
-        <div style={{ color: "rgba(255,255,255,0.80)" }}>
+        <div style={{ color: "var(--label-secondary)" }}>
           <FaceIDGlyph size={20} />
         </div>
         <div className="face-title" style={{ fontSize: 12 }}>

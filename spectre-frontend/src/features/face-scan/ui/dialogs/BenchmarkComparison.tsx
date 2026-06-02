@@ -29,7 +29,7 @@ export function BenchmarkComparison({ open, report, onContinue }: BenchmarkCompa
       <GlassDialogBody>
         <div className="flex flex-col gap-4">
           {report.consensus && (
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 flex flex-col gap-2">
+            <div className="rounded-lg border border-[color:var(--separator)] bg-[color:var(--surface)] p-3 flex flex-col gap-2">
               <div className="text-[10px] font-semibold text-[color:var(--label-secondary)] uppercase tracking-wider">
                 Consensus
               </div>
@@ -59,7 +59,7 @@ export function BenchmarkComparison({ open, report, onContinue }: BenchmarkCompa
             ))}
           </div>
 
-          <details className="rounded-lg border border-white/[0.06] p-3">
+          <details className="rounded-lg border border-[color:var(--separator)] p-3">
             <summary className="cursor-pointer text-[11px] font-semibold text-[color:var(--label-secondary)] uppercase tracking-wider">
               Raw JSON payload
             </summary>
@@ -92,7 +92,7 @@ function ModelResultCard({ result }: { result: BenchmarkModelResult }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Cpu size={14} className="text-[color:var(--label-tertiary)]" />
-          <span className="text-[13px] font-semibold text-white">{result.model_id}</span>
+          <span className="text-[13px] font-semibold text-[color:var(--label-primary)]">{result.model_id}</span>
           <span className="kbd-mono text-[9px] text-[color:var(--label-tertiary)]">
             v{result.version}
           </span>
@@ -112,16 +112,16 @@ function ModelResultCard({ result }: { result: BenchmarkModelResult }) {
               const isTop = i === fas.predicted_index;
               return (
                 <div key={cls} className="flex items-center gap-1.5">
-                  <span className={`text-[10px] w-24 ${isTop ? "text-white font-medium" : "text-[color:var(--label-tertiary)]"}`}>
+                  <span className={`text-[10px] w-24 ${isTop ? "text-[color:var(--label-primary)] font-medium" : "text-[color:var(--label-tertiary)]"}`}>
                     {cls}
                   </span>
-                  <div className="flex-1 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-[color:var(--surface)] overflow-hidden">
                     <div
                       className={`h-full rounded-full ${cls === "realperson" ? "bg-emerald-500/70" : "bg-red-500/50"}`}
                       style={{ width: `${Math.max(p * 100, 0.3)}%` }}
                     />
                   </div>
-                  <span className={`kbd-mono text-[9px] w-12 text-right ${isTop ? "text-white" : "text-[color:var(--label-tertiary)]"}`}>
+                  <span className={`kbd-mono text-[9px] w-12 text-right ${isTop ? "text-[color:var(--label-primary)]" : "text-[color:var(--label-tertiary)]"}`}>
                     {(p * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -129,7 +129,7 @@ function ModelResultCard({ result }: { result: BenchmarkModelResult }) {
             })}
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-white/[0.04]">
+          <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-[color:var(--separator)]">
             <Chip label={fas.predicted_class} />
             <Chip
               label={`${(fas.confidence * 100).toFixed(1)}%`}
@@ -153,6 +153,6 @@ function Chip({ label, tone = "default" }: { label: string; tone?: "default" | "
       ? "bg-amber-500/10 text-amber-400"
       : tone === "err"
       ? "bg-red-500/10 text-red-400"
-      : "bg-white/[0.05] text-[color:var(--label-secondary)]";
+      : "bg-[color:var(--surface)] text-[color:var(--label-secondary)]";
   return <span className={`text-[9px] px-2 py-0.5 rounded kbd-mono ${color}`}>{label}</span>;
 }

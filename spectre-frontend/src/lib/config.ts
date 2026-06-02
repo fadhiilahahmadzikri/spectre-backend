@@ -1,5 +1,5 @@
 export const ENV = {
-  LOCAL: "http://localhost:8000",
+  LOCAL: "http://localhost:8080",
   HF_SPACES: "https://thewhitenigs-spectre-backend.hf.space",
 } as const;
 

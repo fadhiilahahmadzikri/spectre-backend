@@ -14,7 +14,7 @@
 
 export const scan = {
   identityGate: {
-    title: "Face Scan",
+    title: "Spectre",
     placeholder: "Paste API Key yang sudah di-generate",
     start: "Mulai Face Scan",
     verifying: "Memverifikasi...",

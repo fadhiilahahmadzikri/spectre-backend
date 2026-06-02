@@ -33,7 +33,7 @@ export function GlassDrawer({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={(v) => !v && onClose()}>
-        <DrawerContent className="glass-strong border-none !rounded-t-[24px] max-h-[88vh]">
+        <DrawerContent className="glass-strong border-none !rounded-t-[24px] max-h-[88vh] !bg-[color:var(--bg-elev)]">
           <DrawerTitle className="sr-only">{title}</DrawerTitle>
           <DrawerDescription className="sr-only">{description}</DrawerDescription>
           {children}
@@ -47,7 +47,7 @@ export function GlassDrawer({
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="glass-strong border-none p-0 w-[400px] sm:max-w-[420px]"
+        className="glass-strong border-none p-0 w-[400px] sm:max-w-[420px] !bg-[color:var(--bg-elev)]"
       >
         <SheetTitle className="sr-only">{title}</SheetTitle>
         <SheetDescription className="sr-only">{description}</SheetDescription>

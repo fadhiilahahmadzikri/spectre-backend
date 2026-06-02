@@ -15,7 +15,7 @@ export default function Navbar() {
   ]
 
   return (
-    <nav className="sticky top-0 z-50 h-16 bg-white border-b border-neutral-line">
+    <nav className="sticky top-0 z-50 h-16 bg-neutral-canvas border-b border-neutral-line">
       <div className="max-w-7xl mx-auto px-8 h-full flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center flex-shrink-0">
@@ -70,7 +70,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-b border-neutral-line px-4 pb-4">
+        <div className="md:hidden bg-neutral-canvas border-b border-neutral-line px-4 pb-4">
           <div className="flex flex-col gap-1 pt-2">
             {navLinks.map((link) => (
               <NavLink

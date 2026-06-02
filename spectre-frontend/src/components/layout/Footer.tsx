@@ -66,7 +66,7 @@ export default function Footer() {
           {/* Newsletter */}
           <div className="md:col-span-2">
             <p className="text-xs font-semibold text-neutral-ink mb-3">Subscribe our newsletter</p>
-            <div className="flex items-center gap-1 px-1.5 py-1.5 rounded-full border border-neutral-line bg-white">
+            <div className="flex items-center gap-1 px-1.5 py-1.5 rounded-full border border-neutral-line bg-neutral-canvas">
               <input
                 type="email"
                 value={email}
@@ -76,7 +76,7 @@ export default function Footer() {
               />
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-neutral-ink hover:opacity-80 transition-opacity whitespace-nowrap"
+                className="px-3 py-1.5 rounded-full text-xs font-semibold text-white dark:text-neutral-ink bg-neutral-ink dark:bg-neutral-surface dark:border dark:border-neutral-charcoal hover:opacity-80 transition-opacity whitespace-nowrap"
               >
                 Get Started
               </button>

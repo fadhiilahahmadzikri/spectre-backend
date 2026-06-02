@@ -6,21 +6,21 @@ const phones = [
 
 export default function PhoneMockup() {
   return (
-    <section className="py-20 bg-white overflow-hidden">
+    <section className="py-20 bg-neutral-canvas overflow-hidden">
       <div className="max-w-4xl mx-auto px-6 flex flex-col items-center">
 
         {/* Phone fan */}
-        <div className="flex items-end justify-center w-full mb-12" style={{ gap: '-12px' }}>
+        <div className="flex items-end justify-center w-full mb-8 sm:mb-12">
           {phones.map((phone) => (
             <div
               key={phone.src}
               className="relative flex-shrink-0"
               style={{
-                width: `${phone.scale * 220}px`,
-                transform: `translateY(${phone.offset}px) rotate(${phone.rotate}deg)`,
+                width: `clamp(${phone.scale * 110}px, ${phone.scale * 18}vw, ${phone.scale * 220}px)`,
+                transform: `translateY(${phone.offset * 0.6}px) rotate(${phone.rotate}deg)`,
                 zIndex: phone.rotate === 0 ? 2 : 1,
-                marginLeft: phone.rotate === 0 ? '-16px' : '0',
-                marginRight: phone.rotate === 0 ? '-16px' : '0',
+                marginLeft: phone.rotate === 0 ? '-8px' : '0',
+                marginRight: phone.rotate === 0 ? '-8px' : '0',
               }}
             >
               <img

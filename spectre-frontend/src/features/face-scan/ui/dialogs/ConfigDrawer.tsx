@@ -92,7 +92,7 @@ function ConfigPanelBody({
         )}
 
         <Section label="Session">
-          <div className="rounded-[14px] border border-[color:var(--separator)] bg-white/[0.02] p-3 flex flex-col gap-2">
+          <div className="rounded-[14px] border border-[color:var(--separator)] bg-[color:var(--surface)] p-3 flex flex-col gap-2">
             <Row label="API key" value={apiKeyMasked} />
             <Row label="External user id" value={externalUserId} truncate />
           </div>
@@ -100,11 +100,11 @@ function ConfigPanelBody({
         </Section>
 
         <Section label="Mode (auto)">
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-[color:var(--separator)] bg-white/[0.02]">
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-[color:var(--separator)] bg-[color:var(--surface)]">
             <div
               className={`mode-indicator-dot ${mode === MODE_REGISTER ? "is-register" : "is-verify"}`}
             />
-            <div className="text-[13px] text-white font-medium tracking-[-0.01em]">
+            <div className="text-[13px] text-[color:var(--label-primary)] font-medium tracking-[-0.01em]">
               {mode === MODE_REGISTER ? "Enrollment" : "Verification"}
             </div>
           </div>
@@ -217,9 +217,9 @@ interface SettingRowProps {
 
 function SettingRow({ title, description, checked, onChange }: SettingRowProps) {
   return (
-    <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[color:var(--separator)] bg-white/[0.02]">
+    <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[color:var(--separator)] bg-[color:var(--surface)]">
       <div className="flex flex-col min-w-0">
-        <span className="text-[13px] text-white font-medium tracking-[-0.01em]">{title}</span>
+        <span className="text-[13px] text-[color:var(--label-primary)] font-medium tracking-[-0.01em]">{title}</span>
         <span className="kbd-mono text-[10px] mt-0.5">{description}</span>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />

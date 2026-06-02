@@ -70,8 +70,9 @@ export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: Scanner
         className="
           scanner-dialog
           glass-strong border-none p-0 overflow-hidden
+          bg-[color:var(--bg-elev)]
           w-screen h-[100dvh] max-w-none rounded-none
-          sm:w-[440px] sm:h-[860px] sm:max-h-[94dvh] sm:!rounded-[32px]
+          sm:w-[420px] sm:h-auto sm:max-h-[90dvh] sm:!rounded-[28px]
           [&>button]:hidden
         "
         onInteractOutside={(e) => e.preventDefault()}

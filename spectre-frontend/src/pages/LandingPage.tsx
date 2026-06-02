@@ -10,7 +10,7 @@ import CTA from '@/components/landing/CTA'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-neutral-canvas">
       <main className="flex-1">
         {/* Hero includes the floating pill navbar */}
         <Hero />

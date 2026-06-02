@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, ScanLine, AppWindow, LogOut, LayoutDashboard, Settings2 } from "lucide-react";
+import { Menu, ScanLine, AppWindow, LogOut, LayoutDashboard, Settings2, BookOpen } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +13,7 @@ import { useAuthStore } from "@/lib/store";
 import { useMediaQuery, MEDIA_MOBILE } from "@/shared/hooks/use-media-query";
 import { FaceIDGlyph } from "@/shared/icons";
 import { useConfigUi } from "@/features/configuration";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export function MobileMenu() {
   const isMobile = useMediaQuery(MEDIA_MOBILE);
@@ -50,7 +51,7 @@ export function MobileMenu() {
         </SheetTrigger>
         <SheetContent
           side="right"
-          className="glass-strong border-none p-0 w-[280px] sm:max-w-[280px] [&>button]:top-4 [&>button]:right-4"
+          className="glass-strong border-none p-0 w-[280px] sm:max-w-[280px] !bg-[color:var(--bg-elev)] [&>button]:top-4 [&>button]:right-4"
         >
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
           <SheetDescription className="sr-only">Main application navigation</SheetDescription>
@@ -74,6 +75,7 @@ export function MobileMenu() {
               <MobileNavItem icon={<LayoutDashboard size={16} />} label="Dashboard" onClick={() => handleNav("/app")} />
               <MobileNavItem icon={<AppWindow size={16} />} label="Applications" onClick={() => handleNav("/app/applications")} />
               <MobileNavItem icon={<ScanLine size={16} />} label="Face scan" onClick={() => handleNav("/app/scan")} />
+              <MobileNavItem icon={<BookOpen size={16} />} label="Dokumentasi" onClick={() => handleNav("/docs/introduction")} />
               {user?.role === "admin" && (
                 <MobileNavItem icon={<Settings2 size={16} />} label="Configuration" onClick={handleOpenConfig} />
               )}
@@ -82,7 +84,11 @@ export function MobileMenu() {
               )}
             </nav>
 
-            <div className="mt-auto p-5 flex flex-col gap-4 border-t border-[color:var(--separator)]">
+            <div className="mt-auto p-5 flex flex-col gap-3 border-t border-[color:var(--separator)]">
+              <div className="flex items-center justify-between">
+                <span className="face-helper text-[13px]">Tema</span>
+                <ThemeToggle shape="circle" />
+              </div>
               <Button type="button" variant="ghost-glass" onClick={handleLogout}>
                 <LogOut data-icon="inline-start" />
                 Log out

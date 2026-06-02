@@ -1,4 +1,4 @@
-import { StrictMode, Suspense } from "react";
+import { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -27,6 +27,7 @@ import Changelog from "./pages/Changelog";
 
 // Docs layout
 import DocsLayout from "./components/layout/DocsLayout";
+import DocsShellLayout from "./components/layout/DocsShellLayout";
 
 // Docs — getting started
 import Introduction from "./pages/docs/getting-started/Introduction";
@@ -52,6 +53,7 @@ import ErrorCodes from "./pages/docs/reference/ErrorCodes";
 import ResponseSchema from "./pages/docs/reference/ResponseSchema";
 import Security from "./pages/docs/reference/Security";
 
+import { ThemeProvider } from "next-themes";
 import "./index.css";
 
 const qc = new QueryClient({
@@ -69,16 +71,21 @@ const qc = new QueryClient({
 });
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+  <>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <QueryClientProvider client={qc}>
       <IosAlertProvider>
         <BrowserRouter>
           <Routes>
             {/* Public — landing */}
             <Route path="/" element={<LandingPage />} />
-            <Route path="/api-reference" element={<ApiReference />} />
-            <Route path="/sdks" element={<Sdks />} />
-            <Route path="/changelog" element={<Changelog />} />
+
+            {/* Docs shell (topbar, no sidebar) */}
+            <Route element={<DocsShellLayout />}>
+              <Route path="/api-reference" element={<ApiReference />} />
+              <Route path="/sdks" element={<Sdks />} />
+              <Route path="/changelog" element={<Changelog />} />
+            </Route>
 
             {/* Auth */}
             <Route path="/login" element={<Login />} />
@@ -133,5 +140,6 @@ createRoot(document.getElementById("root")!).render(
         </BrowserRouter>
       </IosAlertProvider>
     </QueryClientProvider>
-  </StrictMode>,
+    </ThemeProvider>
+  </>,
 );

@@ -24,7 +24,7 @@ const buttonVariants = cva(
         // these styles to win over whatever size is applied (glass buttons
         // are padding/height-driven, not h-based like the shadcn defaults).
         "primary-glass":
-          "w-full !rounded-[var(--radius-md)] !h-auto !px-[20px] !py-[15px] !text-[15px] bg-white font-semibold text-black tracking-[-0.01em] transition-[opacity,transform] duration-[180ms] ease-out hover:opacity-[0.93] active:scale-[0.985] active:opacity-[0.88] disabled:opacity-[0.32]",
+          "w-full !rounded-[var(--radius-md)] !h-auto !px-[20px] !py-[15px] !text-[15px] bg-[color:var(--poc-accent)] font-semibold text-[color:var(--bg-elev)] tracking-[-0.01em] transition-[opacity,transform] duration-[180ms] ease-out hover:opacity-[0.93] active:scale-[0.985] active:opacity-[0.88] disabled:opacity-[0.32]",
         "ghost-glass":
           "w-full !rounded-[var(--radius-md)] !h-auto !px-[16px] !py-[13px] !text-[14px] border bg-[var(--fill-tertiary)] text-[color:var(--fg)] font-medium tracking-[-0.01em] transition-colors duration-[180ms] ease-out hover:bg-[var(--fill-secondary)] active:scale-[0.985]",
         "danger-soft":

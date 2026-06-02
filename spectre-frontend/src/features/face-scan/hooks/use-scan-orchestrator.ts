@@ -12,6 +12,8 @@ import {
   IQA_STATE,
   SCAN_GEOMETRY,
   DEFAULT_AURA_CONFIG,
+  COMPLETE_AURA_CONFIG,
+  FAILED_AURA_CONFIG,
   MEDIAPIPE_SCRIPT_URLS,
   MODE_REGISTER,
   MODE_AUTHENTICATE,
@@ -697,8 +699,9 @@ export function useScanOrchestrator({
 
   // --- Derived state ---
   const auraConfig = useMemo<AuraConfig>(() => {
-    const expression = phase === PHASES.COMPLETE ? "berhasil" : phase === PHASES.FAILED ? "gagal" : "normal";
-    return { ...DEFAULT_AURA_CONFIG, expression };
+    if (phase === PHASES.COMPLETE) return COMPLETE_AURA_CONFIG;
+    if (phase === PHASES.FAILED)   return FAILED_AURA_CONFIG;
+    return DEFAULT_AURA_CONFIG;
   }, [phase]);
 
   const statusText = useMemo(() => {

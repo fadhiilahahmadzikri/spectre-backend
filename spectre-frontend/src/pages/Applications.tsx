@@ -221,7 +221,7 @@ function AppCard({
               size="inline"
               className="!h-9 !py-0 !px-3 !text-[12px] flex-1"
             >
-              <Link to={`/applications/${app.id}/keys`}>
+              <Link to={`/app/applications/${app.id}/keys`}>
                 <KeyRound data-icon="inline-start" />
                 API keys
               </Link>

@@ -17,13 +17,13 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <ActionCard
-          to="/scan"
+          to="/app/scan"
           icon={<ScanLine size={22} />}
           title="Start face scan"
           description="Paste an API key and verify identity."
         />
         <ActionCard
-          to="/applications"
+          to="/app/applications"
           icon={<AppWindow size={22} />}
           title="Applications"
           description="Manage your registered apps."

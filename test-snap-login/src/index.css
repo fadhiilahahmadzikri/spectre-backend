@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@import "@thewhitenigs/spectre-snap/style.css";
+
+@theme {
+  --color-dark-50: #f9f9f9;
+  --color-dark-100: #f5f5f5;
+  --color-dark-900: #1a1a1a;
+  --color-dark-950: #000000;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+

@@ -100,5 +100,4 @@ uv.lock
 .cache/
 .conductor/
 .kiro/
-Docs/
 graphify-out/

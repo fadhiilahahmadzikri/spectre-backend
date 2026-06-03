@@ -12,7 +12,7 @@ export default function LandingNavbar() {
   const isLoggedIn = useAuthStore(s => !!s.accessToken)
   const ctaPath = isLoggedIn ? '/app' : '/login'
 
-  const analyticsUrl = import.meta.env.VITE_ANALYTICS_URL as string
+  const analyticsUrl = (import.meta.env.VITE_ANALYTICS_URL as string) || 'https://specter-app-gqlsidwhv67jrrgsz8f22b.streamlit.app/'
 
   const navLinks = [
     { label: 'Documentation', href: '/docs/introduction' },

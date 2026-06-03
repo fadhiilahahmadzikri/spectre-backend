@@ -17,7 +17,7 @@ export default function DocsTopbar({ onMenuToggle }: DocsTopbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isLoggedIn = useAuthStore(s => !!s.accessToken)
 
-  const analyticsUrl = import.meta.env.VITE_ANALYTICS_URL as string
+  const analyticsUrl = (import.meta.env.VITE_ANALYTICS_URL as string) || 'https://specter-app-gqlsidwhv67jrrgsz8f22b.streamlit.app/'
 
   const tabs = [
     { label: 'API Reference', href: '/api-reference' },

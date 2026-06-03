@@ -8,7 +8,7 @@ import SpecterLogo from '@/components/ui/SpecterLogo'
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const analyticsUrl = import.meta.env.VITE_ANALYTICS_URL as string
+  const analyticsUrl = (import.meta.env.VITE_ANALYTICS_URL as string) || 'https://specter-app-gqlsidwhv67jrrgsz8f22b.streamlit.app/'
 
   const navLinks = [
     { label: 'Documentation', href: '/docs/introduction' },

@@ -37,6 +37,10 @@ class FaceSessionResponse(BaseModel):
     session_id: str
     status: str
     created_at: datetime.datetime
+    metrics: list[float] | None = None
+    similarity_score: float | None = None
+    inference_time_ms: int | None = None
+    failure_reason: str | None = None
     diagnostics: InferenceDiagnostics | None = None
 
 

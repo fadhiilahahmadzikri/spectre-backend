@@ -44,7 +44,12 @@ class JWTHandler:
 
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
-    def decode_token(self, token: str) -> dict[str, Any]:
+    def decode_token(
+        self,
+        token: str,
+        *,
+        expected_type: str | None = None,
+    ) -> dict[str, Any]:
         """Decode and validate a JWT token.
 
         Raises:
@@ -52,13 +57,15 @@ class JWTHandler:
         """
         try:
             payload = jwt.decode(token, self._secret, algorithms=[self._algorithm])
+            if expected_type is not None and payload.get("type") != expected_type:
+                raise InvalidTokenError("Token has an invalid type.")
             return payload
         except JWTError as exc:
             raise InvalidTokenError(f"Token validation failed: {exc}") from exc
 
-    def get_user_id(self, token: str) -> UUID:
+    def get_user_id(self, token: str, *, expected_type: str = "access") -> UUID:
         """Extract user_id from a valid token."""
-        payload = self.decode_token(token)
+        payload = self.decode_token(token, expected_type=expected_type)
         sub = payload.get("sub")
         if sub is None:
             raise InvalidTokenError("Token missing 'sub' claim.")

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { SpectreAuthCallbacks, SpectreAuthResult, SpectreFailureReason } from "../../snap/types";
 import {
   CANVAS_PHASES,
   VIGNETTE_PHASES,
@@ -31,17 +30,45 @@ import { LiveStatusOverlay } from "./overlays/LiveStatusOverlay";
 import { ResultPanel } from "./result/ResultPanel";
 
 /** @internal Snap SDK callback bridge — only set when mounted via SpectreAuth. */
+export interface ScannerAuthResult {
+  verdict: "ok" | "spoof" | "warn";
+  label: string;
+  sessionId?: string;
+  similarityScore?: number;
+  inferenceTimeMs?: number;
+  summary: {
+    live: number;
+    spoof: number;
+  };
+  detail: Record<string, number> | null;
+}
+
+export type ScannerFailureReason =
+  | "liveness_failed"
+  | "face_not_detected"
+  | "face_mismatch"
+  | "quality_insufficient"
+  | "session_expired"
+  | "user_cancelled"
+  | "camera_denied"
+  | "network_error"
+  | "system_error";
+
 export interface SnapCallbackBridge {
-  onSuccess?: SpectreAuthCallbacks["onSuccess"];
-  onFailed?: SpectreAuthCallbacks["onFailed"];
-  onReady?: SpectreAuthCallbacks["onReady"];
-  onRedirect?: SpectreAuthCallbacks["onRedirect"];
+  onSuccess?: (result: ScannerAuthResult) => void;
+  onFailed?: (reason: ScannerFailureReason, result?: ScannerAuthResult) => void;
+  onReady?: () => void;
+  onRedirect?: () => void;
 }
 
 interface ScannerViewProps {
   apiKey: string;
   externalUserId: string;
   initialMode: ScanMode;
+  baseUrl?: string;
+  initialConfig?: Partial<ConfigDraft>;
+  redirectDelaySeconds?: number;
+  persistConfig?: boolean;
   onClose?: () => void;
   redirectUrl?: string | null;
   /** @internal Injected by SpectreAuth — do not use directly. */
@@ -60,13 +87,19 @@ export function ScannerView({
   apiKey,
   externalUserId,
   initialMode,
+  baseUrl,
+  initialConfig,
+  redirectDelaySeconds = 5,
+  persistConfig = false,
   onClose,
   redirectUrl = null,
   _snapCallbacks,
 }: ScannerViewProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [config, setConfig] = useState<ConfigDraft>(INITIAL_CONFIG);
+  const [config, setConfig] = useState<ConfigDraft>(() =>
+    buildInitialConfig(initialConfig, redirectUrl),
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   
   // --- Snap SDK callback bridge ---
@@ -102,14 +135,28 @@ export function ScannerView({
     videoRef,
     canvasRef,
     apiKey,
+    baseUrl,
     config,
     externalUserId,
     initialMode,
     redirectUrl,
+    redirectDelaySeconds,
     showLog,
     clearLog,
     snapCbRef,
   });
+
+  useEffect(() => {
+    setConfig(buildInitialConfig(initialConfig, redirectUrl));
+  }, [
+    initialConfig?.fas,
+    initialConfig?.requirePose,
+    initialConfig?.showPreview,
+    initialConfig?.redirectUrl,
+    initialConfig?.detailMode,
+    initialConfig?.benchmarkMode,
+    redirectUrl,
+  ]);
 
   // --- Derived booleans ---
   const isBusy = ACTIVE_PHASES.has(phase);
@@ -149,7 +196,7 @@ export function ScannerView({
     if (!snapCbRef.current || !result) return;
     if (phase === PHASES.COMPLETE && result.verdict === "ok" && !snapFiredRef.current.success) {
       snapFiredRef.current.success = true;
-      const mapped: SpectreAuthResult = {
+      const mapped: ScannerAuthResult = {
         verdict: result.verdict,
         label: result.label,
         sessionId: result.session_id,
@@ -164,11 +211,11 @@ export function ScannerView({
       !snapFiredRef.current.failed
     ) {
       snapFiredRef.current.failed = true;
-      let reason: SpectreFailureReason = "system_error";
+      let reason: ScannerFailureReason = "system_error";
       if (result.verdict === "spoof") reason = "liveness_failed";
       else if (result.label.toLowerCase().includes("mismatch")) reason = "face_mismatch";
 
-      const mapped: SpectreAuthResult = {
+      const mapped: ScannerAuthResult = {
         verdict: result.verdict,
         label: result.label,
         sessionId: result.session_id,
@@ -324,10 +371,16 @@ export function ScannerView({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         currentConfig={config}
-        onApply={(next) => { setConfig(next); setDrawerOpen(false); setPersistedRedirectUrl(next.redirectUrl); handleReset(); }}
+        onApply={(next) => {
+          setConfig(next);
+          setDrawerOpen(false);
+          if (persistConfig) setPersistedRedirectUrl(next.redirectUrl);
+          handleReset();
+        }}
         mode={mode}
         apiKeyMasked={maskApiKey(apiKey)}
         externalUserId={externalUserId}
+        baseUrl={baseUrl}
         result={result}
         onOpenAnalysis={() => setAnalysisOpen(true)}
         onReset={() => { setDrawerOpen(false); handleReset(); }}
@@ -353,8 +406,20 @@ export function ScannerView({
         phase={phase}
         detailMode={config.detailMode}
         benchmarkMode={config.benchmarkMode}
+        baseUrl={baseUrl}
         visible={!(isTerminal && result !== null)}
       />
     </div>
   );
+}
+
+function buildInitialConfig(
+  initialConfig: Partial<ConfigDraft> | undefined,
+  redirectUrl: string | null,
+): ConfigDraft {
+  return {
+    ...INITIAL_CONFIG,
+    redirectUrl: initialConfig?.redirectUrl ?? redirectUrl ?? "",
+    ...initialConfig,
+  };
 }

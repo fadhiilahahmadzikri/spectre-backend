@@ -10,7 +10,7 @@ import hashlib
 import secrets
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from spectre.config import Settings, get_settings
 from spectre.domain.entities.refresh_token import RefreshToken
@@ -174,8 +174,6 @@ async def refresh_token(
     await refresh_repo.revoke(stored.id)
 
     # Issue new pair
-    user_repo = SQLUserRepository(db)
-    
     access_token = jwt_handler.create_access_token(stored.user_id)
     new_raw = secrets.token_urlsafe(48)
     new_hash = hashlib.sha256(new_raw.encode()).hexdigest()
@@ -274,18 +272,13 @@ async def totp_verify(
     settings: Settings = Depends(get_settings),
 ) -> dict:
     """Verify TOTP during login flow."""
-    # Extract user_id from challenge token
     jwt_handler = JWTHandler(settings)
-    challenge_token = getattr(body, "totp_challenge_token", None)
 
     # Body may contain the challenge token
     raw_body = await request.json()
     challenge = raw_body.get("totp_challenge_token", "")
 
-    payload = jwt_handler.decode_token(challenge)
-    if payload.get("type") != "totp_challenge":
-        from spectre.domain.exceptions.auth_exceptions import InvalidTokenError
-        raise InvalidTokenError("Invalid challenge token.")
+    payload = jwt_handler.decode_token(challenge, expected_type="totp_challenge")
 
     user_id = uuid.UUID(payload["sub"])
     user_repo = SQLUserRepository(db)

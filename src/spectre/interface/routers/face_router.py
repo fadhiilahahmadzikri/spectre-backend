@@ -7,17 +7,12 @@ All use X-API-Key authentication (not JWT Bearer).
 from __future__ import annotations
 
 import base64
+import datetime
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from spectre.config import Settings
-from spectre.domain.exceptions.face_exceptions import (
-    FaceAlreadyRegisteredError,
-    FaceProfileNotFoundError,
-    ImageQualityInsufficientError,
-    LivenessCheckFailedError,
-)
 from spectre.interface.dependencies import (
     AuthenticatedApp,
     DBSession,
@@ -29,7 +24,6 @@ from spectre.interface.schemas.face_schema import (
     FaceBenchmarkRequest,
     FaceBenchmarkResponse,
     FaceRegisterRequest,
-    FaceReplaceRequest,
     FaceSessionResponse,
     SessionDetailResponse,
 )
@@ -118,12 +112,44 @@ def _decode_image(image_b64: str) -> bytes:
     return data
 
 
+def _normalize_idempotency_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > 64:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error_code": "VALIDATION_ERROR",
+                "message": "Idempotency-Key must be 64 characters or fewer.",
+            },
+        )
+    return normalized
+
+
+def _session_response(session, diagnostics=None) -> dict:
+    metadata = session.client_metadata if isinstance(session.client_metadata, dict) else {}
+    return {
+        "session_id": str(session.id),
+        "status": session.status.lower(),
+        "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
+        "metrics": metadata.get("liveness_metrics"),
+        "similarity_score": session.similarity_score,
+        "inference_time_ms": session.inference_time_ms,
+        "failure_reason": None if session.status in ("REGISTERED", "AUTHENTICATED") else session.status.lower(),
+        "diagnostics": diagnostics.model_dump() if diagnostics else metadata.get("diagnostics"),
+    }
+
+
 @router.post("/faces/register", status_code=202, response_model=FaceSessionResponse)
 async def register_face(
     request: Request,
     body: FaceRegisterRequest,
     db: DBSession,
     app: AuthenticatedApp,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     settings: Settings = Depends(get_settings),
 ) -> dict:
     """Submit a face image for liveness detection and enrollment.
@@ -131,6 +157,13 @@ async def register_face(
     Returns a session ID that can be polled or received via webhook.
     """
     from spectre.application.face_use_cases import RegisterFace
+
+    normalized_idempotency_key = _normalize_idempotency_key(idempotency_key)
+    session_repo = SQLAuthSessionRepository(db)
+    if normalized_idempotency_key:
+        existing = await session_repo.get_by_idempotency_key(app.id, normalized_idempotency_key)
+        if existing:
+            return _session_response(existing)
 
     image_bytes = _decode_image(body.image)
     use_case = _build_face_use_case(request, db, app, RegisterFace, settings)
@@ -144,6 +177,7 @@ async def register_face(
         metadata=body.metadata,
         detail_mode=body.detail_mode,
         request_id=request_id,
+        idempotency_key=normalized_idempotency_key,
     )
 
     if diagnostics is not None:
@@ -151,12 +185,7 @@ async def register_face(
 
     _dispatch_webhook(request, app, session)
 
-    return {
-        "session_id": str(session.id),
-        "status": session.status.lower(),
-        "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
-        "diagnostics": diagnostics.model_dump() if diagnostics else None,
-    }
+    return _session_response(session, diagnostics)
 
 
 @router.post("/faces/authenticate", status_code=202, response_model=FaceSessionResponse)
@@ -165,6 +194,7 @@ async def authenticate_face(
     body: FaceAuthenticateRequest,
     db: DBSession,
     app: AuthenticatedApp,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     settings: Settings = Depends(get_settings),
 ) -> dict:
     """Submit a face image for liveness + identity verification.
@@ -172,6 +202,13 @@ async def authenticate_face(
     Returns a session ID that can be polled or received via webhook.
     """
     from spectre.application.face_use_cases import AuthenticateFace
+
+    normalized_idempotency_key = _normalize_idempotency_key(idempotency_key)
+    session_repo = SQLAuthSessionRepository(db)
+    if normalized_idempotency_key:
+        existing = await session_repo.get_by_idempotency_key(app.id, normalized_idempotency_key)
+        if existing:
+            return _session_response(existing)
 
     image_bytes = _decode_image(body.image)
     use_case = _build_face_use_case(request, db, app, AuthenticateFace, settings)
@@ -186,6 +223,7 @@ async def authenticate_face(
         metadata=body.metadata,
         detail_mode=body.detail_mode,
         request_id=request_id,
+        idempotency_key=normalized_idempotency_key,
     )
 
     if diagnostics is not None:
@@ -193,12 +231,7 @@ async def authenticate_face(
 
     _dispatch_webhook(request, app, session)
 
-    return {
-        "session_id": str(session.id),
-        "status": session.status.lower(),
-        "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
-        "diagnostics": diagnostics.model_dump() if diagnostics else None,
-    }
+    return _session_response(session, diagnostics)
 
 
 @router.put("/faces/{external_user_id}", status_code=202, response_model=FaceSessionResponse)
@@ -234,12 +267,7 @@ async def replace_face(
 
     _dispatch_webhook(request, app, session)
 
-    return {
-        "session_id": str(session.id),
-        "status": session.status.lower(),
-        "created_at": session.created_at or datetime.datetime.now(datetime.timezone.utc),
-        "diagnostics": diagnostics.model_dump() if diagnostics else None,
-    }
+    return _session_response(session, diagnostics)
 
 
 

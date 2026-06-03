@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { SpectreAuthProps, SpectreMode } from "./types";
 import { useSpectreConfig } from "./SpectreAuthProvider";
-import { useSnapCallbacks } from "./useSnapCallbacks";
 import { themeStyle } from "./theme";
 import { FaceApiClient } from "../features/face-scan/api/face-client";
 import { ScannerView } from "../features/face-scan/ui/ScannerView";
 import type { ScanMode } from "../features/face-scan/model/types";
 import { MODE_AUTHENTICATE, MODE_REGISTER } from "../features/face-scan/model/constants";
-import { setRuntimeBaseUrl, clearRuntimeBaseUrl } from "../lib/config";
+import { normalizeRedirectDelay } from "./resolve-config";
 
 // Shared QueryClient for all SpectreAuth instances. Lazy-init so tree-shaking
 // can still eliminate TanStack Query when unused.
@@ -33,8 +32,8 @@ function getQueryClient(): QueryClient {
  *
  * @example
  * ```tsx
- * import { SpectreAuth } from 'spectre-snap';
- * import 'spectre-snap/style.css';
+ * import { SpectreAuth } from '@thewhitenigs/spectre-snap';
+ * import '@thewhitenigs/spectre-snap/style.css';
  *
  * function LoginPage() {
  *   return (
@@ -61,18 +60,13 @@ export function SpectreAuth(props: SpectreAuthProps) {
   const requirePose = props.requirePose ?? true;
   const showPreview = props.showPreview ?? false;
   const redirectUrl = props.redirectUrl ?? null;
+  const redirectDelaySeconds = normalizeRedirectDelay(props.redirectDelay);
 
   // Internal state
   const [resolvedMode, setResolvedMode] = useState<ScanMode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-
-  // Set runtime base URL if provided
-  useEffect(() => {
-    if (baseUrl) setRuntimeBaseUrl(baseUrl);
-    return () => clearRuntimeBaseUrl();
-  }, [baseUrl]);
 
   // Resolve mode on mount
   useEffect(() => {
@@ -98,7 +92,7 @@ export function SpectreAuth(props: SpectreAuthProps) {
 
       // Auto mode — probe backend to check if face exists
       try {
-        const client = new FaceApiClient(apiKey);
+        const client = new FaceApiClient(apiKey, { baseUrl });
         const exists = await client.lookupUser(userId);
         if (mountedRef.current) {
           setResolvedMode(exists ? MODE_AUTHENTICATE : MODE_REGISTER);
@@ -115,7 +109,7 @@ export function SpectreAuth(props: SpectreAuthProps) {
 
     resolveMode();
     return () => { mountedRef.current = false; };
-  }, [apiKey, userId, modeConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [apiKey, baseUrl, userId, modeConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -160,6 +154,8 @@ export function SpectreAuth(props: SpectreAuthProps) {
           requirePose={requirePose}
           showPreview={showPreview}
           redirectUrl={redirectUrl}
+          baseUrl={baseUrl}
+          redirectDelaySeconds={redirectDelaySeconds}
           onSuccess={props.onSuccess}
           onFailed={props.onFailed}
           onClose={handleClose}
@@ -183,6 +179,8 @@ interface SpectreAuthInnerProps {
   requirePose: boolean;
   showPreview: boolean;
   redirectUrl: string | null;
+  baseUrl?: string;
+  redirectDelaySeconds: number;
   onSuccess?: SpectreAuthProps["onSuccess"];
   onFailed?: SpectreAuthProps["onFailed"];
   onClose?: () => void;
@@ -194,24 +192,32 @@ function SpectreAuthInner({
   apiKey,
   userId,
   resolvedMode,
+  baseUrl,
+  fas,
+  requirePose,
+  showPreview,
   redirectUrl,
+  redirectDelaySeconds,
   onSuccess,
   onFailed,
   onClose,
   onReady,
   onRedirect,
 }: SpectreAuthInnerProps) {
-  // The ScannerView component does all the heavy lifting.
-  // We just need to wire callbacks via the useSnapCallbacks hook.
-  // Since ScannerView manages its own orchestrator internally,
-  // we pass callbacks down through a wrapper that monitors the result.
-
   return (
     <div className="spectre-snap-scanner">
       <ScannerView
         apiKey={apiKey}
         externalUserId={userId}
         initialMode={resolvedMode}
+        baseUrl={baseUrl}
+        initialConfig={{
+          fas,
+          requirePose,
+          showPreview,
+          redirectUrl: redirectUrl ?? "",
+        }}
+        redirectDelaySeconds={redirectDelaySeconds}
         onClose={onClose}
         redirectUrl={redirectUrl}
         // Snap callbacks are wired internally via the ScannerView's

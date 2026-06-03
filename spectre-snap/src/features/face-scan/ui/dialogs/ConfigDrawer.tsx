@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 import { GlassDrawer, GlassDrawerHeader } from "@/shared/ui/GlassDrawer";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { FaceIDGlyph, ArrowRightIcon } from "@/shared/icons";
+import { getMlStatus } from "../../api/face-client";
 import { MODE_REGISTER } from "../../model/constants";
 import type { ScanMode, ScanResult } from "../../model/types";
 import { type ConfigDraft } from "../../model/config-draft";
@@ -21,6 +21,7 @@ interface ConfigPanelProps {
   mode: ScanMode;
   apiKeyMasked: string;
   externalUserId: string;
+  baseUrl?: string;
   result: ScanResult | null;
   onOpenAnalysis: () => void;
   onReset?: () => void;
@@ -56,6 +57,7 @@ function ConfigPanelBody({
   mode,
   apiKeyMasked,
   externalUserId,
+  baseUrl,
   result,
   onOpenAnalysis,
   onReset,
@@ -96,7 +98,7 @@ function ConfigPanelBody({
             <Row label="API key" value={apiKeyMasked} />
             <Row label="External user id" value={externalUserId} truncate />
           </div>
-          <MLCoreTag />
+          <MLCoreTag baseUrl={baseUrl} />
         </Section>
 
         <Section label="Mode (auto)">
@@ -137,6 +139,7 @@ function ConfigPanelBody({
               onChange={(detailMode) => setDraft((d) => ({ ...d, detailMode }))}
             />
             <BenchmarkModeRow
+              baseUrl={baseUrl}
               checked={draft.benchmarkMode}
               onChange={(benchmarkMode) => setDraft((d) => ({ ...d, benchmarkMode }))}
             />
@@ -227,10 +230,18 @@ function SettingRow({ title, description, checked, onChange }: SettingRowProps) 
   );
 }
 
-function BenchmarkModeRow({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function BenchmarkModeRow({
+  baseUrl,
+  checked,
+  onChange,
+}: {
+  baseUrl?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   const { data } = useQuery({
-    queryKey: ["ml-status"],
-    queryFn: ({ signal }) => api.getMlStatus({ signal }),
+    queryKey: ["ml-status", baseUrl ?? "default"],
+    queryFn: ({ signal }) => getMlStatus({ baseUrl, signal }),
     staleTime: 60_000,
     retry: false,
   });
@@ -247,10 +258,10 @@ function BenchmarkModeRow({ checked, onChange }: { checked: boolean; onChange: (
   );
 }
 
-function MLCoreTag() {
+function MLCoreTag({ baseUrl }: { baseUrl?: string }) {
   const { data } = useQuery({
-    queryKey: ["ml-status"],
-    queryFn: ({ signal }) => api.getMlStatus({ signal }),
+    queryKey: ["ml-status", baseUrl ?? "default"],
+    queryFn: ({ signal }) => getMlStatus({ baseUrl, signal }),
     staleTime: 60_000,
     retry: false,
   });

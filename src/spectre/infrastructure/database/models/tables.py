@@ -12,7 +12,6 @@ import uuid
 from sqlalchemy import (
     Boolean,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     Index,
@@ -306,6 +305,14 @@ class AuthSessionModel(Base):
         Index("ix_auth_sessions_app_id_created_at", "app_id", "created_at"),
         Index("ix_auth_sessions_app_id_status", "app_id", "status"),
         Index("ix_auth_sessions_app_idempotency", "app_id", "idempotency_key"),
+        Index(
+            "uq_auth_sessions_app_id_idempotency_key",
+            "app_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+            sqlite_where=text("idempotency_key IS NOT NULL"),
+        ),
         Index("ix_auth_sessions_lifecycle", "lifecycle_state", "expires_at"),
     )
 

@@ -134,6 +134,7 @@ def _session_to_entity(m: AuthSessionModel) -> AuthSession:
         similarity_score=m.similarity_score,
         inference_time_ms=m.inference_time_ms,
         client_metadata=m.client_metadata,
+        idempotency_key=m.idempotency_key,
         created_at=m.created_at,
         completed_at=m.completed_at,
     )
@@ -497,6 +498,7 @@ class SQLAuthSessionRepository(AbstractAuthSessionRepository):
             status=session.status,
             external_user_id=session.external_user_id,
             client_metadata=session.client_metadata,
+            idempotency_key=session.idempotency_key,
         )
         self._session.add(model)
         await self._session.flush()
@@ -505,6 +507,19 @@ class SQLAuthSessionRepository(AbstractAuthSessionRepository):
     async def get_by_id(self, session_id: UUID) -> AuthSession | None:
         result = await self._session.get(AuthSessionModel, session_id)
         return _session_to_entity(result) if result else None
+
+    async def get_by_idempotency_key(
+        self,
+        app_id: UUID,
+        idempotency_key: str,
+    ) -> AuthSession | None:
+        stmt = select(AuthSessionModel).where(
+            AuthSessionModel.app_id == app_id,
+            AuthSessionModel.idempotency_key == idempotency_key,
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _session_to_entity(model) if model else None
 
     async def update(self, session: AuthSession) -> AuthSession:
         stmt = (
@@ -516,6 +531,7 @@ class SQLAuthSessionRepository(AbstractAuthSessionRepository):
                 liveness_confidence=session.liveness_confidence,
                 similarity_score=session.similarity_score,
                 inference_time_ms=session.inference_time_ms,
+                client_metadata=session.client_metadata,
                 completed_at=session.completed_at,
             )
         )

@@ -29,7 +29,12 @@ class TestExceptionHandler:
         response = await client.post("/api/v1/auth/register", json={})
         assert response.status_code == 422
         body = response.json()
-        assert "detail" in body
+        assert body["success"] is False
+        assert body["error"]["code"] == "VALIDATION_ERROR"
+        assert body["error"]["message"] == "Request validation failed."
+        assert "errors" in body["error"]["details"]
+        assert body["request_id"] is not None
+        assert "timestamp" in body
 
     async def test_401_has_error_code(self, client: AsyncClient):
         response = await client.get(
@@ -38,4 +43,7 @@ class TestExceptionHandler:
         )
         if response.status_code == 401:
             body = response.json()
-            assert "detail" in body
+            assert body["success"] is False
+            assert body["error"]["code"] == "INVALID_TOKEN"
+            assert body["error"]["message"] == "Invalid or expired token."
+            assert body["request_id"] is not None

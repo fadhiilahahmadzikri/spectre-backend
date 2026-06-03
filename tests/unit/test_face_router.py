@@ -80,6 +80,49 @@ class TestFaceValidation:
         )
         assert response.status_code in (400, 422, 500)
 
+    async def test_register_reuses_existing_idempotency_key(
+        self,
+        monkeypatch,
+        api_key_client: AsyncClient,
+        test_app_entity,
+    ):
+        from spectre.domain.entities.auth_session import AuthSession
+        from spectre.infrastructure.repositories.sql_repositories import SQLAuthSessionRepository
+
+        session_id = uuid.uuid4()
+        idempotency_key = "idem_123"
+
+        async def get_existing_session(
+            self: SQLAuthSessionRepository,
+            app_id: uuid.UUID,
+            key: str,
+        ) -> AuthSession | None:
+            assert app_id == test_app_entity.id
+            assert key == idempotency_key
+            return AuthSession(
+                id=session_id,
+                app_id=test_app_entity.id,
+                session_type="registration",
+                status="REGISTERED",
+                external_user_id="usr_1",
+                idempotency_key=idempotency_key,
+            )
+
+        monkeypatch.setattr(
+            SQLAuthSessionRepository,
+            "get_by_idempotency_key",
+            get_existing_session,
+        )
+
+        response = await api_key_client.post(
+            "/api/v1/faces/register",
+            headers={"Idempotency-Key": idempotency_key},
+            json={"external_user_id": "usr_1", "image": "!!!not_base64!!!"},
+        )
+
+        assert response.status_code == 202
+        assert response.json()["session_id"] == str(session_id)
+
 
 @pytest.mark.asyncio
 class TestFaceSessionPoll:

@@ -13,6 +13,7 @@ import {
 
 /* ── env ── */
 const API_KEY = import.meta.env.VITE_SPECTRE_API_KEY ?? "";
+const SPECTRE_BASE_URL = import.meta.env.VITE_SPECTRE_BASE_URL?.trim() || undefined;
 
 /* ── dummy data ── */
 const WEEKLY_VERIFICATIONS = [
@@ -97,6 +98,7 @@ export default function App() {
         open={scannerOpen}
         onOpenChange={setScannerOpen}
         apiKey={API_KEY}
+        baseUrl={SPECTRE_BASE_URL}
         userId={userId}
         mode="auto"
         onSuccess={handleSuccess}
@@ -364,7 +366,7 @@ function SuccessBanner({ result }: { result: SpectreAuthResult }) {
         <div className="text-sm font-semibold text-brand">KYC Verification Complete</div>
         <div className="text-xs text-fg-muted mt-1">
           Session <span className="font-mono">{result.sessionId?.slice(0, 8) ?? "—"}</span>
-          {" · "}Liveness <span className="font-mono">{((result.livenessScore ?? 0) * 100).toFixed(0)}%</span>
+          {" · "}Liveness <span className="font-mono">{((result.summary.live ?? 0) * 100).toFixed(0)}%</span>
           {result.similarityScore != null && (
             <>{" · "}Match <span className="font-mono">{(result.similarityScore * 100).toFixed(0)}%</span></>
           )}

@@ -111,7 +111,7 @@ ls dist/
 ```json
 {
   "name": "@thewhitenigs/spectre-snap",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "type": "module",
   "main": "./dist/spectre-snap.cjs",
   "module": "./dist/spectre-snap.js",
@@ -125,8 +125,8 @@ ls dist/
     "./style.css": "./dist/spectre-snap.css"
   },
   "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   }
 }
 ```
@@ -164,11 +164,11 @@ npm run build:lib
 
 # Create tarball for local testing (optional)
 npm pack
-# => thewhitenigs-spectre-snap-1.0.1.tgz (~290KB)
+# => thewhitenigs-spectre-snap-1.0.3.tgz (~290KB)
 
 # Publish to public registry
 npm publish --access public
-# => + @thewhitenigs/spectre-snap@1.0.1
+# => + @thewhitenigs/spectre-snap@1.0.3
 ```
 
 ### Version Bumping
@@ -204,7 +204,7 @@ function App() {
   const [open, setOpen] = useState(false);
 
   function handleSuccess(result: SpectreAuthResult) {
-    console.log("Verified!", result.sessionId, result.livenessScore);
+    console.log("Verified!", result.sessionId, result.summary.live);
     setOpen(false);
   }
 
@@ -217,6 +217,7 @@ function App() {
       <button onClick={() => setOpen(true)}>Verify Identity</button>
       <SpectreAuthModal
         open={open}
+        onOpenChange={setOpen}
         onClose={() => setOpen(false)}
         apiKey={import.meta.env.VITE_SPECTRE_API_KEY}
         userId={currentUser.id}
@@ -295,7 +296,7 @@ If you host the Spectre Backend, an administrative API is available under `/api/
 |------|------|----------|-------------|
 | `open` | `boolean` | ✅ | Controls modal visibility |
 | `onClose` | `() => void` | ✅ | Called when user closes the modal |
-| `apiKey` | `string` | ✅ | Spectre API key (from dashboard) |
+| `apiKey` | `string` | Provider value | Spectre API key. Required unless `SpectreAuthProvider` supplies it |
 | `userId` | `string` | ✅ | External user ID from your auth system |
 | `onSuccess` | `(result: SpectreAuthResult) => void` | ✅ | Called on successful verification |
 | `onFailed` | `(reason: SpectreFailureReason) => void` | | Called on verification failure |
@@ -309,20 +310,25 @@ If you host the Spectre Backend, an administrative API is available under `/api/
 
 ```typescript
 interface SpectreAuthResult {
-  sessionId: string;
-  verdict: "REGISTERED" | "AUTHENTICATED";
-  livenessScore: number;
+  verdict: "ok" | "spoof" | "warn";
+  label: string;
+  sessionId?: string;
   similarityScore?: number;
-  inferenceTimeMs: number;
+  inferenceTimeMs?: number;
+  summary: { live: number; spoof: number };
+  detail: Record<string, number> | null;
 }
 
 type SpectreFailureReason =
-  | "SPOOF_DETECTED"
-  | "NO_MATCH"
-  | "CAMERA_DENIED"
-  | "NETWORK_ERROR"
-  | "SESSION_TIMEOUT"
-  | "UNKNOWN";
+  | "liveness_failed"
+  | "face_not_detected"
+  | "face_mismatch"
+  | "quality_insufficient"
+  | "session_expired"
+  | "user_cancelled"
+  | "camera_denied"
+  | "network_error"
+  | "system_error";
 ```
 
 ---
@@ -380,6 +386,10 @@ def verify_webhook(body: bytes, signature: str, secret: str) -> bool:
 ---
 
 ## Changelog
+
+### Unreleased
+- **feat**: Per-instance SDK base URL/config wiring, provider-compatible API key typing, and typed `SpectreError` exports.
+- **fix**: Vitest jsdom setup, package metadata alignment, non-secret scan-mode cache ids, and scoped package root styling.
 
 ### v1.1.0 (2026-05-13)
 - **feat**: Identity Gating with persistent `userId` support.

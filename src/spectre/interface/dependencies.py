@@ -5,9 +5,10 @@ These Depends() functions wire the infrastructure layer to the routers.
 
 from __future__ import annotations
 
+import datetime
+import ipaddress
 from collections.abc import AsyncGenerator
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,49 @@ from spectre.domain.entities.user import User
 from spectre.infrastructure.cache.redis_client import RedisClient
 from spectre.infrastructure.security.api_key_generator import ApiKeyGenerator
 from spectre.infrastructure.security.jwt_handler import JWTHandler
+
+
+def _as_utc(value: datetime.datetime) -> datetime.datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=datetime.timezone.utc)
+    return value.astimezone(datetime.timezone.utc)
+
+
+def _api_key_is_expired(expires_at: datetime.datetime | None) -> bool:
+    if expires_at is None:
+        return False
+    return datetime.datetime.now(datetime.timezone.utc) > _as_utc(expires_at)
+
+
+def _client_host(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+def _client_ip_allowed(client_ip: str | None, allowed_ips: list[str] | None) -> bool:
+    if not allowed_ips:
+        return True
+    if not client_ip:
+        return False
+
+    try:
+        parsed_client = ipaddress.ip_address(client_ip)
+    except ValueError:
+        parsed_client = None
+
+    for allowed in allowed_ips:
+        if not allowed:
+            continue
+        try:
+            if "/" in allowed:
+                if parsed_client and parsed_client in ipaddress.ip_network(allowed, strict=False):
+                    return True
+            elif parsed_client and parsed_client == ipaddress.ip_address(allowed):
+                return True
+        except ValueError:
+            if client_ip == allowed:
+                return True
+
+    return False
 
 
 # =============================================================================
@@ -148,25 +192,36 @@ async def get_authenticated_app(
                 detail={"error_code": "INVALID_API_KEY", "message": "API key has been revoked."},
             )
 
+        if _api_key_is_expired(api_key.expires_at):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error_code": "INVALID_API_KEY", "message": "API key has expired."},
+            )
+
         if not keygen.verify(x_api_key, api_key.key_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error_code": "INVALID_API_KEY", "message": "API key verification failed."},
             )
 
-        # Update last_used_at
-        await key_repo.update_last_used(api_key.id)
-
         # Load the application
         app_repo = SQLTenantApplicationRepository(session)
         app = await app_repo.get_by_id(api_key.app_id)
-        await session.commit()
 
-    if not app or app.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error_code": "INVALID_API_KEY", "message": "Application is not active."},
-        )
+        if not app or app.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error_code": "INVALID_API_KEY", "message": "Application is not active."},
+            )
+
+        if not _client_ip_allowed(_client_host(request), app.allowed_ips):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error_code": "IP_NOT_ALLOWED", "message": "Request IP is not allowed."},
+            )
+
+        await key_repo.update_last_used(api_key.id)
+        await session.commit()
 
     return app
 

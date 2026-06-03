@@ -135,6 +135,13 @@ class AbstractAuthSessionRepository(ABC):
     async def get_by_id(self, session_id: UUID) -> AuthSession | None: ...
 
     @abstractmethod
+    async def get_by_idempotency_key(
+        self,
+        app_id: UUID,
+        idempotency_key: str,
+    ) -> AuthSession | None: ...
+
+    @abstractmethod
     async def update(self, session: AuthSession) -> AuthSession: ...
 
     @abstractmethod

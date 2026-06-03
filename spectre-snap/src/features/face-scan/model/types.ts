@@ -109,6 +109,8 @@ export interface FaceApiErrorPayload {
   error?: {
     code?: string;
     message?: string;
+    request_id?: string | null;
+    timestamp?: string | null;
     details?: {
       probabilities?: unknown[];
       confidence?: number;

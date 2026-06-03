@@ -89,6 +89,8 @@ export function ScannerModal({ fallbackPath = "/", redirectUrl = null }: Scanner
               initialMode={resolvedMode}
               onClose={() => handleOpenChange(false)}
               redirectUrl={redirectUrl ?? SCAN_CONFIG.redirectUrl}
+              redirectDelaySeconds={SCAN_CONFIG.redirectDelay}
+              persistConfig
             />
           ) : (
             <div className="flex-1 overflow-y-auto flex items-center justify-center p-4">

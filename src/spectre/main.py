@@ -195,7 +195,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     # --- Security Schemes (Swagger UI) ---
-    from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
     from fastapi.openapi.utils import get_openapi
 
     def custom_openapi():
@@ -254,9 +253,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestIDMiddleware)
 
     # --- Exception Handlers ---
+    from fastapi.exceptions import RequestValidationError
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
     from spectre.domain.exceptions.base import SpectreError
-    from spectre.interface.middleware.exception_handler import spectre_exception_handler
+    from spectre.interface.middleware.exception_handler import (
+        http_exception_handler,
+        spectre_exception_handler,
+        validation_exception_handler,
+    )
+
     app.add_exception_handler(SpectreError, spectre_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
     # --- Routers ---
     from spectre.interface.routers.health_router import router as health_router

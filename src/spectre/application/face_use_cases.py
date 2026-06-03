@@ -26,6 +26,8 @@ from spectre.interface.schemas.diagnostics_schema import InferenceDiagnostics
 
 logger = get_logger(__name__)
 
+CLIENT_CONTROLLED_FAS_BYPASS = False
+
 
 def _extract_embedding(embed_model, image_bytes, preprocessor=None):
     try:
@@ -88,13 +90,14 @@ class RegisterFace:
         metadata: dict | None = None,
         detail_mode: bool = False,
         request_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> tuple[AuthSession, InferenceDiagnostics | None]:
         ctx = DiagnosticsContext(
             app_id=app_id,
             external_user_id=external_user_id,
             request_id=request_id,
             liveness_threshold=liveness_threshold,
-            bypass_fas=bool(metadata and metadata.get("bypass_fas") is True),
+            bypass_fas=CLIENT_CONTROLLED_FAS_BYPASS,
         )
         model_id, model_version, supports_tta = _active_model_meta(self._fas)
         ctx.model_id = model_id
@@ -107,6 +110,7 @@ class RegisterFace:
             id=uuid.uuid4(), app_id=app_id,
             session_type="registration", status="PROCESSING",
             external_user_id=external_user_id, client_metadata=metadata,
+            idempotency_key=idempotency_key,
         )
         session = await self._session_repo.create(session)
         ctx.session_id = session.id
@@ -228,6 +232,7 @@ class AuthenticateFace:
         metadata: dict | None = None,
         detail_mode: bool = False,
         request_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> tuple[AuthSession, InferenceDiagnostics | None]:
         ctx = DiagnosticsContext(
             app_id=app_id,
@@ -235,7 +240,7 @@ class AuthenticateFace:
             request_id=request_id,
             liveness_threshold=liveness_threshold,
             similarity_threshold=similarity_threshold,
-            bypass_fas=bool(metadata and metadata.get("bypass_fas") is True),
+            bypass_fas=CLIENT_CONTROLLED_FAS_BYPASS,
         )
         model_id, model_version, supports_tta = _active_model_meta(self._fas)
         ctx.model_id = model_id
@@ -248,6 +253,7 @@ class AuthenticateFace:
             id=uuid.uuid4(), app_id=app_id,
             session_type="authentication", status="PROCESSING",
             external_user_id=external_user_id, client_metadata=metadata,
+            idempotency_key=idempotency_key,
         )
         session = await self._session_repo.create(session)
         ctx.session_id = session.id

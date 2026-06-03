@@ -45,6 +45,7 @@ class AuthSession:
 
     # --- Metadata ---
     client_metadata: dict | None = None  # Passed through from client request
+    idempotency_key: str | None = None
 
     created_at: datetime.datetime = field(default_factory=datetime.datetime.utcnow)
     completed_at: datetime.datetime | None = None

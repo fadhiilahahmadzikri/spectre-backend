@@ -14,6 +14,8 @@ import { AdminMonitoring } from "./pages/AdminMonitoring";
 import { Layout } from "./components/Layout";
 import { OAuthCallback } from "./pages/OAuthCallback";
 import { ProtectedRoute } from "./app/guards/ProtectedRoute";
+import { GuestRoute } from "./app/guards/GuestRoute";
+import { IdleLogoutWatcher } from "./app/providers/IdleLogoutWatcher";
 import { FaceScanRoute } from "./app/guards/FaceScanRoute";
 import { IosAlertProvider } from "./app/providers/IosAlertProvider";
 import { OrchestrationOverlay } from "@/shared/ui/OrchestrationOverlay";
@@ -77,6 +79,7 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={qc}>
       <IosAlertProvider>
         <BrowserRouter>
+          <IdleLogoutWatcher />
           <Routes>
             {/* Public — landing */}
             <Route path="/" element={<LandingPage />} />
@@ -89,8 +92,8 @@ createRoot(document.getElementById("root")!).render(
             </Route>
 
             {/* Auth */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+            <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
             <Route path="/oauth/callback" element={<OAuthCallback />} />
 
             {/* Docs */}

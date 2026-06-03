@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Search, Settings, House, BookOpen, Menu, MoreVertical, X, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SpecterIcon from '@/components/ui/SpecterIcon'
@@ -135,70 +136,78 @@ export default function DocsTopbar({ onMenuToggle }: DocsTopbarProps) {
       </header>
 
       {/* Mobile full-screen menu — berisi nav links */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-neutral-canvas dark:bg-neutral-canvas" style={{ top: 0 }}>
-          {/* Header menu */}
-          <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-line flex-shrink-0">
-            <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-              <SpecterIcon className="h-[20px] w-auto" />
-              <span className="font-bold text-sm text-neutral-ink">Specter</span>
-            </Link>
-            <button onClick={() => setMobileMenuOpen(false)}
-              className="p-2 rounded-md text-neutral-charcoal hover:bg-neutral-surface transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:hidden fixed inset-0 z-50 flex flex-col bg-neutral-canvas dark:bg-neutral-canvas"
+            style={{ top: 0 }}
+          >
+            {/* Header menu */}
+            <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-line flex-shrink-0">
+              <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                <SpecterIcon className="h-[20px] w-auto" />
+                <span className="font-bold text-sm text-neutral-ink">Specter</span>
+              </Link>
+              <button onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-md text-neutral-charcoal hover:bg-neutral-surface transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-          {/* Isi menu */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
-            {/* Main nav */}
-            <NavLink to="/" onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface transition-colors">
-              <House className="w-4 h-4" />Beranda
-            </NavLink>
-            <NavLink to="/docs/introduction" onClick={() => setMobileMenuOpen(false)}
-              className={({ isActive }) => cn(
-                'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'text-neutral-ink bg-neutral-surface font-semibold' : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
-              )}>
-              <BookOpen className="w-4 h-4" />Docs
-            </NavLink>
-
-            <div className="h-px bg-neutral-line my-2" />
-
-            {tabs.map(tab => (
-              <NavLink key={tab.href} to={tab.href} onClick={() => setMobileMenuOpen(false)}
+            {/* Isi menu */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
+              {/* Main nav */}
+              <NavLink to="/" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface transition-colors">
+                <House className="w-4 h-4" />Beranda
+              </NavLink>
+              <NavLink to="/docs/introduction" onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) => cn(
-                  'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   isActive ? 'text-neutral-ink bg-neutral-surface font-semibold' : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
                 )}>
-                {tab.label}
+                <BookOpen className="w-4 h-4" />Docs
               </NavLink>
-            ))}
-            <a
-              href={analyticsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
-            >
-              Analytics
-            </a>
 
-          </div>
+              <div className="h-px bg-neutral-line my-2" />
 
-          {/* Footer menu */}
-          <div className="px-4 py-4 border-t border-neutral-line flex items-center gap-2">
-            <ThemeToggle />
-            <Link
-              to={isLoggedIn ? '/app' : '/login'}
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex-1 text-center px-4 py-2 rounded-lg text-sm font-semibold text-white dark:text-neutral-ink bg-neutral-ink dark:bg-neutral-surface dark:border dark:border-neutral-charcoal">
-              {isLoggedIn ? 'Dashboard' : 'Login'}
-            </Link>
-          </div>
-        </div>
-      )}
+              {tabs.map(tab => (
+                <NavLink key={tab.href} to={tab.href} onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) => cn(
+                    'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isActive ? 'text-neutral-ink bg-neutral-surface font-semibold' : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
+                  )}>
+                  {tab.label}
+                </NavLink>
+              ))}
+              <a
+                href={analyticsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
+              >
+                Analytics
+              </a>
+            </div>
+
+            {/* Footer menu */}
+            <div className="px-4 py-4 border-t border-neutral-line flex items-center gap-2">
+              <ThemeToggle />
+              <Link
+                to={isLoggedIn ? '/app' : '/login'}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex-1 text-center px-4 py-2 rounded-lg text-sm font-semibold text-white dark:text-neutral-ink bg-neutral-ink dark:bg-neutral-surface dark:border dark:border-neutral-charcoal">
+                {isLoggedIn ? 'Dashboard' : 'Login'}
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <DocsSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>

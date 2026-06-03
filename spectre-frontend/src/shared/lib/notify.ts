@@ -2,7 +2,7 @@ import { toast as sonnerToast } from "sonner";
 import type { ReactNode } from "react";
 
 interface NotifyOptions {
-  description?: string;
+  description?: ReactNode;
   icon?: ReactNode;
   duration?: number;
   id?: string | number;

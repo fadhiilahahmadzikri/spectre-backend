@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import SpecterLogo from '@/components/ui/SpecterLogo'
 
@@ -79,54 +80,63 @@ export default function Navbar() {
       </div>
 
       {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="md:hidden bg-neutral-canvas border-b border-neutral-line px-4 pb-4">
-          <div className="flex flex-col gap-1 pt-2">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.href}
-                to={link.href}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scaleY: 0.96 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={{ opacity: 0, y: -8, scaleY: 0.96 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            style={{ originY: 0 }}
+            className="md:hidden bg-neutral-canvas border-b border-neutral-line px-4 pb-4"
+          >
+            <div className="flex flex-col gap-1 pt-2">
+              {navLinks.map((link) => (
+                <NavLink
+                  key={link.href}
+                  to={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      isActive
+                        ? 'text-neutral-ink bg-neutral-surface font-semibold'
+                        : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
+                    )
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+              <a
+                href={analyticsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    isActive
-                      ? 'text-neutral-ink bg-neutral-surface font-semibold'
-                      : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface'
-                  )
-                }
+                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
               >
-                {link.label}
-              </NavLink>
-            ))}
-            <a
-              href={analyticsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMobileOpen(false)}
-              className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
-            >
-              Analytics
-            </a>
-            <div className="border-t border-neutral-line mt-2 pt-2 flex flex-col gap-2">
-              <Link
-                to="/login"
-                onClick={() => setMobileOpen(false)}
-                className="px-3 py-2 rounded-md text-sm font-medium text-neutral-charcoal hover:bg-neutral-surface transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                onClick={() => setMobileOpen(false)}
-                className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-gradient-to-r from-[#240CF6] to-[#92F8FF] text-center"
-              >
-                Get Started
-              </Link>
+                Analytics
+              </a>
+              <div className="border-t border-neutral-line mt-2 pt-2 flex flex-col gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2 rounded-md text-sm font-medium text-neutral-charcoal hover:bg-neutral-surface transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-gradient-to-r from-[#240CF6] to-[#92F8FF] text-center"
+                >
+                  Get Started
+                </Link>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   )
 }

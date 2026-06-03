@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import SpecterLogo from '@/components/ui/SpecterLogo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -10,7 +11,6 @@ export default function LandingNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const isLoggedIn = useAuthStore(s => !!s.accessToken)
   const ctaPath = isLoggedIn ? '/app' : '/login'
-  const ctaLabel = isLoggedIn ? 'Dashboard' : 'Get Started'
 
   const analyticsUrl = import.meta.env.VITE_ANALYTICS_URL as string
 
@@ -72,7 +72,7 @@ export default function LandingNavbar() {
               to={ctaPath}
               className="px-5 py-2 rounded-full text-sm font-semibold text-white dark:text-neutral-ink bg-gradient-to-br from-[#57555A] to-[#040404] dark:bg-none dark:bg-neutral-surface dark:border dark:border-neutral-charcoal hover:opacity-85 transition-opacity shadow-sm dark:shadow-none"
             >
-              {ctaLabel}
+              Get Started
             </Link>
           </div>
 
@@ -90,54 +90,63 @@ export default function LandingNavbar() {
         </div>
 
         {/* Mobile dropdown */}
-        {mobileOpen && (
-          <div className="md:hidden mt-2 bg-neutral-white dark:bg-neutral-surface border border-neutral-line rounded-2xl shadow-card-hover px-4 py-3">
-            <div className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.href}
-                  to={link.href}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scaleY: 0.96 }}
+              animate={{ opacity: 1, y: 0, scaleY: 1 }}
+              exit={{ opacity: 0, y: -8, scaleY: 0.96 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              style={{ originY: 0 }}
+              className="md:hidden mt-2 bg-neutral-white dark:bg-neutral-surface border border-neutral-line rounded-2xl shadow-card-hover px-4 py-3"
+            >
+              <div className="flex flex-col gap-1">
+                {navLinks.map((link) => (
+                  <NavLink
+                    key={link.href}
+                    to={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                        isActive
+                          ? 'text-neutral-ink bg-neutral-surface dark:bg-neutral-canvas font-semibold'
+                          : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas'
+                      )
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+                <a
+                  href={analyticsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                      isActive
-                        ? 'text-neutral-ink bg-neutral-surface dark:bg-neutral-canvas font-semibold'
-                        : 'text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas'
-                    )
-                  }
+                  className="px-3 py-2 rounded-xl text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas"
                 >
-                  {link.label}
-                </NavLink>
-              ))}
-              <a
-                href={analyticsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMobileOpen(false)}
-                className="px-3 py-2 rounded-xl text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface dark:hover:bg-neutral-canvas"
-              >
-                Analytics
-              </a>
-              <div className="border-t border-neutral-line mt-2 pt-2 flex flex-col gap-2">
-                <Link
-                  to="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2 rounded-xl text-sm font-medium text-neutral-charcoal hover:bg-neutral-surface transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to={ctaPath}
-                  onClick={() => setMobileOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white dark:text-neutral-ink bg-gradient-to-br from-[#57555A] to-[#040404] dark:bg-none dark:bg-neutral-surface dark:border dark:border-neutral-charcoal text-center"
-                >
-                  {ctaLabel}
-                </Link>
+                  Analytics
+                </a>
+                <div className="border-t border-neutral-line mt-2 pt-2 flex flex-col gap-2">
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="px-3 py-2 rounded-xl text-sm font-medium text-neutral-charcoal hover:bg-neutral-surface transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to={ctaPath}
+                    onClick={() => setMobileOpen(false)}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white dark:text-neutral-ink bg-gradient-to-br from-[#57555A] to-[#040404] dark:bg-none dark:bg-neutral-surface dark:border dark:border-neutral-charcoal text-center"
+                  >
+                    Get Started
+                  </Link>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

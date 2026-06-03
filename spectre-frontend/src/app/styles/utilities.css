@@ -507,11 +507,11 @@ body {
 }
 
 .user-chip .ring-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: var(--radius-full);
-  background: #ffffff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
+  background: var(--sys-green);
+  box-shadow: 0 0 6px var(--sys-green);
   flex-shrink: 0;
 }
 
@@ -786,20 +786,36 @@ body {
 
 
 .ios-toast {
-  background: rgba(28, 28, 30, 0.78) !important;
-  backdrop-filter: blur(28px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.11) !important;
   border-radius: 16px !important;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 12px 32px rgba(0, 0, 0, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.3) !important;
   color: var(--label-primary) !important;
   font-family: var(--font-sans) !important;
   padding: 12px 14px !important;
   min-height: 48px !important;
   animation: toast-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* Light mode */
+:root:not(.dark) .ios-toast {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Dark mode */
+.dark .ios-toast {
+  background: rgba(28, 28, 30, 0.78) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 12px 32px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 @keyframes toast-bounce-in {

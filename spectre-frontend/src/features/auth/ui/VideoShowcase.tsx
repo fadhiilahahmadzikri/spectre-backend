@@ -95,21 +95,21 @@ export function VideoShowcase() {
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-3"
           >
-            <div className="flex items-center gap-2 text-[12px] text-[color:var(--label-secondary)]">
+            <div className="flex items-center gap-2 text-[12px] text-white/60">
               <span className="inline-flex items-center justify-center relative w-2 h-2">
                 <span className="absolute inset-0 rounded-full bg-[color:var(--sys-green)]" style={{ animation: "pulseDot 1.6s ease-in-out infinite" }} />
                 <span className="relative w-1.5 h-1.5 rounded-full bg-[color:var(--sys-green)] shadow-[0_0_8px_rgba(52,199,89,0.6)]" />
               </span>
               {ctx.tag}
             </div>
-            <h2 className="face-title text-[28px] md:text-[34px] leading-[1.08] max-w-[480px] whitespace-pre-line">
+            <h2 className="face-title text-[28px] md:text-[34px] leading-[1.08] max-w-[480px] whitespace-pre-line !text-white">
               {ctx.headline}
             </h2>
-            <p className="face-helper text-[13px] max-w-[420px]">{ctx.description}</p>
+            <p className="face-helper text-[13px] max-w-[420px] !text-white/70">{ctx.description}</p>
           </motion.div>
         </AnimatePresence>
 
-        <div className="inline-flex items-center gap-2 text-[11px] text-[color:var(--label-tertiary)] font-mono pt-3">
+        <div className="inline-flex items-center gap-2 text-[11px] text-white/30 font-mono pt-3">
           <span>Spectre</span>
           <span>·</span>
           <span>Face ID infrastructure</span>

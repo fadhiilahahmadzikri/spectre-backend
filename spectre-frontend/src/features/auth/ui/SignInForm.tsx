@@ -32,7 +32,21 @@ export function SignInForm() {
     try {
       const data = await api.login({ email, password });
       setAuth(data);
-      notify.success("Signed in", { description: data.user.email });
+      notify.success("Signed in", {
+        description: (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            {data.user.email}
+            <span style={{
+              display: "inline-block",
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              backgroundColor: "var(--sys-green)",
+              flexShrink: 0,
+            }} />
+          </span>
+        ),
+      });
       navigate("/app");
     } catch (err) {
       // Inline error below the form is enough feedback; no duplicate toast

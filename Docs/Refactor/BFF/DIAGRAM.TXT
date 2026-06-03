@@ -1,0 +1,126 @@
+@startuml Spectre_BFF_Architecture
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName monospace
+skinparam defaultFontSize 12
+skinparam ArrowColor #555555
+skinparam ArrowThickness 1.5
+
+skinparam rectangle {
+    BorderColor #888888
+    BorderThickness 1
+    FontSize 12
+}
+
+skinparam component {
+    BorderThickness 1
+    FontSize 12
+}
+
+skinparam database {
+    BorderColor #888888
+    BorderThickness 1
+}
+
+skinparam note {
+    BorderColor #AAAAAA
+    FontSize 11
+}
+
+title Spectre — BFF Architecture (Backend for Frontend Pattern)
+
+' ── CLIENT LAYER ──────────────────────────────────────────────────────
+package "Client Layer" #E8F4FD {
+    component [spectre-frontend\n(React Dashboard)] as DASH
+    component [spectre-snap SDK\n(React Face Scanner)] as SDK
+}
+
+' ── API LAYER ─────────────────────────────────────────────────────────
+package "API Layer" #E8F8F0 {
+
+    package "Express BFF  [Node.js — NEW]" #D0F0E0 {
+        component [Auth Routes\nPOST /auth/register\nPOST /auth/login\nPOST /auth/refresh] as AUTH_R
+        component [Application Routes\nGET|POST|PATCH|DELETE\n/applications\n/applications/:id] as APP_R
+        component [API Key Routes\nGET|POST|DELETE\n/applications/:id/api-keys\n/api-keys/:id/revoke] as KEY_R
+        component [Session Routes\nGET /sessions\nGET /dashboard] as SES_R
+        component [Webhook Routes\nGET|POST\n/webhooks/deliveries\n/webhooks/test] as WH_R
+        component [Face Proxy Routes\nPOST /faces/register\nPOST /faces/authenticate\nGET|DELETE /faces\nPOST /faces/benchmark] as FACE_R
+
+        component [apiKey.middleware\n(validate X-API-Key\nvs Supabase)] as KEY_MW
+        component [auth.middleware\n(verify JWT)] as JWT_MW
+        component [fasProxy.service\n(http-proxy-middleware\n+ inject X-App-Id)] as PROXY_SVC
+    }
+
+    package "FastAPI  [HF Spaces — EXISTING]" #EDE8F8 {
+        component [Face Operations\nPOST /faces/register\nPOST /faces/authenticate\nGET|DELETE /faces/*\nPOST /faces/benchmark] as FAS_FACE
+        component [Auth & App Mgmt\n(internal — legacy)] as FAS_AUTH
+        component [Admin & Health\n/health /health/ml-status\n/admin/fas-models\n/admin/config] as FAS_ADMIN
+        component [ML Engine\nAntiSpoofNetV4\nInsightFace\nFAS Inference] as ML_ENGINE
+    }
+}
+
+' ── DATA LAYER ────────────────────────────────────────────────────────
+package "Data Layer" #FDF5E8 {
+    database "Supabase PostgreSQL\n(shared instance)" as DB {
+        component [users\nrefresh_tokens] as T_AUTH
+        component [applications\napi_keys] as T_APP
+        component [sessions\nwebhook_deliveries] as T_SES
+        component [face_profiles\nml_sessions] as T_FACE
+    }
+}
+
+' ── FLOWS ─────────────────────────────────────────────────────────────
+
+' Client → Express
+DASH --> JWT_MW : "Authorization: Bearer <jwt>"
+SDK  --> KEY_MW : "X-API-Key: spk_xxxx"
+
+' Middleware → Routes
+JWT_MW --> AUTH_R
+JWT_MW --> APP_R
+JWT_MW --> KEY_R
+JWT_MW --> SES_R
+JWT_MW --> WH_R
+KEY_MW --> FACE_R
+
+' Routes → Proxy Service
+FACE_R --> PROXY_SVC : "validate key ✓\ninject X-App-Id"
+
+' Express → Supabase (DIRECT — own logic)
+AUTH_R --> T_AUTH   : "INSERT users\nUPDATE refresh_tokens"
+APP_R  --> T_APP    : "CRUD applications"
+KEY_R  --> T_APP    : "CRUD api_keys"
+SES_R  --> T_SES    : "SELECT sessions\naggregate dashboard"
+WH_R   --> T_SES    : "SELECT webhook_deliveries"
+KEY_MW --> T_APP    : "SELECT api_keys\n(key validation)"
+
+' Express → FastAPI (PROXY)
+PROXY_SVC --> FAS_FACE : "HTTP forward\n(same payload + X-App-Id)"
+
+' FastAPI internal
+FAS_FACE --> ML_ENGINE : "run inference"
+FAS_FACE --> T_FACE    : "asyncpg — INSERT sessions\nUPDATE face_profiles"
+FAS_AUTH --> T_AUTH    : "asyncpg (legacy)"
+ML_ENGINE --> FAS_FACE : "liveness result\nembedding vector"
+
+' ── CHECKLIST NOTES ───────────────────────────────────────────────────
+note bottom of FACE_R
+  Full Stack Side Quest
+  "RESTful API dibangun
+   menggunakan Express" ✓
+end note
+
+note bottom of FAS_FACE
+  AI Engineer Side Quest
+  "REST API mandiri
+   menggunakan FastAPI" ✓
+end note
+
+note right of PROXY_SVC
+  FastAPI tidak diakses
+  langsung oleh frontend.
+  Semua traffic melalui
+  Express BFF.
+end note
+
+@enduml

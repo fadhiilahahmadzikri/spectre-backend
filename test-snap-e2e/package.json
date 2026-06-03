@@ -1,0 +1,14 @@
+{
+  "name": "test-snap-e2e",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "E2E test for spectre-snap package",
+  "scripts": {
+    "test:import": "node test-import.mjs",
+    "test:cjs": "node test-import-cjs.cjs"
+  },
+  "dependencies": {
+    "@thewhitenigs/spectre-snap": "^1.0.3"
+  }
+}

@@ -43,14 +43,16 @@ export default function Navbar() {
               {link.label}
             </NavLink>
           ))}
-          <a
-            href={analyticsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
-          >
-            Analytics
-          </a>
+          {analyticsUrl && (
+            <a
+              href={analyticsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
+            >
+              Analytics
+            </a>
+          )}
         </div>
 
         {/* Right actions — desktop */}
@@ -108,15 +110,17 @@ export default function Navbar() {
                   {link.label}
                 </NavLink>
               ))}
-              <a
-                href={analyticsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMobileOpen(false)}
-                className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
-              >
-                Analytics
-              </a>
+              {analyticsUrl && (
+                <a
+                  href={analyticsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-neutral-charcoal hover:text-neutral-ink hover:bg-neutral-surface"
+                >
+                  Analytics
+                </a>
+              )}
               <div className="border-t border-neutral-line mt-2 pt-2 flex flex-col gap-2">
                 <Link
                   to="/login"

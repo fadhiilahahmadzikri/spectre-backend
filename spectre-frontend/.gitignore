@@ -1,5 +1,9 @@
-# Logs
-logs
+# ==============================================================================
+# Spectre Frontend — .gitignore
+# ==============================================================================
+
+# ── Logs ─────────────────────────────────────────────────────────────────
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,19 +11,56 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ── Dependencies ─────────────────────────────────────────────────────────
+node_modules/
 
-# Editor directories and files
+
+# ── Build artifacts ─────────────────────────────────────────────────────
+dist/
+dist-ssr/
+*.local
+.tsbuildinfo
+
+# ── Testing & Coverage ──────────────────────────────────────────────────
+.coverage
+coverage/
+.pytest_cache/
+.vitest/
+.vitest-results/
+
+# ── IDE & Editor ────────────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
+*.swp
+*.swo
 *.sw?
-.vercel
+*~
+
+# ── Environment files ───────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.docker
+
+# ── Caching ─────────────────────────────────────────────────────────────
+.cache/
+.turbo/
+.next/
+
+# ── OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Deployment ──────────────────────────────────────────────────────────
+.vercel/
+
+# ── Development tools ───────────────────────────────────────────────────
+.agent/
+.agents/
+graphify-out/

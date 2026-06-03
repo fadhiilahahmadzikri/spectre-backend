@@ -1,6 +1,6 @@
 {
   "name": "@thewhitenigs/spectre-snap",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Spectre Identity-as-a-Service — embeddable facial authentication for React",
   "type": "module",
   "main": "./dist/spectre-snap.cjs",
@@ -8,20 +8,37 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/spectre-snap.js",
-      "require": "./dist/spectre-snap.cjs",
-      "types": "./dist/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/spectre-snap.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/spectre-snap.cjs"
+      }
     },
-    "./style.css": "./dist/spectre-snap.css"
+    "./style.css": {
+      "types": "./dist/style.css.d.ts",
+      "default": "./dist/spectre-snap.css"
+    }
   },
   "files": [
     "dist/spectre-snap.js",
+    "dist/spectre-snap.js.map",
     "dist/spectre-snap.cjs",
+    "dist/spectre-snap.cjs.map",
     "dist/spectre-snap.css",
+    "dist/style.css.d.ts",
     "dist/index.d.ts",
     "dist/index.d.ts.map",
+    "dist/index.d.cts",
+    "dist/index.d.cts.map",
     "dist/snap",
-    "README.md"
+    "dist/shared",
+    "dist/features",
+    "dist/components",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "sideEffects": [
     "**/*.css"
@@ -32,6 +49,7 @@
     "build:lib": "vite build --mode lib",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "prepublishOnly": "npm run build:lib"
   },
   "keywords": [

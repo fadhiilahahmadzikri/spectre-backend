@@ -13,8 +13,8 @@ import { ScannerView } from "../features/face-scan/ui/ScannerView";
 import { FaceApiClient } from "../features/face-scan/api/face-client";
 import { MODE_AUTHENTICATE, MODE_REGISTER } from "../features/face-scan/model/constants";
 import type { ScanMode } from "../features/face-scan/model/types";
-import { setRuntimeBaseUrl, clearRuntimeBaseUrl } from "../lib/config";
 import { useEffect, useRef } from "react";
+import { normalizeRedirectDelay } from "./resolve-config";
 
 let sharedQC: QueryClient | null = null;
 function getQueryClient(): QueryClient {
@@ -37,8 +37,8 @@ function getQueryClient(): QueryClient {
  *
  * @example
  * ```tsx
- * import { SpectreAuthModal } from 'spectre-snap';
- * import 'spectre-snap/style.css';
+ * import { SpectreAuthModal } from '@thewhitenigs/spectre-snap';
+ * import '@thewhitenigs/spectre-snap/style.css';
  *
  * function App() {
  *   const [open, setOpen] = useState(false);
@@ -68,18 +68,16 @@ export function SpectreAuthModal(props: SpectreAuthModalProps) {
   const modeConfig: SpectreMode = props.mode ?? "auto";
   const baseUrl = props.baseUrl ?? providerConfig.baseUrl;
   const theme = props.theme ?? providerConfig.theme ?? "dark";
+  const fas = props.fas ?? true;
+  const requirePose = props.requirePose ?? true;
+  const showPreview = props.showPreview ?? false;
   const redirectUrl = props.redirectUrl ?? null;
+  const redirectDelaySeconds = normalizeRedirectDelay(props.redirectDelay);
 
   const [resolvedMode, setResolvedMode] = useState<ScanMode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-
-  // Set runtime base URL
-  useEffect(() => {
-    if (baseUrl) setRuntimeBaseUrl(baseUrl);
-    return () => clearRuntimeBaseUrl();
-  }, [baseUrl]);
 
   // Resolve mode when modal opens
   useEffect(() => {
@@ -106,7 +104,7 @@ export function SpectreAuthModal(props: SpectreAuthModalProps) {
       }
 
       try {
-        const client = new FaceApiClient(apiKey);
+        const client = new FaceApiClient(apiKey, { baseUrl });
         const exists = await client.lookupUser(userId);
         if (mountedRef.current) {
           setResolvedMode(exists ? MODE_AUTHENTICATE : MODE_REGISTER);
@@ -128,7 +126,7 @@ export function SpectreAuthModal(props: SpectreAuthModalProps) {
     }
 
     return () => { mountedRef.current = false; };
-  }, [props.open, apiKey, userId, modeConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [props.open, apiKey, baseUrl, userId, modeConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -177,6 +175,14 @@ export function SpectreAuthModal(props: SpectreAuthModalProps) {
                 apiKey={apiKey}
                 externalUserId={userId}
                 initialMode={resolvedMode}
+                baseUrl={baseUrl}
+                initialConfig={{
+                  fas,
+                  requirePose,
+                  showPreview,
+                  redirectUrl: redirectUrl ?? "",
+                }}
+                redirectDelaySeconds={redirectDelaySeconds}
                 onClose={() => handleOpenChange(false)}
                 redirectUrl={redirectUrl}
                 _snapCallbacks={{

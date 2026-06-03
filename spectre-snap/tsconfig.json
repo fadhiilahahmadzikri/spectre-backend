@@ -15,6 +15,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "types": [
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom"
+    ],
     "noEmit": true,
     "paths": {
       "@/*": [
@@ -24,5 +29,10 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/app/**",
+    "src/main.tsx",
+    "src/pages/**"
   ]
 }

@@ -7,14 +7,14 @@ Spectre Snap is a drop-in React component that provides a complete facial authen
 ## Installation
 
 ```bash
-npm install spectre-snap
+npm install @thewhitenigs/spectre-snap
 ```
 
 ## Quick Start
 
 ```tsx
-import { SpectreAuth } from 'spectre-snap';
-import 'spectre-snap/style.css';
+import { SpectreAuth } from '@thewhitenigs/spectre-snap';
+import '@thewhitenigs/spectre-snap/style.css';
 
 function LoginPage() {
   return (
@@ -37,8 +37,8 @@ function LoginPage() {
 
 ```tsx
 import { useState } from 'react';
-import { SpectreAuthModal } from 'spectre-snap';
-import 'spectre-snap/style.css';
+import { SpectreAuthModal } from '@thewhitenigs/spectre-snap';
+import '@thewhitenigs/spectre-snap/style.css';
 
 function App() {
   const [open, setOpen] = useState(false);
@@ -64,8 +64,8 @@ function App() {
 ## Global Configuration (Provider)
 
 ```tsx
-import { SpectreAuthProvider, SpectreAuth } from 'spectre-snap';
-import 'spectre-snap/style.css';
+import { SpectreAuthProvider, SpectreAuth } from '@thewhitenigs/spectre-snap';
+import '@thewhitenigs/spectre-snap/style.css';
 
 function App() {
   return (
@@ -90,7 +90,7 @@ function App() {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `apiKey` | `string` | **required** | API key from the Spectre dashboard |
+| `apiKey` | `string` | Provider value | API key from the Spectre dashboard. Required unless `SpectreAuthProvider` supplies it |
 | `userId` | `string` | `"anonymous"` | External user identifier |
 | `mode` | `"register" \| "authenticate" \| "auto"` | `"auto"` | Scan mode — `auto` detects from existing profile |
 | `baseUrl` | `string` | HF Spaces prod | Override backend API URL |
@@ -100,7 +100,7 @@ function App() {
 | `requirePose` | `boolean` | `true` | Require head-pose ring scan |
 | `showPreview` | `boolean` | `false` | Show preview before submission |
 | `theme` | `"dark" \| "light" \| "auto"` | `"dark"` | UI theme |
-| `locale` | `"id" \| "en"` | `"id"` | UI language |
+| `locale` | `"id" \| "en"` | `"id"` | Deprecated placeholder; scanner copy remains Indonesian in this release |
 
 ### Callbacks
 
@@ -110,6 +110,7 @@ function App() {
 | `onFailed` | `(reason: SpectreFailureReason, result?: SpectreAuthResult) => void` | Fired on failure |
 | `onClose` | `() => void` | Fired when user dismisses the scanner |
 | `onReady` | `() => void` | Fired when camera is active and scanner is ready |
+| `onRedirect` | `() => void` | Fired when the success countdown completes instead of assigning `window.location.href` |
 
 ### SpectreAuthResult
 
@@ -133,6 +134,7 @@ interface SpectreAuthResult {
 | `face_not_detected` | No face found in the frame |
 | `face_mismatch` | Face does not match the registered profile |
 | `quality_insufficient` | Image quality too low for reliable inference |
+| `session_expired` | Scan session expired |
 | `user_cancelled` | User closed the scanner |
 | `camera_denied` | Camera permission denied |
 | `network_error` | Network connectivity issue |
@@ -147,7 +149,8 @@ import type {
   SpectreAuthResult,
   SpectreFailureReason,
   SpectreAuthProps,
-} from 'spectre-snap';
+  SpectreErrorCode,
+} from '@thewhitenigs/spectre-snap';
 ```
 
 ## Requirements

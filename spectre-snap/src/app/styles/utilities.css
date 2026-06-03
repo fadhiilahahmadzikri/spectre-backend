@@ -1,11 +1,11 @@
-*,
-*::before,
-*::after {
+.spectre-snap,
+.spectre-snap *,
+.spectre-snap *::before,
+.spectre-snap *::after {
   box-sizing: border-box;
 }
 
-html,
-body {
+.spectre-snap {
   height: 100%;
   color: var(--fg);
   background: #000000;
@@ -13,27 +13,12 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  background:
-    radial-gradient(ellipse 120% 80% at 50% -10%, rgba(140, 180, 255, 0.14) 0%, rgba(80, 120, 220, 0.06) 35%, transparent 70%),
-    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(90, 140, 230, 0.08) 0%, transparent 65%),
-    #000000 !important;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   min-height: 100vh;
   min-height: 100dvh;
-}
-
-#root {
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: #000000;
 }
 
 .app-shell {

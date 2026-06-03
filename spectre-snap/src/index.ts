@@ -9,8 +9,8 @@ import "./index.css";
  *
  * @example
  * ```tsx
- * import { SpectreAuth } from 'spectre-snap';
- * import 'spectre-snap/style.css';
+ * import { SpectreAuth } from '@thewhitenigs/spectre-snap';
+ * import '@thewhitenigs/spectre-snap/style.css';
  *
  * function LoginPage() {
  *   return (
@@ -34,6 +34,7 @@ import "./index.css";
 export { SpectreAuth } from "./snap/SpectreAuth";
 export { SpectreAuthModal } from "./snap/SpectreAuthModal";
 export { SpectreAuthProvider } from "./snap/SpectreAuthProvider";
+export { SpectreError } from "./shared/lib/sdk-errors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,3 +58,7 @@ export type {
   // Provider
   SpectreProviderConfig,
 } from "./snap/types";
+export type {
+  SpectreErrorCode,
+  SpectreErrorEnvelope,
+} from "./shared/lib/sdk-errors";

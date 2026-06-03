@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity } from "lucide-react";
-import { api } from "@/lib/api";
+import { getMlStatus } from "../../api/face-client";
 import type { Phase } from "../../model/types";
 import { PHASES } from "../../model/constants";
 
@@ -9,6 +9,7 @@ interface LiveStatusOverlayProps {
   phase: Phase;
   detailMode: boolean;
   benchmarkMode: boolean;
+  baseUrl?: string;
   /**
    * When false, the pill slides out of the bottom edge and unmounts. Parent
    * sets this to false as soon as the ResultPanel is about to take over the
@@ -26,10 +27,16 @@ const PHASE_LABELS: Partial<Record<Phase, string>> = {
   [PHASES.FAILED]: "Failed",
 };
 
-export function LiveStatusOverlay({ phase, detailMode, benchmarkMode, visible }: LiveStatusOverlayProps) {
+export function LiveStatusOverlay({
+  phase,
+  detailMode,
+  benchmarkMode,
+  baseUrl,
+  visible,
+}: LiveStatusOverlayProps) {
   const { data } = useQuery({
-    queryKey: ["ml-status"],
-    queryFn: ({ signal }) => api.getMlStatus({ signal }),
+    queryKey: ["ml-status", baseUrl ?? "default"],
+    queryFn: ({ signal }) => getMlStatus({ baseUrl, signal }),
     staleTime: 60_000,
     retry: false,
   });

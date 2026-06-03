@@ -16,7 +16,6 @@ import {
   MODE_REGISTER,
   MODE_AUTHENTICATE,
 } from "../model/constants";
-import { SCAN_CONFIG } from "@/shared/config/scan.config";
 import type {
   AuraConfig,
   BenchmarkApiResponse,
@@ -51,10 +50,12 @@ export interface UseScanOrchestratorParams {
   videoRef: RefObject<HTMLVideoElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   apiKey: string;
+  baseUrl?: string;
   config: ConfigDraft;
   externalUserId: string;
   initialMode: ScanMode;
   redirectUrl: string | null;
+  redirectDelaySeconds: number;
   showLog: (text: string, kind: LogEntry["kind"]) => void;
   clearLog: () => void;
   snapCbRef: React.MutableRefObject<any>;
@@ -90,10 +91,12 @@ export function useScanOrchestrator({
   videoRef,
   canvasRef,
   apiKey,
+  baseUrl,
   config,
   externalUserId,
   initialMode,
   redirectUrl,
+  redirectDelaySeconds,
   showLog,
   clearLog,
   snapCbRef,
@@ -134,17 +137,17 @@ export function useScanOrchestrator({
   const suppressNextModeResetRef = useRef(false);
   const lastIqaLogRef = useRef<{ text: string; kind: LogEntry["kind"] }>({ text: "", kind: "info" });
   const instantFailsRef = useRef<IqaState[]>([]);
-  const clientRef = useRef<FaceApiClient>(new FaceApiClient(apiKey));
+  const clientRef = useRef<FaceApiClient>(new FaceApiClient(apiKey, { baseUrl }));
   // Keep clientRef in sync with the current apiKey. useRef's initializer runs
   // only on mount, so without this effect any apiKey change (e.g. user enters
   // a different key into IdentityGate while the orchestrator is still mounted,
   // or the scan store rehydrates from localStorage with a different key) would
   // leave the stale client in place and every /faces/* call would still go
-  // out with the previous X-API-Key header.
+  // out with the previous X-API-Key header or base URL.
   useEffect(() => {
-    clientRef.current = new FaceApiClient(apiKey);
+    clientRef.current = new FaceApiClient(apiKey, { baseUrl });
     scanDebug("orchestrator clientRef resynced", { apiKey: maskKey(apiKey) });
-  }, [apiKey]);
+  }, [apiKey, baseUrl]);
   // Primary cancellation path for network calls. Reset in handleReset so an
   // in-flight submission from a previous scan session is dropped the moment
   // the user restarts.
@@ -225,7 +228,7 @@ export function useScanOrchestrator({
     const target = config.redirectUrl || redirectUrl;
     const hasRedirectCb = !!snapCbRef.current?.onRedirect;
     if (!target && !hasRedirectCb) return;
-    let seconds = SCAN_CONFIG.redirectDelay || 5;
+    let seconds = redirectDelaySeconds;
     setRedirectIn(seconds);
     if (redirectTimerRef.current !== null) clearInterval(redirectTimerRef.current);
     redirectTimerRef.current = setInterval(() => {
@@ -242,14 +245,13 @@ export function useScanOrchestrator({
         }
       }
     }, 1000);
-  }, [redirectUrl, config.redirectUrl, snapCbRef]);
+  }, [redirectDelaySeconds, redirectUrl, config.redirectUrl, snapCbRef]);
 
   const executeApiSubmission = useCallback(
     async (b64: string) => {
       if (inflightRef.current) return;
       inflightRef.current = true;
       const epoch = requestEpochRef.current;
-      try {
 
       setPhase(PHASES.ANALYZING);
       showLog(scan.logs.encrypting, "active");
@@ -335,7 +337,15 @@ export function useScanOrchestrator({
           ? scan.logs.registerSuccess
           : scan.logs.identityVerified;
         const label = config.fas ? baseLabel : `${baseLabel} (FAS off)`;
-        setResult({ verdict: "ok", label, summary, detail });
+        setResult({
+          verdict: "ok",
+          label,
+          summary,
+          detail,
+          session_id: data.session_id,
+          similarity_score: data.similarity_score,
+          inference_time_ms: data.inference_time_ms,
+        });
 
         if (config.detailMode && data.diagnostics) {
           setPendingDiagnostics(data.diagnostics);
@@ -434,12 +444,6 @@ export function useScanOrchestrator({
         setMode(effectiveMode);
       }
       inflightRef.current = false;
-    } catch (err) {
-      inflightRef.current = false;
-      // Abort means the component unmounted or scan was reset — not an error.
-      if (err instanceof Error && err.name === "AbortError") return;
-      throw err;
-    }
     },
     [
       apiKey,
@@ -734,7 +738,10 @@ export function useScanOrchestrator({
     const epoch = requestEpochRef.current;
     setPhase(nextPhase);
     if (nextPhase === PHASES.COMPLETE) {
-      if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+      if (
+        mode === MODE_AUTHENTICATE &&
+        (config.redirectUrl || redirectUrl || snapCbRef.current?.onRedirect)
+      ) startRedirect();
       if (mode === MODE_REGISTER) {
         setTimeout(() => {
           if (requestEpochRef.current === epoch) {
@@ -755,7 +762,10 @@ export function useScanOrchestrator({
     const epoch = requestEpochRef.current;
     setPhase(nextPhase);
     if (nextPhase === PHASES.COMPLETE) {
-      if (mode === MODE_AUTHENTICATE && (config.redirectUrl || redirectUrl)) startRedirect();
+      if (
+        mode === MODE_AUTHENTICATE &&
+        (config.redirectUrl || redirectUrl || snapCbRef.current?.onRedirect)
+      ) startRedirect();
       if (mode === MODE_REGISTER) {
         setTimeout(() => {
           if (requestEpochRef.current === epoch) {

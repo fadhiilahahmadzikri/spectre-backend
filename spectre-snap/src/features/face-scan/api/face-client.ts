@@ -1,5 +1,5 @@
-import { getBaseUrl } from "@/lib/config";
-import { isAbortError } from "@/shared/lib/http";
+import { requestSpectreJson, resolveSpectreBaseUrl } from "@/shared/lib/sdk-http";
+import { SpectreError } from "@/shared/lib/sdk-errors";
 import { maskKey, scanDebug, scanError } from "../lib/scan-debug";
 import type {
   BenchmarkApiResponse,
@@ -27,6 +27,11 @@ interface FacePayload {
 
 export interface FaceRequestOpts {
   signal?: AbortSignal;
+  idempotencyKey?: string;
+}
+
+interface FaceApiClientOptions {
+  baseUrl?: string;
 }
 
 const ENDPOINT_BASE = "/api/v1/faces";
@@ -34,17 +39,17 @@ const ENDPOINT_BASE = "/api/v1/faces";
 /**
  * Scanner API client.
  *
- * Reads `getBaseUrl()` on every request so environment switches are picked
- * up live (the client no longer freezes a stale baseUrl at construction).
- * Accepts an `AbortSignal` per call so callers can cancel in-flight requests
- * when the scan session resets.
+ * Accepts a per-instance `baseUrl` so embedded SDK mounts do not mutate
+ * shared module state. If omitted, it falls back to the demo app environment.
  */
 export class FaceApiClient {
   private readonly headers: Record<string, string>;
   private readonly apiKey: string;
+  private readonly baseUrl?: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, options: FaceApiClientOptions = {}) {
     this.apiKey = apiKey;
+    this.baseUrl = options.baseUrl;
     this.headers = {
       "X-API-Key": apiKey,
       "Content-Type": "application/json",
@@ -55,24 +60,38 @@ export class FaceApiClient {
     endpoint: string,
     options: RequestInit & FaceRequestOpts = {},
   ): Promise<FaceApiResponse<T>> {
-    const url = `${getBaseUrl()}${ENDPOINT_BASE}${endpoint}`;
-    try {
-      const res = await fetch(url, {
+    const res = await requestSpectreJson<T & FaceApiErrorPayload>(
+      `${ENDPOINT_BASE}${endpoint}`,
+      {
         ...options,
-        headers: { ...this.headers, ...(options.headers as Record<string, string>) },
-      });
-      const data = res.status !== 204 ? ((await res.json()) as T) : null;
-      return { ok: res.ok, status: res.status, data };
-    } catch (err) {
-      if (isAbortError(err)) throw err;
+        baseUrl: this.baseUrl,
+        headers: {
+          ...this.headers,
+          ...(options.idempotencyKey
+            ? { "Idempotency-Key": options.idempotencyKey }
+            : {}),
+          ...(options.headers as Record<string, string>),
+        },
+      },
+    );
+
+    if (res.error) {
       return {
         ok: false,
-        status: 0,
+        status: res.status,
         data: {
-          error: { message: "Connection refused or network error" },
-        } as unknown as T,
+          error: {
+            code: res.error.code,
+            message: res.error.message,
+            details: res.error.details,
+            request_id: res.error.requestId,
+            timestamp: res.error.timestamp,
+          },
+        } as T,
       };
     }
+
+    return { ok: res.ok, status: res.status, data: res.data };
   }
 
   private payload(
@@ -105,6 +124,7 @@ export class FaceApiClient {
       method: "POST",
       body: JSON.stringify(this.payload(externalUserId, imageBase64, fas, opts.detailMode)),
       signal: opts.signal,
+      idempotencyKey: opts.idempotencyKey,
     });
     p.then((res) => {
       scanDebug("FaceApiClient.register ←", {
@@ -133,6 +153,7 @@ export class FaceApiClient {
       method: "POST",
       body: JSON.stringify(this.payload(externalUserId, imageBase64, fas, opts.detailMode)),
       signal: opts.signal,
+      idempotencyKey: opts.idempotencyKey,
     });
     p.then((res) => {
       scanDebug("FaceApiClient.authenticate ←", {
@@ -148,6 +169,7 @@ export class FaceApiClient {
   listProfiles(opts: FaceRequestOpts = {}) {
     const p = this.request<{ profiles?: FaceProfile[] }>("", {
       signal: opts.signal,
+      idempotencyKey: opts.idempotencyKey,
     });
     p.then((res) => {
       scanDebug("FaceApiClient.listProfiles", {
@@ -173,6 +195,7 @@ export class FaceApiClient {
         external_user_id: externalUserId,
       }),
       signal: opts.signal,
+      idempotencyKey: opts.idempotencyKey,
     });
   }
 
@@ -180,6 +203,7 @@ export class FaceApiClient {
     return this.request<FaceApiSuccessPayload>(`/${externalUserId}`, {
       method: "DELETE",
       signal: opts.signal,
+      idempotencyKey: opts.idempotencyKey,
     });
   }
 
@@ -187,6 +211,7 @@ export class FaceApiClient {
     return this.request<{ purged_count?: number }>("", {
       method: "DELETE",
       signal: opts.signal,
+      idempotencyKey: opts.idempotencyKey,
     });
   }
 
@@ -200,7 +225,7 @@ export class FaceApiClient {
     });
     const res = await this.request<{ exists: boolean }>(
       `/${encodeURIComponent(externalUserId)}/exists`,
-      { signal: opts.signal },
+      { signal: opts.signal, idempotencyKey: opts.idempotencyKey },
     );
     scanDebug("FaceApiClient.lookupUser ←", {
       apiKey: maskKey(this.apiKey),
@@ -230,4 +255,37 @@ export class FaceApiClient {
     });
     return res.ok;
   }
+}
+
+export interface MlStatus {
+  active_model_id: string;
+  active_model: {
+    model_id: string;
+    version: string;
+    supports_tta: boolean;
+  } | null;
+  benchmark_enabled: boolean;
+  benchmark_models: string[];
+  detail_mode_default: boolean;
+}
+
+export async function getMlStatus(
+  opts: { baseUrl?: string; signal?: AbortSignal } = {},
+): Promise<MlStatus> {
+  const res = await requestSpectreJson<MlStatus>("/health/ml-status", {
+    baseUrl: opts.baseUrl,
+    signal: opts.signal,
+  });
+  if (res.error) throw res.error;
+  if (!res.data) {
+    throw new SpectreError(res.status, {
+      code: "UNKNOWN",
+      message: "Empty ML status response",
+    });
+  }
+  return res.data;
+}
+
+export function getFaceClientBaseUrl(baseUrl?: string): string {
+  return resolveSpectreBaseUrl(baseUrl);
 }

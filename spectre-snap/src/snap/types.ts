@@ -82,8 +82,11 @@ export type SpectreLocale = "id" | "en";
 
 /** Configuration props for the SpectreAuth component. */
 export interface SpectreAuthConfig {
-  /** The API key issued from the Spectre dashboard. **Required**. */
-  apiKey: string;
+  /**
+   * The API key issued from the Spectre dashboard.
+   * Required unless `SpectreAuthProvider` supplies an `apiKey`.
+   */
+  apiKey?: string;
   /**
    * External user identifier scoping the face profile.
    * If omitted, defaults to `"anonymous"`.
@@ -108,7 +111,10 @@ export interface SpectreAuthConfig {
   showPreview?: boolean;
   /** Theme variant. Default: `"dark"`. */
   theme?: SpectreTheme;
-  /** UI locale. Default: `"id"` (Indonesian). */
+  /**
+   * UI locale. Default: `"id"` (Indonesian).
+   * @deprecated Locale switching is reserved for a future minor release; the scanner copy remains Indonesian.
+   */
   locale?: SpectreLocale;
 }
 

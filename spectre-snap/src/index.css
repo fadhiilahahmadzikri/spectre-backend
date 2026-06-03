@@ -50,7 +50,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+.spectre-snap {
   --background: oklch(0 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.145 0 0);
@@ -88,11 +88,12 @@
 }
 
 @layer base {
-  * {
+  .spectre-snap,
+  .spectre-snap * {
     @apply border-border outline-ring/50;
   }
 
-  html {
+  .spectre-snap {
     color-scheme: dark;
   }
 }

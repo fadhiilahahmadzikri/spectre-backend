@@ -133,6 +133,47 @@ X-API-Key: spk_d602c7bc949464b18c0fafc1c3c5d4f048bf2a524acad217
 Full integration reference: [`Docs/API_INTEGRATION_REFERENCE.md`](Docs/API_INTEGRATION_REFERENCE.md)  
 HF Spaces-specific guide: [`Docs/API_HF_SPACES_REFERENCE.md`](Docs/API_HF_SPACES_REFERENCE.md)
 
+## Environment Variables
+
+Copy `.env.example` ke `.env` lalu sesuaikan nilainya:
+
+```bash
+cp .env.example .env
+```
+
+Variabel yang **wajib** diubah sebelum menjalankan aplikasi:
+
+| Variable | Keterangan | Contoh Nilai |
+|---|---|---|
+| `SECRET_KEY` | Secret key aplikasi (random string panjang) | `openssl rand -hex 32` |
+| `DATABASE_URL` | Koneksi PostgreSQL | `postgresql+asyncpg://user:pass@localhost:5432/spectre` |
+| `JWT_SECRET_KEY` | Secret untuk signing JWT token | `openssl rand -hex 32` |
+| `ENCRYPTION_KEY` | Kunci enkripsi data sensitif | `openssl rand -hex 32` |
+
+Variabel opsional (sudah ada default, sesuaikan jika perlu):
+
+| Variable | Default | Keterangan |
+|---|---|---|
+| `APP_ENV` | `development` | Mode aplikasi (`development` / `production`) |
+| `DEBUG` | `true` | Aktifkan debug mode |
+| `REDIS_URL` | `redis://localhost:6379/0` | Koneksi Redis |
+| `CELERY_BROKER_URL` | `redis://localhost:6379/1` | Broker Celery |
+| `MODEL_PATH` | `artifact/best_model.keras` | Path model ML liveness detection |
+| `INFERENCE_DEVICE` | `cpu` | Device inferensi (`cpu` / `cuda`) |
+| `SIMILARITY_THRESHOLD` | `0.75` | Threshold kecocokan wajah (0–1) |
+| `LIVENESS_THRESHOLD` | `0.5` | Threshold liveness detection (0–1) |
+| `CORS_ORIGINS` | `http://localhost:5173` | Origin yang diizinkan untuk CORS |
+
+Untuk integrasi Google OAuth (opsional):
+
+| Variable | Keterangan |
+|---|---|
+| `GOOGLE_CLIENT_ID` | Client ID dari Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | Client Secret dari Google Cloud Console |
+| `GOOGLE_REDIRECT_URI` | Callback URI (harus terdaftar di Google Console) |
+
+> Jika tidak menggunakan Docker, pastikan PostgreSQL dan Redis sudah berjalan sebelum menjalankan server.
+
 ## Testing
 
 ```powershell

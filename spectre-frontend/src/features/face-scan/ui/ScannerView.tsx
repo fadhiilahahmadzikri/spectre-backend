@@ -189,21 +189,16 @@ export function ScannerView({
           </IrisShell>
 
           <div
-            className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none"
+            className="absolute inset-0 z-20 pointer-events-none"
             style={{
               opacity: showAuraMascot ? 1 : 0,
               transition: showAuraMascot ? "opacity 600ms ease 350ms" : "opacity 300ms ease",
             }}
           >
             {showAuraMascot && (
-              <>
+              <div className="absolute inset-0 flex items-center justify-center">
                 <AuraRing size={380} config={auraConfig} />
-                {statusText && (
-                  <div className="mt-4 mb-16 text-[color:var(--label-secondary)] font-medium text-sm tracking-[-0.02em]">
-                    {statusText}
-                  </div>
-                )}
-              </>
+              </div>
             )}
           </div>
 
@@ -222,6 +217,12 @@ export function ScannerView({
             />
           </div>
         </motion.div>
+
+        {showAuraMascot && statusText && (
+          <div className="mt-8 text-[color:var(--label-secondary)] font-medium text-sm tracking-[-0.02em] text-center">
+            {statusText}
+          </div>
+        )}
 
         <div className="-mt-3">
           <ProgressiveLog log={currentLog} visible={showLogs} />

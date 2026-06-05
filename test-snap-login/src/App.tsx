@@ -58,8 +58,11 @@ interface WebhookInboxResponse {
 }
 
 const DEFAULT_RECEIVER_URL = 'http://localhost:8787'
+const DEFAULT_TEST_USER_ID = 'spectre-test-user'
+const LOGIN_SETTLEMENT_EVENTS = new Set(['face.authenticated'])
 const receiverUrl = import.meta.env.VITE_WEBHOOK_RECEIVER_URL || DEFAULT_RECEIVER_URL
 const spectreApiKey = import.meta.env.VITE_SPECTRE_API_KEY
+const spectreTestUserId = import.meta.env.VITE_SPECTRE_TEST_USER_ID || DEFAULT_TEST_USER_ID
 
 function resolveNamespace(): Namespace {
   return window.location.hash === '#/lab' ? 'lab' : 'product'
@@ -107,6 +110,28 @@ function getEventLabel(event?: string): string {
   return event || 'webhook.received'
 }
 
+function isLoginSettlementEvent(event?: string): boolean {
+  return typeof event === 'string' && LOGIN_SETTLEMENT_EVENTS.has(event)
+}
+
+function webhookMatchesAttempt(event: WebhookEvent, attempt: SdkAttempt): boolean {
+  const sessionId = attempt.result?.sessionId
+  if (!sessionId) return false
+
+  return (
+    event.payload.session_id === sessionId &&
+    event.payload.external_user_id === attempt.userId
+  )
+}
+
+function isAcceptedLoginWebhook(event: WebhookEvent, attempt: SdkAttempt): boolean {
+  return (
+    webhookMatchesAttempt(event, attempt) &&
+    event.signatureStatus === 'valid' &&
+    isLoginSettlementEvent(event.payload.event)
+  )
+}
+
 function App() {
   const [namespace, setNamespace] = useState<Namespace>(resolveNamespace)
   const [screen, setScreen] = useState<ProductScreen>('login')
@@ -122,12 +147,14 @@ function App() {
   const [lastInboxRefresh, setLastInboxRefresh] = useState<string | null>(null)
 
   const trimmedEmail = email.trim()
+  const spectreUserId = trimmedEmail || spectreTestUserId
   const latestWebhook = webhookEvents[0]
   const matchingWebhook = useMemo(() => {
-    const sessionId = sdkAttempt.result?.sessionId
-    if (!sessionId) return null
-    return webhookEvents.find((event) => event.payload.session_id === sessionId) ?? null
-  }, [sdkAttempt.result?.sessionId, webhookEvents])
+    return webhookEvents.find((event) => webhookMatchesAttempt(event, sdkAttempt)) ?? null
+  }, [sdkAttempt, webhookEvents])
+  const acceptedLoginWebhook = useMemo(() => {
+    return webhookEvents.find((event) => isAcceptedLoginWebhook(event, sdkAttempt)) ?? null
+  }, [sdkAttempt, webhookEvents])
 
   useEffect(() => {
     function handleHashChange() {
@@ -137,6 +164,33 @@ function App() {
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
+
+  useEffect(() => {
+    if (screen !== 'dashboard' && acceptedLoginWebhook) {
+      setScreen('dashboard')
+    }
+  }, [acceptedLoginWebhook, screen])
+
+  useEffect(() => {
+    if (screen !== 'login' || sdkAttempt.state !== 'verified') return
+
+    if (!matchingWebhook) {
+      setFormMessage('Spectre scan succeeded. Waiting for webhook before login is accepted.')
+      return
+    }
+
+    if (matchingWebhook.signatureStatus !== 'valid') {
+      setFormMessage(`Webhook received, but signature is ${matchingWebhook.signatureStatus}. Login is not accepted.`)
+      return
+    }
+
+    if (matchingWebhook.payload.event === 'face.registered') {
+      setFormMessage('Face enrollment completed. Login is not accepted until a face.authenticated webhook arrives.')
+      return
+    }
+
+    setFormMessage(`${getEventLabel(matchingWebhook.payload.event)} is not accepted as a login settlement event.`)
+  }, [matchingWebhook, screen, sdkAttempt.state])
 
   async function refreshWebhookInbox() {
     setReceiverState((current) => (current === 'offline' ? 'checking' : current))
@@ -173,18 +227,13 @@ function App() {
   }, [])
 
   function openSpectre() {
-    if (!trimmedEmail) {
-      setFormMessage('Email harus diisi dulu.')
-      return
-    }
-
     if (!spectreApiKey) {
       setFormMessage('VITE_SPECTRE_API_KEY belum terisi.')
       return
     }
 
     setFormMessage('')
-    setSdkAttempt({ state: 'idle', userId: trimmedEmail })
+    setSdkAttempt({ state: 'idle', userId: spectreUserId })
     setIsSpectreOpen(true)
   }
 
@@ -196,18 +245,19 @@ function App() {
   function handleSuccess(result: SpectreAuthResult) {
     setSdkAttempt({
       state: 'verified',
-      userId: trimmedEmail,
+      userId: spectreUserId,
       result,
       receivedAt: new Date().toISOString(),
     })
     setIsSpectreOpen(false)
-    setScreen('dashboard')
+    setScreen('login')
+    setFormMessage('Spectre scan succeeded. Waiting for webhook before login is accepted.')
   }
 
   function handleFailed(reason: SpectreFailureReason, result?: SpectreAuthResult) {
     setSdkAttempt({
       state: 'failed',
-      userId: trimmedEmail,
+      userId: spectreUserId,
       result,
       failureReason: reason,
       receivedAt: new Date().toISOString(),
@@ -216,7 +266,7 @@ function App() {
   }
 
   function handleReady() {
-    setSdkAttempt({ state: 'ready', userId: trimmedEmail, receivedAt: new Date().toISOString() })
+    setSdkAttempt({ state: 'ready', userId: spectreUserId, receivedAt: new Date().toISOString() })
   }
 
   function goToLab() {
@@ -237,6 +287,7 @@ function App() {
           webhookEvents={webhookEvents}
           latestWebhook={latestWebhook}
           matchingWebhook={matchingWebhook}
+          acceptedLoginWebhook={acceptedLoginWebhook}
           lastInboxRefresh={lastInboxRefresh}
           onBackToProduct={goToProduct}
           onRefreshInbox={refreshWebhookInbox}
@@ -244,10 +295,9 @@ function App() {
         />
       ) : screen === 'dashboard' ? (
         <ProductDashboard
-          email={trimmedEmail}
+          email={spectreUserId}
           sdkAttempt={sdkAttempt}
-          matchingWebhook={matchingWebhook}
-          latestWebhook={latestWebhook}
+          acceptedLoginWebhook={acceptedLoginWebhook}
           receiverState={receiverState}
           onScanAgain={openSpectre}
           onOpenLab={goToLab}
@@ -270,7 +320,7 @@ function App() {
       <SpectreAuthModal
         open={isSpectreOpen}
         onOpenChange={setIsSpectreOpen}
-        userId={trimmedEmail}
+        userId={spectreUserId}
         mode="auto"
         onReady={handleReady}
         onSuccess={handleSuccess}
@@ -435,8 +485,7 @@ function ProductLogin({
 interface ProductDashboardProps {
   email: string
   sdkAttempt: SdkAttempt
-  matchingWebhook: WebhookEvent | null
-  latestWebhook?: WebhookEvent
+  acceptedLoginWebhook: WebhookEvent | null
   receiverState: ReceiverState
   onScanAgain: () => void
   onOpenLab: () => void
@@ -445,14 +494,13 @@ interface ProductDashboardProps {
 function ProductDashboard({
   email,
   sdkAttempt,
-  matchingWebhook,
-  latestWebhook,
+  acceptedLoginWebhook,
   receiverState,
   onScanAgain,
   onOpenLab,
 }: ProductDashboardProps) {
-  const backendConfirmed = Boolean(matchingWebhook)
-  const event = matchingWebhook ?? latestWebhook
+  const backendConfirmed = Boolean(acceptedLoginWebhook)
+  const event = acceptedLoginWebhook
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] p-4 font-sans text-gray-950">
@@ -489,14 +537,16 @@ function ProductDashboard({
               <div className="flex items-center justify-between">
                 <Asterisk className="h-10 w-10 stroke-[3]" />
                 <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur">
-                  {backendConfirmed ? 'Backend confirmed' : 'Pending backend'}
+                  {backendConfirmed ? 'Backend confirmed' : 'Pending settlement'}
                 </span>
               </div>
 
               <div>
                 <p className="mb-3 text-sm font-medium opacity-90">{email}</p>
                 <h2 className="max-w-[640px] text-3xl font-bold leading-[1.08] tracking-tight md:text-[2.6rem]">
-                  Identity verified. Your workspace is ready.
+                  {backendConfirmed
+                    ? 'Identity verified. Your workspace is ready.'
+                    : 'Face scan complete. Waiting for your server webhook.'}
                 </h2>
               </div>
             </div>
@@ -549,6 +599,18 @@ function ProductDashboard({
   )
 }
 
+function getDatabaseDecisionDetail(
+  matchingWebhook: WebhookEvent | null,
+  acceptedLoginWebhook: WebhookEvent | null,
+): string {
+  if (acceptedLoginWebhook) return 'signature: valid'
+  if (!matchingWebhook) return 'Menunggu server-to-server callback'
+  if (matchingWebhook.signatureStatus !== 'valid') {
+    return `blocked: signature ${matchingWebhook.signatureStatus}`
+  }
+  return `blocked: ${getEventLabel(matchingWebhook.payload.event)} is not a login settlement event`
+}
+
 interface WebhookLabNamespaceProps {
   sdkAttempt: SdkAttempt
   receiverState: ReceiverState
@@ -556,6 +618,7 @@ interface WebhookLabNamespaceProps {
   webhookEvents: WebhookEvent[]
   latestWebhook?: WebhookEvent
   matchingWebhook: WebhookEvent | null
+  acceptedLoginWebhook: WebhookEvent | null
   lastInboxRefresh: string | null
   onBackToProduct: () => void
   onRefreshInbox: () => void
@@ -569,6 +632,7 @@ function WebhookLabNamespace({
   webhookEvents,
   latestWebhook,
   matchingWebhook,
+  acceptedLoginWebhook,
   lastInboxRefresh,
   onBackToProduct,
   onRefreshInbox,
@@ -627,7 +691,7 @@ function WebhookLabNamespace({
           <div className={`mb-5 rounded-md border px-3 py-2 text-sm font-semibold ${statusTone(sdkAttempt.state)}`}>
             {sdkAttempt.state === 'idle' && 'No scan result yet'}
             {sdkAttempt.state === 'ready' && 'Camera ready'}
-            {sdkAttempt.state === 'verified' && 'Verified by SDK callback'}
+            {sdkAttempt.state === 'verified' && 'SDK success received; login pending webhook'}
             {sdkAttempt.state === 'failed' && `Failed: ${sdkAttempt.failureReason ?? 'unknown'}`}
           </div>
 
@@ -716,8 +780,8 @@ function WebhookLabNamespace({
             />
             <DecisionStep
               title="3. Database Update"
-              value={matchingWebhook ? 'safe to persist' : 'do not persist yet'}
-              detail={matchingWebhook ? `signature: ${matchingWebhook.signatureStatus}` : 'Menunggu server-to-server callback'}
+              value={acceptedLoginWebhook ? 'safe to persist' : 'do not persist yet'}
+              detail={getDatabaseDecisionDetail(matchingWebhook, acceptedLoginWebhook)}
             />
           </div>
         </article>

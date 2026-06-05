@@ -1,5 +1,12 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ENV_LINE_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+loadEnvLocal(resolve(PROJECT_ROOT, '.env.local'))
 
 const PORT = Number(process.env.WEBHOOK_RECEIVER_PORT || 8787)
 const WEBHOOK_SECRET = process.env.SPECTRE_WEBHOOK_SECRET || ''
@@ -15,8 +22,30 @@ const MAX_EVENTS = 25
  */
 const events = []
 
+function loadEnvLocal(filePath) {
+  if (!existsSync(filePath)) return
+
+  for (const line of readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const match = ENV_LINE_PATTERN.exec(trimmed)
+    if (!match) continue
+
+    const [, key, rawValue] = match
+    if (process.env[key] !== undefined) continue
+    process.env[key] = normalizeEnvValue(rawValue.trim())
+  }
+}
+
+function normalizeEnvValue(value) {
+  const isDoubleQuoted = value.startsWith('"') && value.endsWith('"')
+  const isSingleQuoted = value.startsWith("'") && value.endsWith("'")
+  return isDoubleQuoted || isSingleQuoted ? value.slice(1, -1) : value
+}
+
 function canonicalJson(payload) {
-  return JSON.stringify(sortJsonValue(payload))
+  return pythonJsonStringify(sortJsonValue(payload))
 }
 
 function sortJsonValue(value) {
@@ -29,6 +58,24 @@ function sortJsonValue(value) {
       sorted[key] = sortJsonValue(value[key])
       return sorted
     }, {})
+}
+
+function pythonJsonStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(pythonJsonStringify).join(', ')}]`
+  }
+
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${pythonJsonStringify(key)}: ${pythonJsonStringify(value[key])}`)
+      .join(', ')}}`
+  }
+
+  if (typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  return 'null'
 }
 
 function sign(payload) {

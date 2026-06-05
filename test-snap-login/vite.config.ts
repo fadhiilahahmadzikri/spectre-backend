@@ -8,7 +8,8 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    port: 5173,
-    open: true
-  }
+    port: 5174,
+    allowedHosts: ['spectre-test.autovoid.cyou'],
+    open: true,
+  },
 })

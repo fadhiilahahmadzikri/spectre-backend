@@ -1,0 +1,3 @@
+[submodule "spectre-backend"]
+	path = spectre-backend
+	url = https://github.com/fadhiilahahmadzikri/spectre-backend-single.git

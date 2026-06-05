@@ -1,0 +1,230 @@
+@startuml 03_npm_sdk_workflow
+
+' ============================================================
+' Spectre | NPM SDK Workflow (spectre-snap)
+' How the SDK captures, verifies, and returns results
+' Audience: Technical / Developers integrating the SDK
+' ============================================================
+
+' -- Blueprint Style --
+skinparam backgroundColor #1B2838
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontColor #D4E4F7
+skinparam defaultFontSize 11
+
+skinparam participant {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+  FontSize 11
+}
+
+skinparam actor {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam database {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam sequence {
+  ArrowColor #5B9BD5
+  ArrowFontColor #8BAFC4
+  ArrowFontSize 10
+  LifeLineBorderColor #3E6B9B
+  LifeLineBackgroundColor #1E3450
+  GroupBorderColor #3E6B9B
+  GroupBackgroundColor #15202E
+  GroupFontColor #7EB8E0
+  GroupHeaderFontColor #7EB8E0
+  DividerBorderColor #3E6B9B
+  DividerFontColor #7EB8E0
+  ReferenceBackgroundColor #1E3450
+  ReferenceBorderColor #4A7FAD
+  ReferenceFontColor #B0C4DE
+}
+
+skinparam NoteBackgroundColor #1E3450
+skinparam NoteBorderColor #4A7FAD
+skinparam NoteFontColor #B0C4DE
+
+skinparam sequenceBoxBackgroundColor #15202E
+skinparam sequenceBoxBorderColor #3E6B9B
+skinparam sequenceBoxFontColor #7EB8E0
+
+title **Spectre -- NPM SDK Workflow**\n@thewhitenigs/spectre-snap
+
+actor "End User" as user
+participant "spectre-snap\nSDK" as sdk
+participant "MediaPipe\nFaceMesh" as mp
+participant "Spectre\nAPI" as api
+participant "ML Pipeline\n(FAS + ArcFace)" as ml
+database "PostgreSQL" as db
+participant "Developer\nServer" as dev
+
+== Setup (One-Time by Developer) ==
+
+note over sdk
+  npm install @thewhitenigs/spectre-snap
+  Import SpectreAuth or SpectreAuthModal
+  Configure: apiKey, userId, mode, callbacks
+end note
+
+== Runtime: Face Verification ==
+
+user -> sdk : Open page with SDK component
+activate sdk
+
+sdk -> api : GET /faces/{userId}/exists
+activate api
+api --> sdk : exists: true/false
+deactivate api
+
+note right of sdk
+  If mode="auto":
+  exists=true -> authenticate
+  exists=false -> register
+end note
+
+sdk -> mp : Load FaceMesh scripts (CDN)
+activate mp
+mp --> sdk : FaceMesh ready
+deactivate mp
+
+sdk -> sdk : Request camera (getUserMedia)
+sdk --> user : Show camera feed
+
+== Face Detection & Quality Check ==
+
+loop Until 45 consecutive READY frames
+  sdk -> mp : Process video frame
+  activate mp
+  mp --> sdk : 468 face landmarks
+  deactivate mp
+
+  sdk -> sdk : Image Quality Assessment
+  note right of sdk
+    8 checks: face detected,
+    centered, lighting, distance,
+    head pose, eyes open,
+    blur, sharpness
+  end note
+end
+
+sdk --> user : Face detected, quality OK
+
+== Head-Pose Ring Scan ==
+
+group Optional: requirePose=true
+  sdk --> user : Show rotation guide (ring UI)
+
+  loop Until 58/60 segments filled
+    sdk -> mp : Track head movement
+    activate mp
+    mp --> sdk : Landmark positions
+    deactivate mp
+    sdk -> sdk : Map head angle to ring segment
+  end
+
+  sdk --> user : Ring scan complete
+end
+
+== Capture & Submit ==
+
+sdk -> sdk : Capture frame as base64
+sdk --> user : Flash animation
+
+sdk -> api : POST /faces/register\nor /faces/authenticate
+activate api
+note right of sdk
+  Payload:
+  { external_user_id,
+    image (base64),
+    metadata: { source: "web_ui" } }
+  Header: X-API-Key: spk_...
+end note
+
+== Backend Processing ==
+
+api -> ml : Preprocess image (256x256, normalize)
+activate ml
+ml -> ml : AntiSpoofNetV4\nliveness detection\n(6-class softmax)
+
+alt Liveness PASS
+  ml -> ml : InsightFace ArcFace\nextract 512-dim embedding
+
+  alt Mode: Register
+    ml -> db : Store AES-256 encrypted embedding
+    activate db
+    db --> ml : Stored
+    deactivate db
+    ml --> api : status: REGISTERED
+  else Mode: Authenticate
+    ml -> db : Fetch stored embedding (decrypt)
+    activate db
+    db --> ml : Embedding
+    deactivate db
+    ml -> ml : Cosine similarity comparison
+    alt Score >= threshold
+      ml --> api : status: AUTHENTICATED\nsimilarity_score
+    else Score < threshold
+      ml --> api : status: REJECTED (face mismatch)
+    end
+  end
+else Liveness FAIL
+  ml --> api : status: SPOOF_DETECTED
+end
+deactivate ml
+
+api --> sdk : Response (verdict, session_id,\nsimilarity, inference_time)
+deactivate api
+
+== Result Handling ==
+
+alt verdict = "ok"
+  sdk --> user : Show success result
+  sdk -> sdk : Fire onSuccess(result) callback
+  note right of sdk
+    SpectreAuthResult:
+    { verdict, sessionId,
+      similarityScore,
+      inferenceTimeMs }
+  end note
+
+  opt redirectUrl configured
+    sdk --> user : Countdown, then redirect
+  end
+else verdict = "spoof" or "warn"
+  sdk --> user : Show rejection + diagnostics
+  sdk -> sdk : Fire onFailed(reason, result) callback
+  note right of sdk
+    Failure reasons:
+    liveness_failed,
+    face_mismatch,
+    network_error, etc.
+  end note
+end
+
+deactivate sdk
+
+== Webhook Delivery (Async) ==
+
+api -> dev : POST (HMAC-SHA256 signed payload)
+activate dev
+note right of api
+  Events:
+  face.registered
+  face.authenticated
+  face.no_match
+  face.spoof_rejected
+  Header: X-Spectre-Signature
+end note
+dev --> api : 200 OK
+deactivate dev
+
+@enduml

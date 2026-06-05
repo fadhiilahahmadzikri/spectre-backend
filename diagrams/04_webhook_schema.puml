@@ -1,0 +1,194 @@
+@startuml 04_webhook_schema
+
+' ============================================================
+' Spectre | Webhook Schema
+' How webhook delivery works end-to-end with a single client
+' ============================================================
+
+' -- Blueprint Style --
+skinparam backgroundColor #1B2838
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontColor #D4E4F7
+skinparam defaultFontSize 11
+
+skinparam participant {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+  FontSize 11
+}
+
+skinparam actor {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam database {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam queue {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam sequence {
+  ArrowColor #5B9BD5
+  ArrowFontColor #8BAFC4
+  ArrowFontSize 10
+  LifeLineBorderColor #3E6B9B
+  LifeLineBackgroundColor #1E3450
+  GroupBorderColor #3E6B9B
+  GroupBackgroundColor #15202E
+  GroupFontColor #7EB8E0
+  GroupHeaderFontColor #7EB8E0
+  DividerBorderColor #3E6B9B
+  DividerFontColor #7EB8E0
+  BoxBorderColor #3E6B9B
+  BoxBackgroundColor #15202E
+  BoxFontColor #7EB8E0
+}
+
+skinparam NoteBackgroundColor #1E3450
+skinparam NoteBorderColor #4A7FAD
+skinparam NoteFontColor #B0C4DE
+
+title **Spectre -- Webhook Schema**\nServer-to-Server Event Delivery
+
+actor "End User" as user
+participant "spectre-snap\nSDK" as sdk
+
+box "Spectre Platform"
+  participant "FastAPI" as api
+  queue "Redis\n(Broker)" as redis
+  participant "Celery\nWorker" as celery
+  database "PostgreSQL" as db
+end box
+
+participant "Client Server\n(Your Backend)" as client
+
+== 1. Setup (One-Time in Dashboard) ==
+
+note over client
+  POST /api/v1/applications
+  {
+    "name": "My App",
+    "webhook_url": "https://api.yourapp.com/webhook"
+  }
+
+  Response includes:
+  webhook_secret = "whsec_..." (shown once)
+  Save this secret to verify signatures.
+end note
+
+== 2. Face Verification Trigger ==
+
+user -> sdk : Scan face
+sdk -> api : POST /faces/register\nor /faces/authenticate\n(X-API-Key: spk_...)
+activate api
+
+api -> api : Liveness check\n(AntiSpoofNetV4)
+api -> api : Embedding extract\n(InsightFace)
+api -> db : Save session record
+activate db
+db --> api : session_id
+deactivate db
+
+api --> sdk : Response (immediate)\n{ verdict, session_id,\nsimilarity_score }
+
+== 3. Async Webhook Dispatch ==
+
+api -> redis : deliver_webhook.delay(\nsession_id, app_id)
+deactivate api
+note right of redis
+  Fire-and-forget.
+  API response already
+  sent to SDK above.
+end note
+
+redis -> celery : Pick up task
+activate celery
+
+celery -> db : Load session + app config
+activate db
+db --> celery : session data,\nwebhook_url,\nwebhook_secret (encrypted)
+deactivate db
+
+celery -> celery : Decrypt webhook_secret\n(AES-256-GCM)
+
+celery -> celery : Build payload
+note right of celery
+  {
+    "event": "face.authenticated",
+    "session_id": "abc-123",
+    "external_user_id": "user@email.com",
+    "liveness_score": 0.97,
+    "similarity_score": 0.92,
+    "status": "AUTHENTICATED",
+    "timestamp": "2026-06-05T12:00:00Z"
+  }
+end note
+
+celery -> celery : HMAC-SHA256 sign payload\nusing webhook_secret
+
+== 4. Delivery ==
+
+celery -> client : POST https://api.yourapp.com/webhook
+note right of celery
+  Headers:
+  Content-Type: application/json
+  X-Spectre-Signature: sha256=<digest>
+end note
+
+activate client
+
+client -> client : Verify X-Spectre-Signature\nusing stored webhook_secret
+note right of client
+  expected = HMAC-SHA256(
+    webhook_secret, raw_body
+  )
+  Compare with header value.
+  Reject if mismatch.
+end note
+
+client -> client : Process event\n(update KYC status,\ngrant access, log, etc.)
+
+client --> celery : 200 OK
+deactivate client
+
+celery -> db : Record delivery\nstatus = DELIVERED
+deactivate celery
+
+== 5. Retry (If Delivery Fails) ==
+
+note over celery, client
+  If client returns non-2xx or times out:
+
+  Attempt 1: wait 30s  --> retry
+  Attempt 2: wait 60s  --> retry
+  Attempt 3: wait 120s --> retry
+  Attempt 4: wait 240s --> retry (final)
+
+  After 4 failures --> status = DEAD
+  Can be retried manually from Dashboard:
+  POST /applications/{app_id}/webhooks/deliveries/{id}/retry
+end note
+
+== Webhook Events ==
+
+note over api, client
+  | Event                | Trigger                     |
+  |----------------------|-----------------------------|
+  | face.registered      | New face profile created     |
+  | face.authenticated   | Face match confirmed         |
+  | face.no_match        | Face did not match           |
+  | face.spoof_rejected  | Liveness check failed        |
+  | face.failed          | Processing error             |
+end note
+
+@enduml

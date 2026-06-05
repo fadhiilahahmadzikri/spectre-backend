@@ -6,6 +6,8 @@ export interface Application {
   id: string;
   name: string;
   webhook_url?: string | null;
+  has_webhook?: boolean;
+  webhook_secret?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -141,7 +143,7 @@ export const api = {
     ),
 
   createApp: (
-    data: { name: string; webhook_url?: string },
+    data: { name: string; webhook_url?: string | null },
     opts: RequestOpts = {},
   ) =>
     request<Application>("/api/v1/applications", {

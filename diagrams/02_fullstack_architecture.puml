@@ -1,0 +1,208 @@
+@startuml 02_fullstack_architecture
+
+' ============================================================
+' Spectre | Full-Stack Architecture
+' Authentication as a Service -- System Overview
+' Audience: Technical / Full-Stack Integrators
+' ============================================================
+
+' -- Blueprint Style --
+skinparam backgroundColor #1B2838
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontColor #D4E4F7
+skinparam defaultFontSize 11
+skinparam linetype ortho
+skinparam roundCorner 0
+skinparam nodesep 40
+skinparam ranksep 30
+
+skinparam component {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+  FontSize 11
+}
+
+skinparam package {
+  BackgroundColor #15202E
+  BorderColor #3E6B9B
+  FontColor #7EB8E0
+  FontSize 12
+  FontStyle bold
+}
+
+skinparam database {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam cloud {
+  BackgroundColor #15202E
+  BorderColor #3E6B9B
+  FontColor #7EB8E0
+}
+
+skinparam queue {
+  BackgroundColor #243B55
+  BorderColor #4A7FAD
+  FontColor #D4E4F7
+}
+
+skinparam ArrowColor #5B9BD5
+skinparam ArrowFontColor #8BAFC4
+skinparam ArrowFontSize 9
+
+skinparam NoteBackgroundColor #1E3450
+skinparam NoteBorderColor #4A7FAD
+skinparam NoteFontColor #B0C4DE
+
+title **Spectre -- Full-Stack Architecture**\nAuthentication as a Service
+
+' ============================
+' CLIENT LAYER
+' ============================
+package "Client Layer" as clients {
+  component [React Dashboard\n(Vercel)] as dashboard
+  component [spectre-snap SDK\n(NPM - React)] as sdk
+  component [Customer Application\n(3rd Party)] as custApp
+}
+
+' ============================
+' API GATEWAY
+' ============================
+package "FastAPI Backend (HF Spaces)" as backend {
+
+  package "API Routers" as routers {
+    component [Auth\nregister, login,\nrefresh, logout] as rAuth
+    component [OAuth + TOTP\nGoogle SSO,\n2FA setup/verify] as rOAuth
+    component [Applications\nCRUD, API Keys\ngenerate/revoke] as rApp
+    component [Faces\nregister, authenticate,\nreplace, delete, list] as rFace
+    component [Webhooks\ntest, deliveries,\nretry] as rWebhook
+    component [Sessions + Admin\nhistory, config,\nmonitoring] as rSession
+  }
+
+  ' ============================
+  ' AUTH LAYER
+  ' ============================
+  package "Auth Services" as authSvc {
+    component [JWT Handler\nHS256, 30min access,\n7-day refresh] as jwt
+    component [Google OAuth\n(Authlib)] as oauth
+    component [TOTP 2FA\n(pyotp)] as totp
+    component [API Key Validator\nprefix lookup +\nbcrypt verify] as apikeyAuth
+  }
+
+  ' ============================
+  ' BUSINESS LOGIC
+  ' ============================
+  package "Core Services" as coreSvc {
+    component [Tenant Manager\napp CRUD, key lifecycle,\nowner-scoped isolation] as tenantMgr
+    component [Session Tracker\nper-operation logging,\nstatus tracking] as sessionMgr
+    component [Rate Limiter\nRedis sliding window\n60 req/min per key] as rateLimiter
+  }
+
+  ' ============================
+  ' ML PIPELINE
+  ' ============================
+  package "Face Engine" as faceEngine {
+    component [Image Preprocessor\nresize 256x256,\nnormalize, 12-crop TTA] as imgProc
+    component [AntiSpoofNetV4\nliveness detection,\n6-class softmax] as fas
+    component [InsightFace ArcFace\n512-dim identity\nembedding] as arcface
+    component [AES-256-GCM\nembedding encryption\nat rest] as aesEnc
+    component [Cosine Similarity\nthreshold-based\nface matching] as cosine
+  }
+
+  ' ============================
+  ' WEBHOOK / ASYNC
+  ' ============================
+  package "Event System" as eventSys {
+    component [Celery Worker\nasync task execution] as celery
+    component [HMAC-SHA256 Signer\npayload signing] as hmac
+    component [HTTP Dispatcher\n(httpx)] as httpDisp
+  }
+}
+
+' ============================
+' DATA LAYER
+' ============================
+package "Data Layer" as dataLayer {
+  database "PostgreSQL 16\n(Supabase)\nasync via asyncpg" as pg
+  database "Redis 7\ncache + Celery\nbroker + results" as redis
+}
+
+' ============================
+' EXTERNAL
+' ============================
+cloud "External Services" as external {
+  component [Google OAuth\nProvider] as googleExt
+  component [Customer Webhook\nEndpoint] as custWebhook
+  component [GitHub Actions\nKeep-Alive Ping] as ghActions
+}
+
+' ============================
+' CONNECTIONS
+' ============================
+
+' -- Client to Routers --
+dashboard -down-> rAuth : JWT Bearer
+dashboard -down-> rApp : JWT Bearer
+dashboard -down-> rSession : JWT Bearer
+dashboard -down-> rWebhook : JWT Bearer
+sdk -down-> rFace : X-API-Key
+custApp -right-> sdk : embeds
+
+' -- Routers to Auth --
+rAuth -down-> jwt
+rOAuth -down-> oauth
+rOAuth -down-> totp
+
+' -- Routers to Core --
+rApp -down-> tenantMgr
+rSession -down-> sessionMgr
+
+' -- Face Router to Pipeline --
+rFace -down-> apikeyAuth : validate key
+rFace -down-> imgProc
+
+' -- ML Pipeline flow --
+imgProc -down-> fas
+fas -down-> arcface
+arcface -down-> aesEnc
+arcface -down-> cosine
+
+' -- Webhook dispatch --
+rFace -right-> celery : dispatch async
+celery -down-> hmac
+hmac -down-> httpDisp
+
+' -- Data connections --
+jwt -down-> pg
+oauth -down-> pg
+tenantMgr -down-> pg
+sessionMgr -down-> pg
+apikeyAuth -down-> pg
+aesEnc -down-> pg : encrypted\nembeddings
+cosine -down-> pg : stored\nembeddings
+rateLimiter -down-> redis
+celery -down-> redis : task queue
+
+' -- External connections --
+oauth -right-> googleExt
+httpDisp -down-> custWebhook : HMAC-signed POST
+ghActions -up-> rAuth : /health ping
+
+' -- Notes --
+note bottom of faceEngine
+  ML models loaded at startup.
+  Hot-switchable via Admin API.
+  Supports multi-model benchmark.
+end note
+
+note bottom of eventSys
+  Webhooks delivered async.
+  Exponential backoff retry,
+  max 4 attempts.
+end note
+
+@enduml

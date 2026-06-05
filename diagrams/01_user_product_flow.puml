@@ -1,0 +1,123 @@
+@startuml 01_user_product_flow
+
+' ============================================================
+' Spectre | User Product Flow
+' Journey from Sign Up to Face Verification Result
+' Audience: Non-technical / Business Users
+' ============================================================
+
+' -- Blueprint Style --
+skinparam backgroundColor #1B2838
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontColor #D4E4F7
+skinparam defaultFontSize 12
+
+skinparam ActivityBackgroundColor #243B55
+skinparam ActivityBorderColor #4A7FAD
+skinparam ActivityFontColor #D4E4F7
+skinparam ActivityFontSize 12
+skinparam ActivityBarColor #5B9BD5
+
+skinparam ActivityDiamondBackgroundColor #2C4A6E
+skinparam ActivityDiamondBorderColor #5B9BD5
+skinparam ActivityDiamondFontColor #D4E4F7
+skinparam ActivityDiamondFontSize 11
+
+skinparam ArrowColor #5B9BD5
+skinparam ArrowFontColor #8BAFC4
+skinparam ArrowFontSize 10
+
+skinparam NoteBackgroundColor #1E3450
+skinparam NoteBorderColor #4A7FAD
+skinparam NoteFontColor #B0C4DE
+
+skinparam swimlaneBorderColor #3E6B9B
+skinparam swimlaneTitleFontColor #7EB8E0
+skinparam swimlaneTitleFontSize 14
+skinparam swimlaneTitleFontStyle bold
+
+skinparam ActivityStartColor #5B9BD5
+skinparam ActivityEndColor #5B9BD5
+
+title **Spectre -- User Product Flow**
+
+|#15202E| You |
+start
+
+:Sign Up or Log In;
+note right
+  Create account with
+  Email and Password,
+  or use Google Sign-In
+end note
+
+:Open Dashboard;
+
+:Create New Application;
+note right
+  Give your app a name.
+  Optionally set a Webhook
+  URL for notifications.
+end note
+
+:Generate API Key;
+note right
+  Shown only once.
+  Copy and save it
+  in a secure place.
+end note
+
+:Add Spectre SDK\nto Your Website or App;
+note right
+  Install the NPM package,
+  then add the face-scan
+  component with your
+  API Key.
+end note
+
+|#15202E| Your End User |
+:Opens Your Application;
+:Starts Face Verification;
+:Allows Camera Access;
+:Positions Face in Frame;
+:Follows Head Rotation Guide;
+
+|#15202E| Spectre |
+:Photo Captured;
+:Anti-Spoofing Analysis;
+
+if (Real Person?) then (Yes)
+  if (First Time?) then (Yes)
+    :Face Registered;
+  else (No)
+    :Compare with Stored Face;
+    if (Faces Match?) then (Yes)
+      :Identity Confirmed;
+    else (No)
+      :Access Denied\n(face mismatch);
+      stop
+    endif
+  endif
+
+  :Result Sent to Your App;
+  :Webhook Sent to Your Server;
+  note right
+    Signed notification
+    with session result
+    (if Webhook configured)
+  end note
+
+else (No)
+  :Spoof Detected -- Rejected;
+  :Rejection Sent to Your App;
+  stop
+endif
+
+|#15202E| You |
+:View Results in Dashboard;
+:Review Session Details;
+
+stop
+
+@enduml

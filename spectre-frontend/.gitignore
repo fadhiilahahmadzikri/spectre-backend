@@ -64,3 +64,5 @@ Desktop.ini
 .agent/
 .agents/
 graphify-out/
+.vercel
+.env*.local

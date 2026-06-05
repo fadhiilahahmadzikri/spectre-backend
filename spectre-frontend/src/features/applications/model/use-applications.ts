@@ -14,6 +14,40 @@ export type ApplicationsCache = {
   pagination: Pagination;
 };
 
+export interface ApplicationMutationInput {
+  name: string;
+  webhook_url?: string | null;
+}
+
+export interface UpdateApplicationInput {
+  id: string;
+  name: string;
+  webhook_url?: string | null;
+}
+
+type ApplicationMutationPayload = {
+  name: string;
+  webhook_url?: string | null;
+};
+
+function toApplicationPayload(
+  input: ApplicationMutationInput,
+): ApplicationMutationPayload {
+  const payload: ApplicationMutationPayload = { name: input.name };
+  if (input.webhook_url !== undefined) {
+    payload.webhook_url = input.webhook_url;
+  }
+  return payload;
+}
+
+function webhookOptimisticPatch(webhookUrl: string | null | undefined) {
+  if (webhookUrl === undefined) return {};
+  return {
+    webhook_url: webhookUrl,
+    has_webhook: Boolean(webhookUrl),
+  };
+}
+
 /**
  * Realistic-UI hooks for the Applications CRUD surface. Each one:
  *
@@ -29,16 +63,24 @@ export function useUpdateApplication() {
   return useRealisticMutation<
     Application,
     Error,
-    { id: string; name: string },
+    UpdateApplicationInput,
     ApplicationsCache
   >({
     queryKey: ["apps"],
-    mutationFn: ({ id, name }) => api.updateApp(id, { name }),
-    applyOptimistic: (cache, { id, name }) =>
+    mutationFn: ({ id, name, webhook_url }) =>
+      api.updateApp(id, toApplicationPayload({ name, webhook_url })),
+    applyOptimistic: (cache, { id, name, webhook_url }) =>
       cache && {
         ...cache,
         data: cache.data.map((a) =>
-          a.id === id ? { ...a, name, pending: true } : a,
+          a.id === id
+            ? {
+                ...a,
+                name,
+                ...webhookOptimisticPatch(webhook_url),
+                pending: true,
+              }
+            : a,
         ),
       },
     onSuccessMessage: admin.applications.updated,
@@ -64,17 +106,18 @@ export function useCreateApplication() {
   return useRealisticMutation<
     Application,
     Error,
-    { name: string },
+    ApplicationMutationInput,
     ApplicationsCache
   >({
     queryKey: ["apps"],
-    mutationFn: ({ name }) => api.createApp({ name }),
-    applyOptimistic: (cache, { name }) => {
+    mutationFn: (input) => api.createApp(toApplicationPayload(input)),
+    applyOptimistic: (cache, { name, webhook_url }) => {
       if (!cache) return cache;
       const tempId = `temp-${crypto.randomUUID()}`;
       const stub: PendingApplication = {
         id: tempId,
         name,
+        ...webhookOptimisticPatch(webhook_url),
         created_at: new Date().toISOString(),
         pending: true,
       };

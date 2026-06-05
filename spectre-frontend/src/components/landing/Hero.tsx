@@ -1,5 +1,53 @@
 import LandingNavbar from '@/components/layout/LandingNavbar'
 
+const HERO_VIDEO_SRC = '/assets_compressed/landingpagewoman.mp4'
+const HERO_VIDEO_POSTER_SRC = '/assets_compressed/landingpagewoman-poster.webp'
+
+function HeroVideo() {
+  return (
+    <video
+      src={HERO_VIDEO_SRC}
+      poster={HERO_VIDEO_POSTER_SRC}
+      className="h-full w-full object-cover object-center"
+      autoPlay
+      loop
+      muted
+      playsInline
+      preload="metadata"
+      aria-label="Specter biometric authentication preview"
+    />
+  )
+}
+
+function HeroMediaStage() {
+  return (
+    <div className="relative mx-auto aspect-video w-full max-w-[880px] overflow-hidden">
+      <HeroVideo />
+
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 top-0 z-[4] w-[18%]"
+        style={{ background: 'linear-gradient(to right, var(--nd-canvas) 0%, rgba(255,255,255,0.88) 42%, transparent 100%)' }}
+      />
+      <div
+        className="pointer-events-none absolute bottom-0 right-0 top-0 z-[4] w-[18%]"
+        style={{ background: 'linear-gradient(to left, var(--nd-canvas) 0%, rgba(255,255,255,0.88) 42%, transparent 100%)' }}
+      />
+      <div
+        className="pointer-events-none absolute left-0 right-0 top-0 z-[4] h-[12%]"
+        style={{ background: 'linear-gradient(to bottom, var(--nd-canvas) 0%, rgba(255,255,255,0.64) 46%, transparent 100%)' }}
+      />
+
+      <div className="absolute bottom-[3%] left-1/2 z-[5] w-[44%] -translate-x-1/2 sm:w-[25%]" style={{ filter: 'drop-shadow(0 16px 32px rgba(0,0,0,0.28))' }}>
+        <img src="/assets_compressed/mock-iphone.webp" alt="Specter face scan" draggable={false}
+          style={{ width: '100%', height: 'auto', display: 'block' }} />
+      </div>
+
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-[25%]"
+        style={{ background: 'linear-gradient(to bottom, transparent, var(--nd-canvas))' }} />
+    </div>
+  )
+}
+
 export default function Hero() {
   return (
     <section className="bg-neutral-canvas overflow-hidden">
@@ -17,76 +65,8 @@ export default function Hero() {
         </p>
       </div>
 
-      {/* Fanned mockup section — hanya tampil di sm ke atas */}
-      <div
-        className="relative w-full hidden sm:block"
-        style={{ height: 'clamp(280px, 54vw, 740px)' }}
-      >
-        {/* LEFT — mockup-1, mirrored */}
-        <div className="absolute" style={{ top: '8%', left: '3%', width: '50%', zIndex: 1, overflow: 'hidden' }}>
-          <img src="/assets_compressed/hero-mockup-1.webp" alt="" draggable={false}
-            style={{ width: '100%', height: 'auto', display: 'block', transform: 'scaleX(-1)' }} />
-        </div>
-
-        {/* RIGHT — mockup-2 */}
-        <div className="absolute" style={{ top: '8%', left: '45%', width: '50%', zIndex: 1, overflow: 'hidden' }}>
-          <img src="/assets_compressed/hero-mockup-2.webp" alt="" draggable={false}
-            style={{ width: '100%', height: 'auto', display: 'block' }} />
-        </div>
-
-        {/* CENTER — mockup-3 */}
-        <div className="absolute" style={{ top: 0, left: '22%', width: '54%', zIndex: 2, overflow: 'hidden' }}>
-          <img src="/assets_compressed/hero-mockup-3.webp" alt="Specter Dashboard" draggable={false}
-            style={{ width: '100%', height: 'auto', display: 'block' }} />
-        </div>
-
-        {/* PHONE */}
-        <div className="absolute" style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '16%', zIndex: 5, filter: 'drop-shadow(0 16px 32px rgba(0,0,0,0.28))' }}>
-          <img src="/assets_compressed/mock-iphone.webp" alt="Specter face scan" draggable={false}
-            style={{ width: '100%', height: 'auto', display: 'block' }} />
-        </div>
-
-        {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 pointer-events-none"
-          style={{ height: '25%', zIndex: 10, background: 'linear-gradient(to bottom, transparent, var(--nd-canvas))' }} />
-      </div>
-
-      {/* Mobile — mockup-3 memenuhi layar, phone mengikuti ukuran karakter */}
-      <div className="sm:hidden relative w-full overflow-hidden">
-        {/* Karakter — full width */}
-        <img
-          src="/assets_compressed/hero-mockup-3.webp"
-          alt="Specter Dashboard"
-          draggable={false}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-        />
-
-        {/* Phone — tepat di depan karakter, ukuran ikut lebar gambar */}
-        <div
-          className="absolute"
-          style={{
-            bottom: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '36%',
-            zIndex: 5,
-            filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.28))',
-          }}
-        >
-          <img
-            src="/assets_compressed/mock-iphone.webp"
-            alt="Specter face scan"
-            draggable={false}
-            style={{ width: '100%', height: 'auto', display: 'block' }}
-          />
-        </div>
-
-        {/* Bottom fade */}
-        <div
-          className="absolute bottom-0 left-0 right-0 pointer-events-none"
-          style={{ height: '25%', zIndex: 10, background: 'linear-gradient(to bottom, transparent, var(--nd-canvas))' }}
-        />
-      </div>
+      {/* Hero video section */}
+      <HeroMediaStage />
     </section>
   )
 }

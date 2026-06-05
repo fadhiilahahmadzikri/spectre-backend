@@ -71,15 +71,18 @@ Pastikan komputer Anda sudah terpasang perangkat lunak berikut:
 ---
 
 ### 2. Kloning dan Penyiapan Repositori
-Karena sub-projek Spectre (seperti backend) dikembangkan sebagai repositori tersendiri di dalam repositori orkestrator ini (nested repositories), Anda dapat mengelolanya dengan Git biasa:
+Repositori orkestrator ini menggunakan **Git Submodule** untuk mengelola sub-projek (seperti backend). Untuk mengkloning seluruh repositori beserta submodulnya sekaligus, gunakan parameter `--recursive`:
 
 ```powershell
-# Kloning repositori orkestrasi ini
-git clone https://github.com/fadhiilahahmadzikri/spectre-backend.git spectre
+# Kloning repositori orkestrasi beserta submodulnya
+git clone --recursive https://github.com/fadhiilahahmadzikri/spectre-backend.git spectre
 cd spectre
 
 # Berpindah ke cabang kerja orkestrasi
 git checkout orchestration
+
+# Jika submodul belum terinisialisasi atau kosong, jalankan:
+git submodule update --init --recursive
 ```
 
 ---

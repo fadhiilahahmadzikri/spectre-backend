@@ -12,6 +12,8 @@ export function OAuthCallback() {
 
   const token = params.get("access_token");
   const refresh = params.get("refresh_token");
+  const error = params.get("error");
+  const message = params.get("message");
   const hasCredentials = !!(token && refresh);
 
   // Ref so the side-effects fire exactly once even under StrictMode's
@@ -43,10 +45,17 @@ export function OAuthCallback() {
           <div className="glass-strong w-full max-w-[380px] rounded-[var(--radius-card-strong)] p-8 flex flex-col items-center gap-5 text-center">
             <FaceIDGlyph size={44} />
             <div className="flex flex-col gap-1">
-              <h1 className="face-title text-[20px]">Sign-in failed</h1>
+              <h1 className="face-title text-[20px]">
+                {error ? "Sign-in Error" : "Sign-in failed"}
+              </h1>
               <p className="face-helper text-[12.5px] max-w-[300px]">
-                We couldn&apos;t complete your sign-in. Please try again.
+                {message || "We couldn't complete your sign-in. Please try again."}
               </p>
+              {error && (
+                <span className="text-[10px] opacity-40 mt-2 block font-mono">
+                  Code: {error}
+                </span>
+              )}
             </div>
             <Button
               type="button"

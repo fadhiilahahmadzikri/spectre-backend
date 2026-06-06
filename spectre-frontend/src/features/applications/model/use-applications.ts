@@ -16,36 +16,21 @@ export type ApplicationsCache = {
 
 export interface ApplicationMutationInput {
   name: string;
-  webhook_url?: string | null;
 }
 
 export interface UpdateApplicationInput {
   id: string;
   name: string;
-  webhook_url?: string | null;
 }
 
 type ApplicationMutationPayload = {
   name: string;
-  webhook_url?: string | null;
 };
 
 function toApplicationPayload(
   input: ApplicationMutationInput,
 ): ApplicationMutationPayload {
-  const payload: ApplicationMutationPayload = { name: input.name };
-  if (input.webhook_url !== undefined) {
-    payload.webhook_url = input.webhook_url;
-  }
-  return payload;
-}
-
-function webhookOptimisticPatch(webhookUrl: string | null | undefined) {
-  if (webhookUrl === undefined) return {};
-  return {
-    webhook_url: webhookUrl,
-    has_webhook: Boolean(webhookUrl),
-  };
+  return { name: input.name };
 }
 
 /**
@@ -67,9 +52,9 @@ export function useUpdateApplication() {
     ApplicationsCache
   >({
     queryKey: ["apps"],
-    mutationFn: ({ id, name, webhook_url }) =>
-      api.updateApp(id, toApplicationPayload({ name, webhook_url })),
-    applyOptimistic: (cache, { id, name, webhook_url }) =>
+    mutationFn: ({ id, name }) =>
+      api.updateApp(id, toApplicationPayload({ name })),
+    applyOptimistic: (cache, { id, name }) =>
       cache && {
         ...cache,
         data: cache.data.map((a) =>
@@ -77,7 +62,6 @@ export function useUpdateApplication() {
             ? {
                 ...a,
                 name,
-                ...webhookOptimisticPatch(webhook_url),
                 pending: true,
               }
             : a,
@@ -111,13 +95,12 @@ export function useCreateApplication() {
   >({
     queryKey: ["apps"],
     mutationFn: (input) => api.createApp(toApplicationPayload(input)),
-    applyOptimistic: (cache, { name, webhook_url }) => {
+    applyOptimistic: (cache, { name }) => {
       if (!cache) return cache;
       const tempId = `temp-${crypto.randomUUID()}`;
       const stub: PendingApplication = {
         id: tempId,
         name,
-        ...webhookOptimisticPatch(webhook_url),
         created_at: new Date().toISOString(),
         pending: true,
       };

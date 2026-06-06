@@ -1,4 +1,4 @@
-import { Code2, UserPlus, ScanFace, Webhook } from 'lucide-react'
+import { Code2, UserPlus, ScanFace, ClipboardCheck } from 'lucide-react'
 
 const steps = [
   {
@@ -27,11 +27,11 @@ const steps = [
   },
   {
     number: '04',
-    icon: Webhook,
-    title: 'Receive Webhook',
+    icon: ClipboardCheck,
+    title: 'Confirm Session',
     description:
-      'Get an instant webhook payload with the authentication result, session ID, confidence score, and match status. React in your backend within milliseconds.',
-    code: 'event: face.authenticated',
+      'Handle the SDK success callback immediately, then fetch the session by ID when your backend needs server-confirmed result details.',
+    code: 'GET /v1/sessions/{id}',
   },
 ]
 

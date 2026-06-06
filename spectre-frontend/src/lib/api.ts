@@ -5,9 +5,6 @@ import { HttpError, isAbortError } from "@/shared/lib/http";
 export interface Application {
   id: string;
   name: string;
-  webhook_url?: string | null;
-  has_webhook?: boolean;
-  webhook_secret?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -143,7 +140,7 @@ export const api = {
     ),
 
   createApp: (
-    data: { name: string; webhook_url?: string | null },
+    data: { name: string },
     opts: RequestOpts = {},
   ) =>
     request<Application>("/api/v1/applications", {
@@ -154,7 +151,7 @@ export const api = {
 
   updateApp: (
     id: string,
-    data: Partial<Pick<Application, "name" | "webhook_url">>,
+    data: Partial<Pick<Application, "name">>,
     opts: RequestOpts = {},
   ) =>
     request<Application>(`/api/v1/applications/${id}`, {
@@ -359,7 +356,6 @@ export interface AdminApplication {
   owner_id: string;
   name: string;
   status: string;
-  webhook_url: string | null;
   liveness_threshold: number;
   similarity_threshold: number;
   allowed_ips: string[];

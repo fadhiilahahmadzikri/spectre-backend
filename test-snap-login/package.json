@@ -6,7 +6,6 @@
   "description": "Login app using spectre-snap package",
   "scripts": {
     "dev": "vite",
-    "receiver": "node scripts/webhook-receiver.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit"

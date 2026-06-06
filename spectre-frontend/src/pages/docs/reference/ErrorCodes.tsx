@@ -73,7 +73,7 @@ export default function ErrorCodes() {
             Error Codes
           </h1>
           <p className="text-base text-neutral-slate leading-relaxed">
-            Specter uses structured error codes in both API responses and webhook payloads.
+            Specter uses structured error codes in API responses and session records.
             Each error includes a machine-readable <code className="font-mono text-[13px] bg-neutral-surface px-1 rounded">code</code> field
             alongside the HTTP status code and a human-readable <code className="font-mono text-[13px] bg-neutral-surface px-1 rounded">message</code>.
           </p>

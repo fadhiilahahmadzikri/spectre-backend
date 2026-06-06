@@ -88,8 +88,7 @@ export default function GetSession() {
                     <code className="font-mono text-[13px] text-neutral-slate">string</code>
                   </td>
                   <td className="px-4 py-2.5 text-neutral-slate text-sm">
-                    The session ID returned from a registration or authentication call, or delivered
-                    in a webhook payload.
+                    The session ID returned from a registration or authentication call.
                   </td>
                 </tr>
               </tbody>

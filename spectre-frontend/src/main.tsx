@@ -50,7 +50,6 @@ import GetSession from "./pages/docs/sessions/GetSession";
 import DocsApiKeys from "./pages/docs/tenant/ApiKeys";
 
 // Docs — reference
-import Webhooks from "./pages/docs/reference/Webhooks";
 import ErrorCodes from "./pages/docs/reference/ErrorCodes";
 import ResponseSchema from "./pages/docs/reference/ResponseSchema";
 import Security from "./pages/docs/reference/Security";
@@ -108,7 +107,6 @@ createRoot(document.getElementById("root")!).render(
               <Route path="delete-face" element={<DeleteFace />} />
               <Route path="get-session" element={<GetSession />} />
               <Route path="api-keys" element={<DocsApiKeys />} />
-              <Route path="webhooks" element={<Webhooks />} />
               <Route path="error-codes" element={<ErrorCodes />} />
               <Route path="response-schema" element={<ResponseSchema />} />
               <Route path="security" element={<Security />} />

@@ -2,7 +2,7 @@ const stats = [
   { value: '<120ms', label: 'P95 Latency' },
   { value: '0.001%', label: 'False Accept Rate' },
   { value: '99.9%', label: 'Uptime SLA' },
-  { value: '99.7%', label: 'Webhook Delivery' },
+  { value: '24h', label: 'Session Retention' },
 ]
 
 export default function Stats() {

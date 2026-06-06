@@ -17,7 +17,6 @@ import {
   Settings2,
   WifiOff,
   ShieldCheck,
-  Send,
   Gauge,
   Clock,
   Monitor,
@@ -33,7 +32,6 @@ import { useUpdateConfig } from "../model/use-update-config";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   anti_spoofing: <ShieldCheck size={14} />,
-  webhook: <Send size={14} />,
   rate_limiting: <Gauge size={14} />,
   session_auth: <Clock size={14} />,
   scan_ux: <Monitor size={14} />,

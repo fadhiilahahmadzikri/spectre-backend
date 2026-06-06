@@ -42,7 +42,6 @@ export const docsNav: NavGroup[] = [
   {
     title: 'Reference',
     items: [
-      { label: 'Webhooks', href: '/docs/webhooks' },
       { label: 'Error Codes', href: '/docs/error-codes' },
       { label: 'Response Schema', href: '/docs/response-schema' },
       { label: 'Security', href: '/docs/security' },

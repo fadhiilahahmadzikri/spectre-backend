@@ -47,7 +47,7 @@ const threats = [
   { threat: 'Video Replay', severity: 'High', mitigation: 'Temporal liveness check detects looped video. Challenge-response available for max-security deployments.' },
   { threat: '3D Mask', severity: 'High', mitigation: 'IR skin texture analysis (supported devices) + RGB anti-spoof model trained on mask datasets.' },
   { threat: 'Deepfake / GAN', severity: 'High', mitigation: 'Dedicated GAN artifact detector runs in parallel with the main liveness module.' },
-  { threat: 'MITM Webhook', severity: 'Medium', mitigation: 'HMAC-SHA256 webhook signatures. Always verify with timing-safe comparison server-side.' },
+  { threat: 'Credential Interception', severity: 'Medium', mitigation: 'API keys are only accepted over TLS. Store server keys outside browser clients and rotate them regularly.' },
   { threat: 'Credential Stuffing', severity: 'Medium', mitigation: 'Keyed-hash key prefix for fast invalidation. Per-key rate limits block enumeration.' },
   { threat: 'Insider Threat', severity: 'Low', mitigation: 'Specter staff cannot decrypt biometric data. AES-256 keys are envelope-encrypted by tenant-specific KMS keys.' },
 ]

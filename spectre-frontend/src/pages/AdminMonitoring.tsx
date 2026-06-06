@@ -140,9 +140,9 @@ function ApplicationsTab() {
 
   return (
     <>
-      <DataTable loading={isLoading} empty={apps.length === 0} emptyLabel="No applications found" cols={6}>
+      <DataTable loading={isLoading} empty={apps.length === 0} emptyLabel="No applications found" cols={5}>
         <thead>
-          <tr><Th>Name</Th><Th>Owner</Th><Th>Status</Th><Th>Webhook</Th><Th>Created</Th><Th /></tr>
+          <tr><Th>Name</Th><Th>Owner</Th><Th>Status</Th><Th>Created</Th><Th /></tr>
         </thead>
         <tbody>
           {apps.map((a) => (
@@ -150,7 +150,6 @@ function ApplicationsTab() {
               <Td>{a.name}</Td>
               <Td mono>{a.owner_id.slice(0, 8)}…</Td>
               <Td><AppStatusBadge status={a.status} /></Td>
-              <Td dim>{a.webhook_url ? "✓" : "—"}</Td>
               <Td dim>{fmtDate(a.created_at)}</Td>
               <Td>
                 <button onClick={() => handleDelete(a)} className="icon-btn" aria-label="Delete">

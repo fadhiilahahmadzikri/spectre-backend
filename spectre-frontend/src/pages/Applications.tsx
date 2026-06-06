@@ -11,7 +11,6 @@ import {
   Check,
   X,
   Sparkles,
-  Webhook,
 } from "lucide-react";
 import { useAppsUi } from "@/features/applications/model/apps-ui-store";
 import { CreateApplicationDialog } from "@/features/applications/ui/CreateApplicationDialog";
@@ -31,7 +30,6 @@ export function Applications() {
   const iosAlert = useIosAlert();
   const { editingId, setEditing, openCreate, createOpenCount } = useAppsUi();
   const [editName, setEditName] = useState("");
-  const [editWebhookUrl, setEditWebhookUrl] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["apps"],
@@ -43,14 +41,7 @@ export function Applications() {
 
   function handleSaveEdit(app: PendingApplication) {
     const nextName = editName.trim();
-    const nextWebhookUrl = normalizeWebhookUrl(editWebhookUrl);
-    const webhookUrlValid = isWebhookUrlValid(nextWebhookUrl);
-    const currentWebhookUrl = app.webhook_url ?? null;
-    if (!webhookUrlValid) return;
-    if (
-      !nextName ||
-      (nextName === app.name && nextWebhookUrl === currentWebhookUrl)
-    ) {
+    if (!nextName || nextName === app.name) {
       setEditing(null);
       return;
     }
@@ -60,37 +51,8 @@ export function Applications() {
       {
         id: app.id,
         name: nextName,
-        webhook_url: nextWebhookUrl,
-      },
-      {
-        onSuccess: (updatedApp) => {
-          if (updatedApp.webhook_secret) {
-            presentWebhookSecret(updatedApp.webhook_secret);
-          }
-        },
       },
     );
-  }
-
-  function presentWebhookSecret(secret: string) {
-    iosAlert.present({
-      title: "Webhook secret",
-      message:
-        "Copy this secret now. It is available only once and is required to verify webhook signatures.",
-      actions: [
-        {
-          label: "Copy secret",
-          onClick: () => {
-            void navigator.clipboard.writeText(secret);
-          },
-        },
-        {
-          label: "Done",
-          style: "cancel",
-          onClick: () => {},
-        },
-      ],
-    });
   }
 
   async function handleDelete(id: string, appName: string) {
@@ -160,15 +122,12 @@ export function Applications() {
                 app={app}
                 editing={editingId === app.id}
                 editName={editName}
-                editWebhookUrl={editWebhookUrl}
                 onStartEdit={() => {
                   setEditing(app.id);
                   setEditName(app.name);
-                  setEditWebhookUrl(app.webhook_url ?? "");
                 }}
                 onCancelEdit={() => setEditing(null)}
                 onChangeEdit={setEditName}
-                onChangeWebhookEdit={setEditWebhookUrl}
                 onSaveEdit={() => handleSaveEdit(app)}
                 onDelete={() => handleDelete(app.id, app.name)}
               />
@@ -189,11 +148,9 @@ interface AppCardProps {
   app: PendingApplication;
   editing: boolean;
   editName: string;
-  editWebhookUrl: string;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onChangeEdit: (value: string) => void;
-  onChangeWebhookEdit: (value: string) => void;
   onSaveEdit: () => void;
   onDelete: () => void;
 }
@@ -202,16 +159,13 @@ function AppCard({
   app,
   editing,
   editName,
-  editWebhookUrl,
   onStartEdit,
   onCancelEdit,
   onChangeEdit,
-  onChangeWebhookEdit,
   onSaveEdit,
   onDelete,
 }: AppCardProps) {
   const pending = !!app.pending;
-  const webhookConfigured = Boolean(app.has_webhook ?? app.webhook_url);
   return (
     <div
       data-pending={pending || undefined}
@@ -227,61 +181,24 @@ function AppCard({
         </div>
         <div className="flex-1 min-w-0">
           {editing ? (
-            <div className="flex flex-col gap-2">
-              <input
-                value={editName}
-                onChange={(e) => onChangeEdit(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onSaveEdit();
-                  if (e.key === "Escape") onCancelEdit();
-                }}
-                className="input-mono !py-1.5 !px-2 text-[13px]"
-                autoFocus
-              />
-              <input
-                value={editWebhookUrl}
-                onChange={(e) => onChangeWebhookEdit(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onSaveEdit();
-                  if (e.key === "Escape") onCancelEdit();
-                }}
-                placeholder="https://api.example.com/webhooks/spectre"
-                className="input-mono !py-1.5 !px-2 text-[12px]"
-                aria-invalid={
-                  !isWebhookUrlValid(normalizeWebhookUrl(editWebhookUrl))
-                }
-              />
-            </div>
+            <input
+              value={editName}
+              onChange={(e) => onChangeEdit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSaveEdit();
+                if (e.key === "Escape") onCancelEdit();
+              }}
+              className="input-mono !py-1.5 !px-2 text-[13px]"
+              autoFocus
+            />
           ) : (
             <>
               <p className="face-title text-[14px] truncate">{app.name}</p>
-              <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-                <Webhook
-                  size={12}
-                  className="text-[color:var(--label-tertiary)] shrink-0"
-                />
-                <p className="kbd-mono truncate">
-                  {app.webhook_url ?? "No webhook"}
-                </p>
-              </div>
+              <p className="kbd-mono truncate mt-1.5">{app.id.slice(0, 12)}…</p>
             </>
           )}
-          <p className="kbd-mono truncate mt-0.5">{app.id.slice(0, 12)}…</p>
         </div>
       </div>
-
-      {!editing && (
-        <div
-          className={cn(
-            "rounded-[10px] px-2.5 py-1 text-[11px] font-semibold w-fit",
-            webhookConfigured
-              ? "bg-[rgba(52,199,89,0.12)] text-[color:var(--sys-green)]"
-              : "bg-[color:var(--fill-tertiary)] text-[color:var(--label-secondary)]",
-          )}
-        >
-          {webhookConfigured ? "Webhook active" : "Webhook missing"}
-        </div>
-      )}
 
       <div className="flex items-center gap-2 pt-1 mt-auto">
         {editing ? (
@@ -337,20 +254,4 @@ function AppCard({
       </div>
     </div>
   );
-}
-
-function normalizeWebhookUrl(value: string): string | null {
-  const normalized = value.trim();
-  return normalized ? normalized : null;
-}
-
-function isWebhookUrlValid(value: string | null): boolean {
-  if (!value) return true;
-
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
 }

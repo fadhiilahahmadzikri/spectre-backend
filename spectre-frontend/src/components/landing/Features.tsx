@@ -11,7 +11,7 @@ const cards = [
     src: 'gallery-10.webp',
     title: 'Authentication',
     description:
-      'FaceGuard compares live capture against stored embeddings and delivers the result straight to your webhook.',
+      'FaceGuard compares live capture against stored embeddings and returns the result through the SDK callback and session lookup API.',
   },
   {
     src: 'gallery-11.webp',

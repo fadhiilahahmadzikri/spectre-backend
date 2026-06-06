@@ -5,7 +5,6 @@ import { HttpError, isAbortError } from "@/shared/lib/http";
 export interface Application {
   id: string;
   name: string;
-  webhook_url?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -117,7 +116,7 @@ export const api = {
     ),
 
   createApp: (
-    data: { name: string; webhook_url?: string },
+    data: { name: string },
     opts: RequestOpts = {},
   ) =>
     request<Application>("/api/v1/applications", {
@@ -128,7 +127,7 @@ export const api = {
 
   updateApp: (
     id: string,
-    data: Partial<Pick<Application, "name" | "webhook_url">>,
+    data: Partial<Pick<Application, "name">>,
     opts: RequestOpts = {},
   ) =>
     request<Application>(`/api/v1/applications/${id}`, {

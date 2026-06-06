@@ -43,7 +43,6 @@ package "API Layer" #E8F8F0 {
         component [Application Routes\nGET|POST|PATCH|DELETE\n/applications\n/applications/:id] as APP_R
         component [API Key Routes\nGET|POST|DELETE\n/applications/:id/api-keys\n/api-keys/:id/revoke] as KEY_R
         component [Session Routes\nGET /sessions\nGET /dashboard] as SES_R
-        component [Webhook Routes\nGET|POST\n/webhooks/deliveries\n/webhooks/test] as WH_R
         component [Face Proxy Routes\nPOST /faces/register\nPOST /faces/authenticate\nGET|DELETE /faces\nPOST /faces/benchmark] as FACE_R
 
         component [apiKey.middleware\n(validate X-API-Key\nvs Supabase)] as KEY_MW
@@ -64,7 +63,7 @@ package "Data Layer" #FDF5E8 {
     database "Supabase PostgreSQL\n(shared instance)" as DB {
         component [users\nrefresh_tokens] as T_AUTH
         component [applications\napi_keys] as T_APP
-        component [sessions\nwebhook_deliveries] as T_SES
+        component [sessions] as T_SES
         component [face_profiles\nml_sessions] as T_FACE
     }
 }
@@ -80,7 +79,6 @@ JWT_MW --> AUTH_R
 JWT_MW --> APP_R
 JWT_MW --> KEY_R
 JWT_MW --> SES_R
-JWT_MW --> WH_R
 KEY_MW --> FACE_R
 
 ' Routes → Proxy Service
@@ -91,7 +89,6 @@ AUTH_R --> T_AUTH   : "INSERT users\nUPDATE refresh_tokens"
 APP_R  --> T_APP    : "CRUD applications"
 KEY_R  --> T_APP    : "CRUD api_keys"
 SES_R  --> T_SES    : "SELECT sessions\naggregate dashboard"
-WH_R   --> T_SES    : "SELECT webhook_deliveries"
 KEY_MW --> T_APP    : "SELECT api_keys\n(key validation)"
 
 ' Express → FastAPI (PROXY)

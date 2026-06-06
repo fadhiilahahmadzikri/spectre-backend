@@ -37,7 +37,7 @@ const threats = [
   { threat: 'Video Replay', mitigation: 'Temporal liveness check detects looped videos. Challenge-response available for high-security deployments.' },
   { threat: '3D Mask Attack', mitigation: 'IR-based skin texture analysis (on supported devices) and RGB anti-spoof model trained on 3D mask datasets.' },
   { threat: 'Deepfake / GAN', mitigation: 'Dedicated GAN artifact detector runs in parallel with the liveness module.' },
-  { threat: 'MITM API Attack', mitigation: 'Webhook payloads are HMAC-SHA256 signed. Always verify signatures server-side.' },
+  { threat: 'MITM API Attack', mitigation: 'All API traffic requires TLS and authenticated API keys. Keep secret keys server-side and rotate exposed keys.' },
   { threat: 'Credential Stuffing', mitigation: 'API keys use a keyed-hash prefix for fast invalidation. Rate limits block brute-force enumeration.' },
 ]
 

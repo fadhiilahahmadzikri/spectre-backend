@@ -9,7 +9,7 @@ Dokumen ini menjelaskan secara detail bagaimana aplikasi Spectre membangun arsit
 Berdasarkan konfigurasi produksi (tercantum pada `Makefile`, `.env.spaces`, dan `deploy.py`), arsitektur sistem berjalan pada infrastruktur berikut:
 - **Host Server / Backend**: Dide-deploy secara cloud-native ke **Hugging Face Spaces** (`https://thewhitenigs-spectre-backend.hf.space`). Hugging Face meng-hosting kontainer FastAPI (melalui SDK Docker) yang menyajikan seluruh RESTful API.
 - **Database Layer**: Menggunakan **Supabase** sebagai penyedia layanan PostgreSQL cloud. Aplikasi melakukan koneksi secara remote ke Supabase Pooler (`aws-1-ap-southeast-1.pooler.supabase.com:5432`).
-- **Background Tasks & Cache**: Menjalankan *instance* Redis dan Celery (dibundel dalam container yang sama atau dikonfigurasi secara internal) guna menangani antrian *task* seperti pengiriman webhook.
+- **Cache & Rate Limiting**: Menjalankan *instance* Redis untuk rate limiting, cache operasional, dan health checks.
 
 ---
 
@@ -68,8 +68,8 @@ Berikut adalah daftar endpoint fungsional yang berjalan di Hugging Face Spaces d
 | Metode | Endpoint | Tujuan / Fungsionalitas | Request Body | Response JSON |
 |---|---|---|---|---|
 | `GET` | `/api/v1/applications` | Mendapatkan daftar aplikasi pengguna | *Query Params* | `{data: Application[], pagination}` |
-| `POST` | `/api/v1/applications` | Membuat aplikasi baru | `{name, webhook_url}` | `Application` Object |
-| `PATCH`| `/api/v1/applications/{id}` | Memperbarui nama/webhook aplikasi | `{name?, webhook_url?}` | `Application` Object |
+| `POST` | `/api/v1/applications` | Membuat aplikasi baru | `{name}` | `Application` Object |
+| `PATCH`| `/api/v1/applications/{id}` | Memperbarui nama aplikasi | `{name?}` | `Application` Object |
 | `DELETE` | `/api/v1/applications/{id}` | Menghapus sebuah aplikasi | *None* | `204 No Content` |
 
 ### C. Manajemen Kredensial API Key (JWT Based)
@@ -88,6 +88,7 @@ Berikut adalah daftar endpoint fungsional yang berjalan di Hugging Face Spaces d
 | `POST` | `/api/v1/faces/register` | Mendaftarkan wajah baru ke dalam sistem | `{external_user_id, image (base64), metadata, detail_mode}` | `{ok, status, data: FaceApiSuccessPayload}` |
 | `POST` | `/api/v1/faces/authenticate` | Mencocokkan wajah saat ini dengan yang terdaftar | `{external_user_id, image (base64), metadata, detail_mode}` | `{ok, status, data: FaceApiSuccessPayload}` |
 | `GET` | `/api/v1/faces/{external_user_id}/exists` | Cek ketersediaan profil wajah spesifik | *None* | `{exists: boolean}` |
+| `GET` | `/api/v1/sessions/{session_id}` | Ambil detail sesi autentikasi yang sudah tersimpan | *None* | `SessionDetailResponse` |
 | `GET` | `/api/v1/faces` | Ambil daftar semua profil wajah dari satu app | *None* | `{profiles: FaceProfile[]}` |
 | `DELETE` | `/api/v1/faces/{external_user_id}` | Menghapus satu profil wajah | *None* | `{ok, status}` |
 | `DELETE` | `/api/v1/faces` | Membersihkan / Purge semua data wajah terdaftar | *None* | `{purged_count: number}` |

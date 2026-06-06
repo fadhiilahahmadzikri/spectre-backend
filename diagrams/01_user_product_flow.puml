@@ -56,9 +56,8 @@ end note
 
 :Create New Application;
 note right
-  Give your app a name.
-  Optionally set a Webhook
-  URL for notifications.
+  Give your app a name,
+  then generate an API key.
 end note
 
 :Generate API Key;
@@ -101,11 +100,12 @@ if (Real Person?) then (Yes)
   endif
 
   :Result Sent to Your App;
-  :Webhook Sent to Your Server;
+  :Session Details Available;
   note right
-    Signed notification
-    with session result
-    (if Webhook configured)
+    Use the SDK callback
+    immediately, then fetch
+    GET /sessions/{id}
+    when server details are needed.
   end note
 
 else (No)

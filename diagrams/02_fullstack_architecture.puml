@@ -79,7 +79,6 @@ package "FastAPI Backend (HF Spaces)" as backend {
     component [OAuth + TOTP\nGoogle SSO,\n2FA setup/verify] as rOAuth
     component [Applications\nCRUD, API Keys\ngenerate/revoke] as rApp
     component [Faces\nregister, authenticate,\nreplace, delete, list] as rFace
-    component [Webhooks\ntest, deliveries,\nretry] as rWebhook
     component [Sessions + Admin\nhistory, config,\nmonitoring] as rSession
   }
 
@@ -113,14 +112,6 @@ package "FastAPI Backend (HF Spaces)" as backend {
     component [Cosine Similarity\nthreshold-based\nface matching] as cosine
   }
 
-  ' ============================
-  ' WEBHOOK / ASYNC
-  ' ============================
-  package "Event System" as eventSys {
-    component [Celery Worker\nasync task execution] as celery
-    component [HMAC-SHA256 Signer\npayload signing] as hmac
-    component [HTTP Dispatcher\n(httpx)] as httpDisp
-  }
 }
 
 ' ============================
@@ -128,7 +119,7 @@ package "FastAPI Backend (HF Spaces)" as backend {
 ' ============================
 package "Data Layer" as dataLayer {
   database "PostgreSQL 16\n(Supabase)\nasync via asyncpg" as pg
-  database "Redis 7\ncache + Celery\nbroker + results" as redis
+  database "Redis 7\nrate limiting\ncache + health" as redis
 }
 
 ' ============================
@@ -136,7 +127,6 @@ package "Data Layer" as dataLayer {
 ' ============================
 cloud "External Services" as external {
   component [Google OAuth\nProvider] as googleExt
-  component [Customer Webhook\nEndpoint] as custWebhook
   component [GitHub Actions\nKeep-Alive Ping] as ghActions
 }
 
@@ -148,8 +138,8 @@ cloud "External Services" as external {
 dashboard -down-> rAuth : JWT Bearer
 dashboard -down-> rApp : JWT Bearer
 dashboard -down-> rSession : JWT Bearer
-dashboard -down-> rWebhook : JWT Bearer
 sdk -down-> rFace : X-API-Key
+sdk -down-> rSession : X-API-Key\nsession lookup
 custApp -right-> sdk : embeds
 
 ' -- Routers to Auth --
@@ -171,11 +161,6 @@ fas -down-> arcface
 arcface -down-> aesEnc
 arcface -down-> cosine
 
-' -- Webhook dispatch --
-rFace -right-> celery : dispatch async
-celery -down-> hmac
-hmac -down-> httpDisp
-
 ' -- Data connections --
 jwt -down-> pg
 oauth -down-> pg
@@ -185,11 +170,9 @@ apikeyAuth -down-> pg
 aesEnc -down-> pg : encrypted\nembeddings
 cosine -down-> pg : stored\nembeddings
 rateLimiter -down-> redis
-celery -down-> redis : task queue
 
 ' -- External connections --
 oauth -right-> googleExt
-httpDisp -down-> custWebhook : HMAC-signed POST
 ghActions -up-> rAuth : /health ping
 
 ' -- Notes --
@@ -197,12 +180,6 @@ note bottom of faceEngine
   ML models loaded at startup.
   Hot-switchable via Admin API.
   Supports multi-model benchmark.
-end note
-
-note bottom of eventSys
-  Webhooks delivered async.
-  Exponential backoff retry,
-  max 4 attempts.
 end note
 
 @enduml

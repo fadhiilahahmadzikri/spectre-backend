@@ -11,7 +11,7 @@
 3. [Publishing to NPM](#publishing-to-npm)
 4. [Integration Guide](#integration-guide)
 5. [API Reference](#api-reference)
-6. [Webhook Events](#webhook-events)
+6. [Session Lookup](#session-lookup)
 
 ---
 
@@ -48,17 +48,17 @@ Spectre Snap is an **embedded React SDK** that provides face authentication as a
               │  Spectre Backend │
               │  /api/v1/faces/* │
               └────────┬─────────┘
-                       │ Celery async
+                       │ GET /api/v1/sessions/{id}
                        ▼
               ┌──────────────────┐
-              │  Webhook POST    │
-              │  to client URL   │
+              │ Session Details  │
+              │ server-confirmed │
               └──────────────────┘
 ```
 
-**Dual feedback path:**
-- **SDK callbacks** (`onSuccess`/`onFailed`) — real-time UI feedback
-- **Webhooks** (`face.authenticated`, `face.spoof_rejected`) — server-to-server verification
+**Result path:**
+- **SDK callbacks** (`onSuccess`/`onFailed`) provide real-time UI feedback.
+- **Session lookup** (`GET /api/v1/sessions/{sessionId}`) provides server-confirmed details when your app needs them.
 
 ### Identity Gating (Persistent `userId`)
 Spectre Snap relies on an **external** `userId` (provided by your application) to perform Identity Gating in `"auto"` mode:
@@ -333,55 +333,22 @@ type SpectreFailureReason =
 
 ---
 
-## Webhook Events
+## Session Lookup
 
-When a face operation completes, Spectre sends a signed webhook to the URL configured in your TenantApplication:
+`onSuccess` returns a `sessionId` when the backend accepted the scan. If your application needs server-confirmed details after the browser callback, fetch the session once with the same Spectre API key:
 
-### Event Types
+```ts
+async function fetchSpectreSession(sessionId: string) {
+  const response = await fetch(`${SPECTRE_BASE_URL}/api/v1/sessions/${sessionId}`, {
+    headers: { 'X-API-Key': SPECTRE_API_KEY },
+  });
 
-| Event | Trigger |
-|-------|---------|
-| `face.registered` | New face profile created |
-| `face.authenticated` | Face match successful |
-| `face.no_match` | Face didn't match stored profile |
-| `face.spoof_rejected` | Liveness check failed |
-| `face.failed` | Processing error |
-
-### Payload Example
-
-```json
-{
-  "event": "face.authenticated",
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "app_id": "123e4567-e89b-12d3-a456-426614174000",
-  "external_user_id": "user-123",
-  "status": "authenticated",
-  "liveness_class": "realperson",
-  "liveness_confidence": 0.97,
-  "match": true,
-  "similarity_score": 0.89,
-  "inference_time_ms": 342,
-  "timestamp": "2026-05-12T17:48:00Z"
+  if (!response.ok) throw new Error(`session_lookup_${response.status}`);
+  return response.json();
 }
 ```
 
-### Signature Verification
-
-```
-X-Spectre-Signature: sha256=<HMAC-SHA256 of payload body>
-```
-
-Verify with your webhook secret (set via dashboard):
-
-```python
-import hmac, hashlib
-
-def verify_webhook(body: bytes, signature: str, secret: str) -> bool:
-    expected = "sha256=" + hmac.new(
-        secret.encode(), body, hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(expected, signature)
-```
+The session response includes `status`, `session_type`, `external_user_id`, liveness fields, similarity score, inference time, timestamps, and optional diagnostics.
 
 ---
 

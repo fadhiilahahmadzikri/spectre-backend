@@ -117,15 +117,6 @@ POST   /api/v1/client-logs       → Express: INSERT audit log ke Supabase
 
 Ini contoh aggregasi yang murni Express punya: satu request dari frontend, Express query beberapa tabel di Supabase dan return response yang sudah di-shape untuk dashboard.
 
-#### Webhook Domain
-```
-POST   /api/v1/applications/:id/webhooks/test              → Express: trigger test ping
-GET    /api/v1/applications/:id/webhooks/deliveries         → Express: SELECT webhook_deliveries WHERE app_id = :id
-POST   /api/v1/applications/:id/webhooks/deliveries/:id/retry → Express: re-queue via Celery atau langsung hit FastAPI
-```
-
----
-
 ### 4.2 Express BFF — Proxy ke FastAPI (ML Operations)
 
 Untuk semua operasi yang membutuhkan Python/TensorFlow, Express menjadi gatekeeper: validasi API key dari Supabase-nya sendiri, kemudian forward request ke FastAPI.
@@ -207,7 +198,6 @@ spectre-bff/
 │   │   ├── applications.routes.js  ← CRUD applications
 │   │   ├── apiKeys.routes.js       ← API key management
 │   │   ├── sessions.routes.js      ← GET sessions (dari Supabase)
-│   │   ├── webhooks.routes.js      ← webhook management
 │   │   ├── faces.routes.js         ← proxy ke FastAPI + key validation
 │   │   └── health.routes.js        ← BFF health check
 │   ├── services/

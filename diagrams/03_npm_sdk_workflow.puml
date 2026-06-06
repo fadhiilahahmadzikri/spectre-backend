@@ -65,7 +65,7 @@ participant "MediaPipe\nFaceMesh" as mp
 participant "Spectre\nAPI" as api
 participant "ML Pipeline\n(FAS + ArcFace)" as ml
 database "PostgreSQL" as db
-participant "Developer\nServer" as dev
+participant "Application\nor Server" as app
 
 == Setup (One-Time by Developer) ==
 
@@ -199,6 +199,16 @@ alt verdict = "ok"
   opt redirectUrl configured
     sdk --> user : Countdown, then redirect
   end
+  opt server-confirmed details needed
+    app -> api : GET /sessions/{sessionId}\nX-API-Key: spk_...
+    activate api
+    api -> db : Load session by id\nand app_id
+    activate db
+    db --> api : Session detail
+    deactivate db
+    api --> app : status, liveness,\nsimilarity, timestamps
+    deactivate api
+  end
 else verdict = "spoof" or "warn"
   sdk --> user : Show rejection + diagnostics
   sdk -> sdk : Fire onFailed(reason, result) callback
@@ -211,20 +221,5 @@ else verdict = "spoof" or "warn"
 end
 
 deactivate sdk
-
-== Webhook Delivery (Async) ==
-
-api -> dev : POST (HMAC-SHA256 signed payload)
-activate dev
-note right of api
-  Events:
-  face.registered
-  face.authenticated
-  face.no_match
-  face.spoof_rejected
-  Header: X-Spectre-Signature
-end note
-dev --> api : 200 OK
-deactivate dev
 
 @enduml

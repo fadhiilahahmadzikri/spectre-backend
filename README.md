@@ -19,19 +19,19 @@ Platform Spectre dirancang dengan arsitektur tiga pilar utama untuk melayani ote
                                  ▼
 ┌──────────────────┐  API Keys ┌──────────────────────┐
 │  Example Client  ├──────────►│    Spectre Backend   │ (FastAPI, Python)
-│  (Aplikasi Anda) │           │ [InsightFace, Celery]│ ◄── PostgreSQL & Redis
+│  (Aplikasi Anda) │           │ [InsightFace + FAS]  │ ◄── PostgreSQL & Redis
 └────────┬─────────┘           └──────────┬───────────┘
          │                                │
-         │ Menggunakan                    │ Mengirimkan
+         │ Menggunakan                    │ GET /sessions/{id}
          ▼                                ▼
 ┌──────────────────┐           ┌──────────────────────┐
-│   Spectre Snap   │           │   Webhook Receiver   │ (Aplikasi Anda)
-│   (React SDK)    │           │ (Notifikasi Verifikasi)
+│   Spectre Snap   │◄──────────│   Session Details    │
+│   (React SDK)    │ onSuccess │   (Server Confirmed) │
 └──────────────────┘           └──────────────────────┘
 ```
 
-1. **[Spectre Backend](./spectre-backend)** (API Core): Server API utama berbasis FastAPI (Python) yang melakukan deteksi liveness (Anti-Spoofing via AntiSpoofNetV4), pengenalan wajah biometrik (InsightFace), manajemen tenant, webhook dengan tanda tangan HMAC, serta integrasi Google OAuth.
-2. **[Spectre Frontend](./spectre-frontend)** (Dashboard): Aplikasi web SPA berbasis React, Vite, dan TailwindCSS v4 untuk pendaftaran tenant, manajemen API Keys, logs deteksi, dan pengaturan webhook.
+1. **[Spectre Backend](./spectre-backend)** (API Core): Server API utama berbasis FastAPI (Python) yang melakukan deteksi liveness (Anti-Spoofing via AntiSpoofNetV4), pengenalan wajah biometrik (InsightFace), manajemen tenant, session lookup, rate limiting berbasis Redis, serta integrasi Google OAuth.
+2. **[Spectre Frontend](./spectre-frontend)** (Dashboard): Aplikasi web SPA berbasis React, Vite, dan TailwindCSS v4 untuk pendaftaran tenant, manajemen API Keys, logs deteksi, konfigurasi sistem, dan pemantauan sesi.
 3. **[Spectre Snap](./spectre-snap)** (React SDK): Komponen React siap-pakai (`@thewhitenigs/spectre-snap`) yang dapat ditanamkan langsung oleh developer pada aplikasi web mereka untuk mengaktifkan alur pemindaian wajah biometrik secara instan.
 
 ---
@@ -42,13 +42,13 @@ Sebagai repositori orkestrator, semua komponen diletakkan di direktori khusus. K
 
 | Nama Direktori/Berkas | Peran & Deskripsi | Tautan |
 | :--- | :--- | :--- |
-| **`spectre-backend/`** | Server API utama (Python/FastAPI) yang terintegrasi dengan basis data PostgreSQL (Supabase) dan antrean tugas asynchronous menggunakan Celery + Redis. | [Lihat Kode 📂](./spectre-backend) |
+| **`spectre-backend/`** | Server API utama (Python/FastAPI) yang terintegrasi dengan basis data PostgreSQL (Supabase) dan Redis untuk cache, rate limiting, dan health checks. | [Lihat Kode 📂](./spectre-backend) |
 | **`spectre-frontend/`** | Web Dashboard Developer untuk administrasi tenant, memantau analitik verifikasi, dan manajemen API Keys. | [Lihat Kode 📂](./spectre-frontend) |
 | **`spectre-snap/`** | SDK React (`@thewhitenigs/spectre-snap`) yang membungkus antarmuka kamera (camera feed), interaksi pose kepala (head-pose ring), dan komunikasi dengan server API. | [Lihat Kode 📂](./spectre-snap) |
 | **`example-client/`** | Contoh aplikasi klien sederhana untuk mensimulasikan integrasi real-world dengan SDK `@thewhitenigs/spectre-snap`. | [Lihat Kode 📂](./example-client) |
 | **`test-snap-e2e/`** | Skrip pengujian end-to-end untuk memvalidasi bahwa paket SDK Snap dapat diimpor dengan benar baik sebagai file ESM (`.mjs`) maupun CommonJS (`.cjs`). | [Lihat Kode 📂](./test-snap-e2e) |
-| **`test-snap-login/`** | Aplikasi sandbox eksperimental untuk menguji alur login biometrik penuh, lengkap dengan penerima webhook lokal. | [Lihat Kode 📂](./test-snap-login) |
-| **`diagrams/`** | Dokumentasi visual berupa diagram alur pengguna (user flow), arsitektur fullstack, siklus kerja SDK, dan skema webhook dalam format PlantUML (`.puml`) serta output gambar (`png`/`svg`). | [Lihat Gambar 📂](./diagrams) |
+| **`test-snap-login/`** | Aplikasi sandbox eksperimental untuk menguji alur login biometrik penuh dengan SDK callback dan session lookup. | [Lihat Kode 📂](./test-snap-login) |
+| **`diagrams/`** | Dokumentasi visual berupa diagram alur pengguna (user flow), arsitektur fullstack, dan siklus kerja SDK dalam format PlantUML (`.puml`) serta output gambar (`png`/`svg`). | [Lihat Gambar 📂](./diagrams) |
 | **`Docs/`** | Berkas referensi pendukung mengenai detail arsitektur tingkat tinggi dari server API Spectre. | [Lihat Dokumentasi 📂](./Docs) |
 | **`conductor/`** | Perkakas bantu (tooling scripts) internal untuk konfigurasi dan otomatisasi penyiapan workspace. | [Lihat Tooling 📂](./conductor) |
 | **`poc/`** | Kode Proof of Concept (PoC) awal proyek yang dikembangkan menggunakan Gradio (Python) dan berkas HTML/JS murni. | [Lihat PoC 📂](./poc) |
@@ -65,7 +65,7 @@ Jika Anda adalah developer yang baru pertama kali bergabung dengan proyek Spectr
 Pastikan komputer Anda sudah terpasang perangkat lunak berikut:
 * **Node.js** (versi 18 ke atas)
 * **Python 3.11** (disarankan menggunakan manajemen virtual environment `uv` atau `venv`)
-* **Docker & Docker Compose** (wajib untuk menjalankan database, Redis, dan Celery worker secara lokal)
+* **Docker & Docker Compose** (wajib untuk menjalankan database dan Redis secara lokal)
 * **Make** (opsional, untuk menjalankan jalan pintas perintah terminal di Windows/Linux)
 
 ---
@@ -91,7 +91,7 @@ git submodule update --init --recursive
 Ada dua metode untuk menjalankan backend secara lokal:
 
 #### Metode A: Menggunakan Docker Compose (Sangat Direkomendasikan)
-Metode ini akan mengemas seluruh infrastruktur (API, PostgreSQL, Redis, Celery worker) ke dalam kontainer Docker, sehingga Anda tidak perlu memasang library Python atau dependencies secara lokal.
+Metode ini akan mengemas seluruh infrastruktur (API, PostgreSQL, Redis) ke dalam kontainer Docker, sehingga Anda tidak perlu memasang library Python atau dependencies secara lokal.
 
 1. Masuk ke folder backend:
    ```powershell
@@ -189,7 +189,7 @@ Untuk mempermudah pemahaman alur kerja SDK Spectre Snap dengan aplikasi Anda:
       ├──► 2. Bandingkan Wajah dengan Database Biometrik
       │
       ▼ (Hasil Autentikasi)
-[Klien Menerima Callback onSuccess / onFailed] ──► [Webhook Dikirim ke Server Anda]
+[Klien Menerima Callback onSuccess / onFailed] ──► [GET /sessions/{session_id}]
 ```
 
 ---

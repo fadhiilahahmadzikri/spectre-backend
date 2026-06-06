@@ -38,7 +38,7 @@ Kalau semua ini diakses langsung oleh frontend, frontend harus tahu URL, auth sc
 
 ### 2.4 The Aggregation Problem
 
-Satu halaman di dashboard bisa membutuhkan data dari tiga sumber berbeda: daftar aplikasi dari service A, statistik session dari service B, status webhook dari service C. Tanpa BFF, frontend harus buat tiga request paralel, tunggu ketiganya selesai, lalu gabungkan di sisi client.
+Satu halaman di dashboard bisa membutuhkan data dari tiga sumber berbeda: daftar aplikasi dari service A, statistik session dari service B, status ML service dari service C. Tanpa BFF, frontend harus buat tiga request paralel, tunggu ketiganya selesai, lalu gabungkan di sisi client.
 
 BFF memindahkan aggregasi itu ke server side. Frontend buat satu request, BFF buat tiga request paralel ke backend masing-masing, gabungkan hasilnya, kirim satu response. Latency lebih rendah (network backend ke backend lebih cepat dari browser ke server), logic lebih terpusat.
 
@@ -175,7 +175,7 @@ Ini bukan business logic — ini CRUD yang terikat ke auth context. Wajar ada di
 
 ### Aggregasi dan Data Shaping
 
-Satu endpoint BFF bisa merepresentasikan agregat dari beberapa sumber. Dashboard overview endpoint, misalnya, bisa menggabungkan: jumlah aplikasi aktif, total session minggu ini, success rate authentication, webhook delivery stats, dan status ML service — semuanya dalam satu response.
+Satu endpoint BFF bisa merepresentasikan agregat dari beberapa sumber. Dashboard overview endpoint, misalnya, bisa menggabungkan: jumlah aplikasi aktif, total session minggu ini, success rate authentication, session status stats, dan status ML service — semuanya dalam satu response.
 
 BFF juga bertanggung jawab untuk field filtering: response dari downstream service mungkin punya 40 field, tapi mobile client hanya butuh 8 field. BFF memfilter ini sebelum dikirim ke client.
 
@@ -211,7 +211,7 @@ Konfigurasi model mana yang aktif, versi model, threshold confidence, dan hot-re
 
 Operasi yang computationally intensive (inference pada gambar resolusi tinggi, batch processing, TTA — test-time augmentation) harus ada di Python karena ia memiliki akses ke NumPy vectorization, GPU via CUDA, dan TPU.
 
-Background task seperti mengirim webhook setelah inference selesai juga bisa hidup di Python service (misalnya via Celery), terutama kalau task-nya berkaitan dengan hasil inference.
+Background task seperti batch inference atau scheduled model maintenance juga bisa hidup di Python service, terutama kalau task-nya berkaitan dengan hasil inference.
 
 ### Health dan Observability ML-Specific
 
@@ -225,7 +225,7 @@ Status model (loaded atau tidak), GPU memory usage, inference latency histogram,
 
 Komunikasi dari BFF ke downstream service adalah HTTP synchronous untuk sebagian besar operasi. BFF membuat HTTP request ke Python service, menunggu response, dan meneruskan response ke client.
 
-Untuk operasi yang panjang (inference bisa memakan waktu beberapa detik), pola yang umum adalah fire-and-return-session-id: BFF forward request ke Python service, Python service return session ID segera (202 Accepted), dan Python service proses inference di background. Frontend kemudian polling session status atau menerima hasil via webhook.
+Untuk operasi yang panjang (inference bisa memakan waktu beberapa detik), pola yang umum adalah fire-and-return-session-id: BFF forward request ke Python service, Python service return session ID segera (202 Accepted), dan Python service proses inference di background. Frontend kemudian polling session status atau mengambil detail sesi melalui `GET /sessions/:id`.
 
 ### Shared Database sebagai Integration Point
 
@@ -235,11 +235,11 @@ Python service menulis hasil session ke tabel `sessions`. BFF membaca tabel yang
 
 Ini valid selama kedua service beroperasi pada database yang sama dan ada kesepakatan tentang siapa yang owns tabel mana. Ownership yang jelas mencegah konflik: BFF owns tabel auth dan application management, Python service owns tabel session dan face profile.
 
-### Webhook sebagai Async Integration
+### Session Status sebagai Async Integration
 
-Untuk hasil yang tidak synchronous, webhook adalah mekanisme notifikasi dari Python service ke dunia luar. Python service mengirim HTTP POST ke URL webhook yang dikonfigurasi tenant setelah inference selesai.
+Untuk hasil yang tidak synchronous, session status adalah mekanisme integrasi paling sederhana. Python service menulis perubahan status ke tabel `sessions`, lalu BFF atau frontend mengambil detail terbaru melalui endpoint session detail.
 
-BFF bisa menjadi perantara: Python service kirim webhook ke BFF, BFF validasi dan teruskan ke tenant webhook URL dengan signature. Atau Python service kirim langsung ke tenant. Pilihan bergantung pada apakah BFF perlu tahu tentang setiap webhook event.
+BFF bisa menjadi perantara untuk membentuk response yang sesuai kebutuhan frontend, tetapi source of truth tetap tabel session yang ditulis oleh Python service.
 
 ### Kontrak Antara BFF dan Python Service
 
@@ -251,7 +251,7 @@ Kontrak tidak boleh diubah secara breaking tanpa koordinasi. Kalau Python servic
 
 Python service tidak boleh memanggil BFF. Dependency hanya satu arah: BFF memanggil Python service, tidak pernah sebaliknya. Python service tidak boleh tahu BFF ada.
 
-Kalau Python service perlu mengirim notifikasi ke arah yang berlawanan (misalnya inference selesai), mekanismenya adalah message queue, webhook ke URL yang dikonfigurasi, atau shared database — bukan HTTP call ke BFF.
+Kalau Python service perlu mengekspos hasil ke arah yang berlawanan (misalnya inference selesai), mekanismenya adalah message queue internal atau shared database — bukan HTTP call ke BFF.
 
 ---
 

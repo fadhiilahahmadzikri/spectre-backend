@@ -1,13 +1,6 @@
 # Spectre Snap Login Demo
 
-Demo consumer app for the published `@thewhitenigs/spectre-snap` package.
-
-The demo accepts the SDK `onSuccess` callback immediately, then performs one authenticated `GET /api/v1/sessions/{session_id}` lookup when the SDK returns a `sessionId`.
-
-Namespaces:
-
-- `/` or `#/`: product login flow and dashboard.
-- `#/lab`: technical view for SDK callback data, session lookup data, and raw JSON.
+Demo consumer app for the published `@thewhitenigs/spectre-snap` package, using the restored login flow from the industrial package branch.
 
 ## Setup
 
@@ -20,31 +13,29 @@ Create `.env.local` from `.env.example`:
 ```env
 VITE_SPECTRE_BASE_URL=https://thewhitenigs-spectre-backend.hf.space
 VITE_SPECTRE_API_KEY=spk_...
-VITE_SPECTRE_TEST_USER_ID=spectre-test-user
 ```
 
-## Run Demo
+## Run
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:5174` or `https://spectre-test.autovoid.cyou` for the product flow.
+Open `http://localhost:5174` or `https://spectre-test.autovoid.cyou`.
 
-Open `http://localhost:5174/#/lab` for the technical lab.
+## What's Tested
 
-## What To Observe
+- ✅ SpectreAuthProvider setup
+- ✅ SpectreAuthModal implementation
+- ✅ Per-instance baseUrl and apiKey configuration
+- ✅ Authentication success/error handling
+- ✅ Token result display (accessToken, idToken, sessionId)
+- ✅ CSS import from spectre-snap package
 
-1. Enter an email. The email becomes the SDK `userId`.
-2. Click `Continue with Spectre`.
-3. The SDK modal performs register/authenticate.
-4. `onSuccess` opens the dashboard immediately.
-5. The demo fetches `GET /api/v1/sessions/{session_id}` once and attaches server-confirmed session details when available.
-6. The `#/lab` namespace shows SDK callback data, session lookup data, and the client decision.
+## Features
 
-## Verification
-
-```bash
-npm run type-check
-npm run build
-```
+- **Facial Authentication**: Click "Start Authentication" to open Spectre auth modal
+- **Environment-driven config**: baseUrl and apiKey from .env
+- **Result Display**: Shows tokens and session info on success
+- **Error Handling**: Logs auth errors to console
+- **Responsive Design**: Works on desktop and mobile

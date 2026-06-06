@@ -221,10 +221,9 @@ function App() {
   }
 
   useEffect(() => {
-    // Polling disabled as requested - using direct webhooks instead.
-    // refreshWebhookInbox()
-    // const timer = window.setInterval(refreshWebhookInbox, 2500)
-    // return () => window.clearInterval(timer)
+    refreshWebhookInbox()
+    const timer = window.setInterval(refreshWebhookInbox, 2500)
+    return () => window.clearInterval(timer)
   }, [])
 
   function openSpectre() {

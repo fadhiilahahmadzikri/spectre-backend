@@ -364,7 +364,7 @@ function SuccessBanner({ result }: { result: SpectreAuthResult }) {
         <div className="text-sm font-semibold text-brand">KYC Verification Complete</div>
         <div className="text-xs text-fg-muted mt-1">
           Session <span className="font-mono">{result.sessionId?.slice(0, 8) ?? "—"}</span>
-          {" · "}Liveness <span className="font-mono">{((result.livenessScore ?? 0) * 100).toFixed(0)}%</span>
+          {" · "}Liveness <span className="font-mono">{(result.summary.live * 100).toFixed(0)}%</span>
           {result.similarityScore != null && (
             <>{" · "}Match <span className="font-mono">{(result.similarityScore * 100).toFixed(0)}%</span></>
           )}
